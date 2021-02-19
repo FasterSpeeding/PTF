@@ -1,0 +1,6 @@
+argon2-cffi==20.1.0
+asyncpg==0.22.0
+python-dotenv==0.15.0
+fastapi==0.63.0
+pydantic==1.7.3
+sqlalchemy==1.4.0b2
