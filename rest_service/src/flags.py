@@ -55,3 +55,4 @@ class UserFlags(enum.IntFlag):
     ADMIN = 1 << 1
     CREATE_USER = 1 << 2
     GENERATED = 1 << 4
+    SYSTEM = 1 << 5

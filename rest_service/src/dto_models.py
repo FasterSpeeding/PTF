@@ -216,7 +216,7 @@ class ReceivedMessage(pydantic.BaseModel):
     expire_after: typing.Optional[datetime.timedelta] = None
     is_public: bool = False
     is_transient: bool = True
-    text: str
+    text: typing.Optional[str] = None
     title: typing.Optional[str] = None
 
     Config = _ModelConfig
@@ -236,7 +236,7 @@ if typing.TYPE_CHECKING:
         expire_after: typing.Union[datetime.timedelta, UndefinedType, None]
         is_public: UndefinedOr[bool]
         is_transient: UndefinedOr[bool]
-        text: UndefinedOr[str]
+        text: typing.Union[str, UndefinedType, None]
         title: typing.Union[str, UndefinedType, None]
 
 
@@ -247,7 +247,7 @@ else:
         expire_after: typing.Optional[datetime.timedelta] = pydantic.Field(default_factory=UndefinedType)
         is_public: bool = pydantic.Field(default_factory=UndefinedType)
         is_transient: bool = pydantic.Field(default_factory=UndefinedType)
-        text: str = pydantic.Field(default_factory=UndefinedType)
+        text: typing.Optional[str] = pydantic.Field(default_factory=UndefinedType)
         title: typing.Optional[str] = pydantic.Field(default_factory=UndefinedType)
 
         Config = _ModelConfig
@@ -267,7 +267,7 @@ class Message(pydantic.BaseModel):
     expire_at: typing.Union[datetime.datetime, None]
     is_public: bool
     is_transient: bool
-    text: str
+    text: typing.Optional[str]
     title: typing.Optional[str]
     user_id: int
 

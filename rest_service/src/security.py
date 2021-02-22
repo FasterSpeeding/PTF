@@ -84,7 +84,7 @@ class RequireFlags:
         self.options = (flag_option, *flags_options)
 
     async def __call__(self, user: dao_protos.User = fastapi.Depends(refs.UserAuthProto)) -> dao_protos.User:
-        # ADMIN access should allow allow all other permissions.
+        # ADMIN access should allow all other permissions.
         if flags.UserFlags.ADMIN & user.flags or any((flags_ & user.flags) == flags_ for flags_ in self.options):
             return user
 

@@ -59,8 +59,8 @@ CREATE TABLE IF NOT EXISTS messages (
     expire_at    TIMESTAMP WITH TIME ZONE,
     is_public    BOOLEAN                  NOT NULL DEFAULT False,
     is_transient BOOLEAN                  NOT NULL, -- Find a better name for if this should delete after being viewed
-    text         VARCHAR,
-    title        VARCHAR,
+    text         VARCHAR,  -- TODO: not nullable?
+    title        VARCHAR,  -- TODO: not nullable?
     user_id     BIGINT                   NOT NULL REFERENCES Users (id) ON DELETE CASCADE,
 
     CONSTRAINT message_pk
