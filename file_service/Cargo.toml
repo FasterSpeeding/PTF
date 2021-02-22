@@ -1,0 +1,41 @@
+[package]
+name    = "file_service"
+version = "0.1.0"
+authors = ["Faster Speeding <luke@lmbyrne.dev>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+
+[dependencies]
+    # async-trait    = "0.1.42"  # TODO: switch to async database when rocket supports it
+    # bb8-postgres   = "0.7.0"
+    dotenv_codegen = "0.15.0"
+    # dotenv         = "0.15.0"
+    # serde_postgres = "0.1.3"
+
+
+# [dependencies.chrono]
+#     version  = "0.4"
+#     features = ["serde"]
+
+[dependencies.rocket]
+    git = "https://github.com/SergioBenitez/Rocket"
+    rev = "ac9d403242d282eccf5ffd41ba56bd42f9173660"
+
+
+# [dependencies.rocket_contrib]
+#     version          = "0.4.7"
+#     default-features = false
+#     features         = ["postgres_pool"]
+
+
+# [dependencies.serde]
+#     version  = "1.0.123"
+#     features = ["derive"]
+
+
+[dependencies.sqlx]
+    features = ["chrono", "postgres", "runtime-tokio-native-tls"]
+    version  = "0.5.1"
+    # path     = "C:\\Users\\Lukec\\PycharmProjects\\sqlx"
