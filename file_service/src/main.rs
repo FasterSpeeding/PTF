@@ -1,6 +1,8 @@
-#![feature(decl_macro)]
+#![feature(associated_type_bounds)]
 #[macro_use] extern crate dotenv_codegen;
-#[macro_use] extern crate rocket;
+use actix_web::{get, web, App, HttpServer, Responder};
+use coi::container;
+use coi_actix_web::inject;
 use sqlx;
 
 
@@ -8,22 +10,34 @@ use sqlx;
 // #[macro_use] extern crate rocket_contrib;
 
 mod sql;
+use sql::traits::Database;
 
 
 #[get("/<message_id>/<filename>")]
 async fn get_file(
-    conn: Box<dyn sql::traits::Database>, message_id: i64, filename: String
+    #[inject] conn: Box<dyn Database>, message_id: i64, filename: String
 ) -> Result<String, ()> {
     let user = conn.get_user_by_id(&1).await.unwrap().unwrap();
     return Ok(user.username);
 }
 
 
-#[launch]
-async fn launch() -> rocket::Rocket {
-    let url = dotenv!("database_url");
-    let pool = sql::app::Pool::<sqlx::Postgres>::connect(url).await;
-    return rocket::ignite()
-        .attach::<Box<dyn sql::traits::Database>>(Box::new(pool))
-        .mount("/", routes![get_file]);
+#[actix_web::main]
+async fn main() -> std::io::Result<()> {
+    let url = dotenv!("DATABASE_URL");
+    let raw_pool = std::sync::Arc::new(sqlx::PgPool::connect(url).await.unwrap());
+    let pool = sql::app::Pool::new(raw_pool);
+    
+    let container = container! {
+        DatabaseProvider => sql::app::PoolProvider,
+    };
+    
+    return HttpServer::new(move || {
+        App::new()
+            .app_data(container.clone())
+            .service(get_file)}
+    )
+        .bind("127.0.0.1:8080")?
+        .run()
+        .await;
 }

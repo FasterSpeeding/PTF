@@ -1,76 +1,80 @@
-use rocket::fairing;
+use async_trait::async_trait;
+use coi::Inject;
 use sqlx;
+use std::sync::Arc;
 use crate::sql::dao_models;
 use crate::sql::traits;
 
 
 
-pub struct Pool<DB: sqlx::Database>(sqlx::Pool<DB>);
-
-// impl<DB: sqlx::Database> fairing::Fairing for Pool<DB> {
-//     fn info(&self) -> fairing::Info {
-//         fairing::Info {
-//             name: "An asynchronous postgres database fairing",
-//             kind: fairing::Kind::Request
-//         }
-//     }
-// }
-
-#[rocket::async_trait]
-impl<'a, 'r> rocket::request::FromRequest<'a, 'r> for traits::Database {
-    type Error = ();
-
-    async fn from_request(request: &'a Request<'r>) -> Outcome<Box<dyn traits::Database>, ()> {
-        return request.local_cache(Box<traits::Database>);
+#[derive(Clone)]
+#[derive(Inject)]
+#[coi(provides dyn traits::Database with Pool::new(pool))]
+// pub struct Pool<DB: sqlx::Database> {
+pub struct Pool {
+    #[coi(inject)]
+    pool: Arc<sqlx::Pool<sqlx::Postgres>>
 }
 
 
+// impl<DB: sqlx::Database> Pool<DB> {
+//     pub fn new(pool: Arc<sqlx::Pool<DB>>) -> Pool<DB> {
+//         return Pool { pool: pool };
+//     }
+// }
+impl Pool {
+    pub fn new(pool: Arc<sqlx::Pool<sqlx::Postgres>>) -> Pool {
+        return Pool { pool: pool };
+    }
+}
 
-#[rocket::async_trait]
-impl<DB: sqlx::Database> traits::Database for Pool<DB> {
+
+#[async_trait]
+// impl<DB: sqlx::Database> traits::Database for Pool<DB> {
+impl traits::Database for Pool {
 // where 
 //     sqlx::Pool<DB>: sqlx::Executor<'static> {
     async fn get_file(&self, file_id: &i64) -> traits::DatabaseResult<dao_models::File> {
-        let result: Option<dao_models::File> = sqlx::query_as("SELECT * FROM files WHERE id=$1;")
-            .bind(file_id)
-            .fetch_optional(&self.0)
+        let result = sqlx::query_as!(dao_models::File, "SELECT * FROM files WHERE id=$1;", file_id)
+            .fetch_optional(self.pool.as_ref())
             .await?;
         return Ok(result);
     }
 
     async fn get_message(&self, message_id: &i64) -> traits::DatabaseResult<dao_models::Message> {
-        let result: Option<dao_models::Message> = sqlx::query_as("SELECT * FROM messages WHERE id=$1;")
-            .bind(message_id)
-            .fetch_optional(&self.0)
+        let result = sqlx::query_as!(dao_models::Message, "SELECT * FROM messages WHERE id=$1;", message_id)
+            .fetch_optional(self.pool.as_ref())
             .await?;
         return Ok(result);
     }
 
     async fn get_permission(&self, user_id: &i64, message_id: &i64) -> traits::DatabaseResult<dao_models::Permission> {
-        let result: Option<dao_models::Permission> = sqlx::query_as(
-            "SELECT * FROM permissions WHERE user_id=$1 AND message_id=$2;"
+        let result = sqlx::query_as!(
+            dao_models::Permission,
+            "SELECT * FROM permissions WHERE user_id=$1 AND message_id=$2;",
+            user_id,
+            message_id
         )
-            .bind(user_id)
-            .bind(message_id)
-            .fetch_optional(&self.0)
+            .fetch_optional(self.pool.as_ref())
             .await?;
         return Ok(result);
     }
 
     async fn get_user_by_id(&self, user_id: &i64) -> traits::DatabaseResult<dao_models::User> {
-        let result: Option<dao_models::User> = sqlx::query_as("SELECT * FROM users WHERE id=$1;")
-            .bind(user_id)
-            .fetch_optional(&self.0)
+        let result = sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
+            .fetch_optional(self.pool.as_ref())
             .await?;
         return Ok(result);
     }
 
     async fn get_user_by_username(&self, username: &String) -> traits::DatabaseResult<dao_models::User> {
-        let result: Option<dao_models::User> = sqlx::query_as("SELECT * FROM users WHERE id=$1;")
-            .bind(username)
-            .fetch_optional(&self.0)
+        let result = sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE username=$1;", username)
+            .fetch_optional(self.pool.as_ref())
             .await?;
         return Ok(result);
     }
 }
+
+
+
 
