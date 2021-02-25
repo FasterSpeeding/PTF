@@ -20,7 +20,7 @@ ignore =
 # F403: cannot detect unused vars if we use starred import
 # F405: __all__ field may be undefined or defined from star imports
 per-file-ignores =
-    ptf/resources/__init__.py:  F403,F405
+    src/resources/__init__.py:  F403,F405
 
 max-complexity = 20
 max-function-length = 130

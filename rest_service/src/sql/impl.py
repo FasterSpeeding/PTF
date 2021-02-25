@@ -48,6 +48,7 @@ from . import dao_models
 from . import dao_protos
 
 if typing.TYPE_CHECKING:
+    import collections.abc as collections
     import types
 
 _DatabaseT = typing.TypeVar("_DatabaseT", bound=api.DatabaseHandler)
@@ -66,7 +67,7 @@ class InsertErrorManager:
 
     def __exit__(
         self,
-        exc_type: typing.Optional[typing.Type[Exception]],
+        exc_type: typing.Optional[type[Exception]],
         exc_val: typing.Optional[Exception],
         exc_tb: typing.Optional[types.TracebackType],
     ) -> None:
@@ -86,7 +87,7 @@ class InsertErrorManager:
 # Type error
 
 
-_operators: dict[api.FilterTypeT, typing.Callable[..., typing.Any]] = {
+_operators: dict[api.FilterTypeT, collections.Callable[..., typing.Any]] = {
     "lt": operator.lt,
     "le": operator.le,
     "eq": operator.eq,
@@ -100,7 +101,7 @@ def _filter(
     filter_type: api.FilterTypeT,
     query: _FilterQueryT,
     table: sqlalchemy.Table,
-    rules: typing.Sequence[tuple[str, typing.Any]],
+    rules: collections.Sequence[tuple[str, typing.Any]],
 ) -> _FilterQueryT:
     if filter_type == "contains":
         return query.filter(*(getattr(table.columns, attr).in_(value) for attr, value in rules))
@@ -110,7 +111,7 @@ def _filter(
 
 
 def _filter_truth(
-    truth: bool, query: _FilterQueryT, table: sqlalchemy.Table, fields: typing.Sequence[str]
+    truth: bool, query: _FilterQueryT, table: sqlalchemy.Table, fields: collections.Sequence[str]
 ) -> _FilterQueryT:
     operator_ = operator.truth if truth else operator.not_
     return query.filter(*(operator_(getattr(table.columns, attr)) for attr in fields))
@@ -137,11 +138,11 @@ class PostgreIterator(api.DatabaseIterator[_ValueT]):
     #     except KeyError:
     #         raise StopAsyncIteration from None
 
-    def __await__(self) -> typing.Generator[typing.Any, None, typing.Iterator[_ValueT]]:
+    def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterator[_ValueT]]:
         return self._fetch().__await__()
 
     # TODO: can we make this lazier?
-    async def _fetch(self) -> typing.Iterator[_ValueT]:
+    async def _fetch(self) -> collections.Iterator[_ValueT]:
         async with self._engine.begin() as connection:
             cursor = await connection.execute(self._query)
             return iter(cursor.fetchall())
@@ -175,13 +176,13 @@ class FilteredClear(api.FilteredClear[_ValueT]):
             assert isinstance(cursor.rowcount, int)
             return cursor.rowcount
 
-    def __await__(self) -> typing.Generator[typing.Any, None, int]:
+    def __await__(self) -> collections.Generator[typing.Any, None, int]:
         return self._await().__await__()
 
-    async def collect(self) -> typing.Collection[_ValueT]:
+    async def collect(self) -> collections.Collection[_ValueT]:
         async with self._engine.begin() as connection:
             cursor = await connection.execute(self._query.returning(self._table))
-            return typing.cast("typing.Collection[_ValueT]", cursor.fetchall())
+            return typing.cast("collections.Collection[_ValueT]", cursor.fetchall())
 
     def filter(self, filter_type: api.FilterTypeT, *rules: tuple[str, typing.Any]) -> FilteredClear[_ValueT]:
         self._query = _filter(filter_type, self._query, self._table, rules)
@@ -213,7 +214,7 @@ class PostgreDatabase(api.DatabaseHandler):
         )
 
     @classmethod
-    def from_config(cls, config: typing.Mapping[str, typing.Any], /) -> PostgreDatabase:
+    def from_config(cls, config: collections.Mapping[str, typing.Any], /) -> PostgreDatabase:
         if "url" in config:
             return cls.from_string(config["url"])
 
@@ -237,7 +238,7 @@ class PostgreDatabase(api.DatabaseHandler):
         username: str,
         database: str = "ptf",
         port: int = 5432,
-        query: typing.Optional[typing.Mapping[str, typing.Union[str, typing.Sequence[str]]]] = None,
+        query: typing.Optional[collections.Mapping[str, typing.Union[str, collections.Sequence[str]]]] = None,
     ) -> PostgreDatabase:
         query = query or {}
         url = urllib.parse.SplitResult(
@@ -259,26 +260,24 @@ class PostgreDatabase(api.DatabaseHandler):
             cursor = await connection.execute(query)
             return cursor
 
-    async def _fetch_one(
-        self, expected_type: typing.Type[_ValueT], query: sqlalchemy.sql.Select
-    ) -> typing.Optional[_ValueT]:
+    async def _fetch_one(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Select) -> typing.Optional[_ValueT]:
         cursor = await self._execute(query)
         result = cursor.fetchone()
         assert result is None or isinstance(result, expected_type)
         return result
 
     async def _fetch_all(
-        self, expected_type: typing.Type[_ValueT], query: sqlalchemy.sql.Select
-    ) -> typing.Sequence[_ValueT]:
+        self, expected_type: type[_ValueT], query: sqlalchemy.sql.Select
+    ) -> collections.Sequence[_ValueT]:
         cursor = await self._execute(query)
         results = cursor.fetchall()
 
         if results:
             assert isinstance(results[1], expected_type)
 
-        return typing.cast("typing.Sequence[_ValueT]", results)
+        return typing.cast("collections.Sequence[_ValueT]", results)
 
-    async def _set(self, expected_type: typing.Type[_ValueT], query: sqlalchemy.sql.Insert) -> _ValueT:
+    async def _set(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Insert) -> _ValueT:
         with InsertErrorManager():
             cursor = await self._execute(query)
             result = cursor.fetchone()
@@ -286,9 +285,7 @@ class PostgreDatabase(api.DatabaseHandler):
             return result
 
     # TODO: what happens if you try to update en entry that doesn't exist
-    async def _update(
-        self, expected_type: typing.Type[_ValueT], query: sqlalchemy.sql.Update
-    ) -> typing.Optional[_ValueT]:
+    async def _update(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Update) -> typing.Optional[_ValueT]:
         async with self._database.begin() as connection:
             cursor = await connection.execute(query)
 

@@ -38,6 +38,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     import asyncio
+    import collections.abc as collections
     import datetime
 
     from . import dao_protos
@@ -91,7 +92,7 @@ class DatabaseIterator(Filterable, abc.ABC, typing.Generic[_ValueT]):
     __slots__: tuple[str, ...] = ()
 
     @abc.abstractmethod
-    def __await__(self) -> typing.Generator[typing.Any, None, typing.Iterator[_ValueT]]:
+    def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterable[_ValueT]]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -103,11 +104,11 @@ class FilteredClear(Filterable, abc.ABC, typing.Generic[_ValueT]):
     __slots__: tuple[str, ...] = ()
 
     @abc.abstractmethod
-    def __await__(self) -> typing.Generator[typing.Any, None, int]:
+    def __await__(self) -> collections.Generator[typing.Any, None, int]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def collect(self) -> typing.Collection[_ValueT]:
+    async def collect(self) -> collections.Collection[_ValueT]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -124,12 +125,12 @@ class DatabaseHandler(abc.ABC):
 
     @classmethod
     @abc.abstractmethod
-    def from_config(cls: typing.Type[_DatabaseT], config: typing.Mapping[str, typing.Any], /) -> _DatabaseT:
+    def from_config(cls: type[_DatabaseT], config: collections.Mapping[str, typing.Any], /) -> _DatabaseT:
         raise NotImplementedError
 
     @classmethod
     @abc.abstractmethod
-    def from_string(cls: typing.Type[_DatabaseT], url: str, /) -> _DatabaseT:
+    def from_string(cls: type[_DatabaseT], url: str, /) -> _DatabaseT:
         raise NotImplementedError
 
     @abc.abstractmethod

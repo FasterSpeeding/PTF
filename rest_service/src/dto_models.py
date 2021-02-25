@@ -60,6 +60,9 @@ import pydantic
 from . import flags
 from . import validation
 
+if typing.TYPE_CHECKING:
+    import collections.abc as collections
+
 
 class UndefinedType:
     __instance: typing.Optional[UndefinedType] = None
@@ -76,7 +79,7 @@ class UndefinedType:
     def __copy__(self) -> UndefinedType:
         return self
 
-    def __deepcopy__(self, memo: typing.MutableMapping[int, typing.Any]) -> UndefinedType:
+    def __deepcopy__(self, memo: collections.MutableMapping[int, typing.Any]) -> UndefinedType:
         memo[id(self)] = self
 
         return self

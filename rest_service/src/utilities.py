@@ -40,6 +40,8 @@ from fastapi import responses as responses_
 from fastapi import types as fastapi_types
 
 if typing.TYPE_CHECKING:
+    import collections.abc as collections
+
     import fastapi
     from fastapi import encoders
     from fastapi import params
@@ -63,7 +65,7 @@ MethodT = typing.Union[
 class EndpointDescriptor(typing.Generic[fastapi_types.DecoratedCallable]):
     __slots__: tuple[str, ...] = ("_endpoint", "_kwargs")
 
-    _endpoint: typing.Callable[..., typing.Any]
+    _endpoint: collections.Callable[..., typing.Any]
     _kwargs: dict[str, typing.Any]
 
     if typing.TYPE_CHECKING:
@@ -74,10 +76,10 @@ class EndpointDescriptor(typing.Generic[fastapi_types.DecoratedCallable]):
             methods: typing.Union[MethodT, set[MethodT]],
             path: str,
             endpoint: fastapi_types.DecoratedCallable,
-            response_model: typing.Optional[typing.Type[typing.Any]] = None,
+            response_model: typing.Optional[type[typing.Any]] = None,
             status_code: int = 200,
             tags: typing.Optional[list[str]] = None,
-            dependencies: typing.Optional[typing.Sequence[params.Depends]] = None,
+            dependencies: typing.Optional[collections.Sequence[params.Depends]] = None,
             summary: typing.Optional[str] = None,
             description: typing.Optional[str] = None,
             response_description: str = "Successful Response",
@@ -92,10 +94,10 @@ class EndpointDescriptor(typing.Generic[fastapi_types.DecoratedCallable]):
             response_model_exclude_none: bool = False,
             include_in_schema: bool = True,
             response_class: typing.Union[
-                typing.Type[fastapi.Response], datastructures.DefaultPlaceholder
+                type[fastapi.Response], datastructures.DefaultPlaceholder
             ] = datastructures.Default(responses_.JSONResponse),
             name: typing.Optional[str] = None,
-            route_class_override: typing.Optional[typing.Type[routing.APIRoute]] = None,
+            route_class_override: typing.Optional[type[routing.APIRoute]] = None,
             callbacks: typing.Optional[list[starlette_routing.BaseRoute]] = None,
         ) -> None:
             raise NotImplementedError
@@ -124,14 +126,14 @@ class EndpointDescriptor(typing.Generic[fastapi_types.DecoratedCallable]):
 if typing.TYPE_CHECKING:
 
     def as_endpoint(
-        methods: typing.Union[MethodT, typing.Iterable[MethodT]],
+        methods: typing.Union[MethodT, collections.Iterable[MethodT]],
         path: str,
         /,
         *,
-        response_model: typing.Optional[typing.Type[typing.Any]] = None,
+        response_model: typing.Optional[type[typing.Any]] = None,
         status_code: int = 200,
         tags: typing.Optional[list[str]] = None,
-        dependencies: typing.Optional[typing.Sequence[params.Depends]] = None,
+        dependencies: typing.Optional[collections.Sequence[params.Depends]] = None,
         summary: typing.Optional[str] = None,
         description: typing.Optional[str] = None,
         response_description: str = "Successful Response",
@@ -146,12 +148,12 @@ if typing.TYPE_CHECKING:
         response_model_exclude_none: bool = False,
         include_in_schema: bool = True,
         response_class: typing.Union[
-            typing.Type[fastapi.Response], datastructures.DefaultPlaceholder
+            type[fastapi.Response], datastructures.DefaultPlaceholder
         ] = datastructures.Default(responses_.JSONResponse),
         name: typing.Optional[str] = None,
-        route_class_override: typing.Optional[typing.Type[routing.APIRoute]] = None,
+        route_class_override: typing.Optional[type[routing.APIRoute]] = None,
         callbacks: typing.Optional[list[starlette_routing.BaseRoute]] = None,
-    ) -> typing.Callable[[fastapi_types.DecoratedCallable], EndpointDescriptor[fastapi_types.DecoratedCallable]]:
+    ) -> collections.Callable[[fastapi_types.DecoratedCallable], EndpointDescriptor[fastapi_types.DecoratedCallable]]:
         raise NotImplementedError
 
 
@@ -160,7 +162,7 @@ else:
     def as_endpoint(
         *args: typing.Any,
         **kwargs: typing.Any,
-    ) -> typing.Callable[[fastapi_types.DecoratedCallable], EndpointDescriptor[fastapi_types.DecoratedCallable]]:
+    ) -> collections.Callable[[fastapi_types.DecoratedCallable], EndpointDescriptor[fastapi_types.DecoratedCallable]]:
         def decorator(
             endpoint: fastapi_types.DecoratedCallable, /
         ) -> EndpointDescriptor[fastapi_types.DecoratedCallable]:

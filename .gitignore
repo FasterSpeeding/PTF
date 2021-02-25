@@ -60,3 +60,4 @@ coverage.xml
 
 # Logs
 *.log
+file_service/target/

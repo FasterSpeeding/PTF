@@ -55,7 +55,7 @@ class HashPasswordProto(typing.Protocol):
         raise NotImplementedError
 
 
-def __new(_: typing.Type[typing.Any]) -> None:
+def __new(_: type[typing.Any]) -> None:
     raise NotImplementedError
 
 

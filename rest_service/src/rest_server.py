@@ -33,21 +33,27 @@ from __future__ import annotations
 
 __all__: list[str] = ["build"]
 
-import os
 import typing
 
-import dotenv
 import fastapi
 
 from . import refs
-from .sql import api as sql_api
+
+if typing.TYPE_CHECKING:
+    import collections.abc as collections
+
+    from .sql import api as sql_api
 
 
 async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
     await database.close()
 
 
-def build(sql_builder: typing.Optional[typing.Callable[[], sql_api.DatabaseHandler]] = None, /) -> fastapi.FastAPI:
+def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.DatabaseHandler]] = None, /) -> fastapi.FastAPI:
+    import os
+
+    import dotenv
+
     from . import resources
     from . import security
     from . import utilities
