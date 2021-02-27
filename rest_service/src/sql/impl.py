@@ -52,10 +52,10 @@ if typing.TYPE_CHECKING:
     import types
 
 _DatabaseT = typing.TypeVar("_DatabaseT", bound=api.DatabaseHandler)
-_SelfT = typing.TypeVar("_SelfT")
+_PostgresCollectionT = typing.TypeVar("_PostgresCollectionT", bound="_PostgresCollection[typing.Any]")
 _ValueT = typing.TypeVar("_ValueT")
-_FilterQueryT = typing.Union[sqlalchemy.sql.Select, sqlalchemy.sql.Delete]
-_QueryT = typing.Union[_FilterQueryT, sqlalchemy.sql.Insert, sqlalchemy.sql.Update]
+_OtherValueT = typing.TypeVar("_OtherValueT")
+_QueryT = typing.Union[sqlalchemy.sql.Select, sqlalchemy.sql.Delete, sqlalchemy.sql.Insert, sqlalchemy.sql.Update]
 
 
 #  TODO: don't leak the schema?
@@ -97,29 +97,7 @@ _operators: dict[api.FilterTypeT, collections.Callable[..., typing.Any]] = {
 }
 
 
-def _filter(
-    filter_type: api.FilterTypeT,
-    query: _FilterQueryT,
-    table: sqlalchemy.Table,
-    rules: collections.Sequence[tuple[str, typing.Any]],
-) -> _FilterQueryT:
-    namespace = table.entity_namespace
-    if filter_type == "contains":
-        return query.filter(*(namespace[attr].in_(value) for attr, value in rules))
-
-    operator_ = _operators[filter_type]
-    return query.filter(*(operator_(namespace[attr], value) for attr, value in rules))
-
-
-def _filter_truth(
-    truth: bool, query: _FilterQueryT, table: sqlalchemy.Table, fields: collections.Sequence[str]
-) -> _FilterQueryT:
-    operator_ = operator.truth if truth else operator.not_
-    namespace = table.entity_namespace
-    return query.filter(*(operator_(namespace[attr]) for attr in fields))
-
-
-class PostgreIterator(api.DatabaseIterator[_ValueT]):
+class _PostgresCollection(typing.Generic[_ValueT]):
     __slots__: tuple[str, ...] = ("_engine", "_query", "_table")
 
     def __init__(
@@ -129,73 +107,63 @@ class PostgreIterator(api.DatabaseIterator[_ValueT]):
         self._query = query
         self._table = table
 
-    # TODO: can we make this lazier and bring back this behaviour?
-    # async def __anext__(self) -> _ValueT:
-    #     if self._buffer is None:
-    #         self._buffer = await self._fetch()
-    #
-    #     try:
-    #         return self._buffer.pop(0)
-    #
-    #     except KeyError:
-    #         raise StopAsyncIteration from None
-
-    def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterator[_ValueT]]:
-        return self._fetch().__await__()
-
-    # TODO: can we make this lazier?
-    async def _fetch(self) -> collections.Iterator[_ValueT]:
+    async def collect(self) -> collections.Collection[_ValueT]:
         async with self._engine.begin() as connection:
             cursor = await connection.execute(self._query)
-            return iter(cursor.fetchall())
+            result = cursor.fetchall()
+            assert isinstance(result, collections.Collection)
+            return result
 
-    def filter(self, filter_type: api.FilterTypeT, *rules: tuple[str, typing.Any]) -> PostgreIterator[_ValueT]:
-        self._query = _filter(filter_type, self._query, self._table, rules)
+    def filter(
+        self: _PostgresCollectionT, filter_type: api.FilterTypeT, *rules: tuple[str, typing.Any]
+    ) -> _PostgresCollectionT:
+        namespace = self._table.entity_namespace
+        if filter_type == "contains":
+            self._query = self._query.filter(*(namespace[attr].in_(value) for attr, value in rules))
+
+        operator_ = _operators[filter_type]
+        self._query = self._query.filter(*(operator_(namespace[attr], value) for attr, value in rules))
         return self
 
-    def filter_truth(self, *fields: str, truth: bool = True) -> PostgreIterator[_ValueT]:
-        self._query = _filter_truth(truth, self._query, self._table, fields)
+    def filter_truth(self: _PostgresCollectionT, *fields: str, truth: bool = True) -> _PostgresCollectionT:
+        operator_ = operator.truth if truth else operator.not_
+        namespace = self._table.entity_namespace
+        self._query = self._query.filter(*(operator_(namespace[attr]) for attr in fields))
         return self
+
+    # TODO: can we make this lazier?
+    async def iter(self) -> collections.Iterator[_ValueT]:
+        return iter(await self.collect())
+
+    async def map(self, cast: typing.Callable[[_ValueT], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
+        return map(cast, await self.collect())
+
+
+class PostgreIterator(_PostgresCollection[_ValueT], api.DatabaseIterator[_ValueT]):
+    __slots__: tuple[str, ...] = ()
+
+    def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterator[_ValueT]]:
+        return self.iter().__await__()
 
     def limit(self, limit: int, /) -> PostgreIterator[_ValueT]:
         self._query = self._query.limit(limit)
         return self
 
 
-class FilteredClear(api.FilteredClear[_ValueT]):
-    __slots__: tuple[str, ...] = ("_engine", "_query", "_table")
+class FilteredClear(_PostgresCollection[_ValueT], api.FilteredClear[_ValueT]):
+    __slots__: tuple[str, ...] = ()
 
-    def __init__(
-        self, engine: sqlalchemy.ext.asyncio.AsyncEngine, table: sqlalchemy.Table, query: sqlalchemy.sql.Delete, /
-    ) -> None:
-        self._engine = engine
-        self._query = query
-        self._table = table
+    def __await__(self) -> collections.Generator[typing.Any, None, int]:
+        return self.execute().__await__()
 
-    async def _await(self) -> int:
+    async def execute(self) -> int:
         async with self._engine.begin() as connection:
             cursor = await connection.execute(self._query)
             assert isinstance(cursor.rowcount, int)
             return cursor.rowcount
 
-    def __await__(self) -> collections.Generator[typing.Any, None, int]:
-        return self._await().__await__()
-
-    async def collect(self) -> collections.Collection[_ValueT]:
-        async with self._engine.begin() as connection:
-            cursor = await connection.execute(self._query.returning(self._table))
-            return typing.cast("collections.Collection[_ValueT]", cursor.fetchall())
-
-    def filter(self, filter_type: api.FilterTypeT, *rules: tuple[str, typing.Any]) -> FilteredClear[_ValueT]:
-        self._query = _filter(filter_type, self._query, self._table, rules)
-        return self
-
-    def filter_truth(self, *fields: str, truth: bool = True) -> FilteredClear[_ValueT]:
-        self._query = _filter_truth(truth, self._query, self._table, fields)
-        return self
-
     def start(self) -> asyncio.Task[int]:
-        return asyncio.create_task(self._await())
+        return asyncio.create_task(self.execute())
 
 
 class PostgreDatabase(api.DatabaseHandler):

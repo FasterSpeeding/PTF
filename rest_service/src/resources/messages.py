@@ -33,7 +33,6 @@ from __future__ import annotations
 
 __all__: list[str] = ["delete_messages", "get_message", "get_messages", "patch_message", "post_messages"]
 
-import asyncio
 import datetime
 import typing
 
@@ -67,14 +66,6 @@ async def retrieve_message(
     raise fastapi.exceptions.HTTPException(404, detail="Message not found")
 
 
-async def _delete_messages(message_ids: set[int], user_id: int, database: sql_api.DatabaseHandler) -> None:
-    # TODO: handle permissions
-    messages = database.iter_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", user_id))
-    message_ids = [message.id for message in await messages]
-    await database.clear_files().filter("contains", ("message_id", message_ids))
-    await database.clear_messages().filter("contains", ("id", message_ids))
-
-
 @utilities.as_endpoint(
     "DELETE",
     "/users/@me/messages",
@@ -88,7 +79,7 @@ async def delete_messages(
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    asyncio.create_task(_delete_messages(message_ids, user.id, database))
+    database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", user.id)).start()
     return fastapi.Response(status_code=202)
 
 
@@ -116,7 +107,7 @@ async def get_messages(
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Message]:
-    return [dto_models.Message.from_orm(message) for message in await database.iter_messages_for_user(user.id)]
+    return list(await database.iter_messages_for_user(user.id).map(dto_models.Message.from_orm))
 
 
 @utilities.as_endpoint(

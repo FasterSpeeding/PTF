@@ -44,9 +44,10 @@ if typing.TYPE_CHECKING:
     from . import dao_protos
 
 _DatabaseT = typing.TypeVar("_DatabaseT", bound="DatabaseHandler")
-_ValueT = typing.TypeVar("_ValueT")
+_ValueT_co = typing.TypeVar("_ValueT_co", covariant=True)
+_OtherValueT = typing.TypeVar("_OtherValueT")
+_DatabaseCollectionT = typing.TypeVar("_DatabaseCollectionT", bound="DatabaseCollection[typing.Any]")
 _DatabaseIteratorT = typing.TypeVar("_DatabaseIteratorT", bound="DatabaseIterator[typing.Any]")
-_FilterableT = typing.TypeVar("_FilterableT", bound="Filterable")
 
 
 FilterTypeT = typing.Union[
@@ -76,42 +77,47 @@ class DataError(Exception):
         return self.message
 
 
-class Filterable(abc.ABC):
+class DatabaseCollection(typing.Protocol[_ValueT_co]):
     __slots__: tuple[str, ...] = ()
 
-    @abc.abstractmethod
-    def filter(self: _FilterableT, filter_type: FilterTypeT, *rules: tuple[str, typing.Any]) -> _FilterableT:
+    async def collect(self) -> collections.Collection[_ValueT_co]:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def filter_truth(self: _FilterableT, *fields: str, truth: bool = True) -> _FilterableT:
+    def filter(
+        self: _DatabaseCollectionT, filter_type: FilterTypeT, *rules: tuple[str, typing.Any]
+    ) -> _DatabaseCollectionT:
+        raise NotImplementedError
+
+    def filter_truth(self: _DatabaseCollectionT, *fields: str, truth: bool = True) -> _DatabaseCollectionT:
+        raise NotImplementedError
+
+    async def iter(self) -> collections.Iterator[_ValueT_co]:
+        raise NotImplementedError
+
+    # TODO: do we want to finalise here?
+    async def map(self, cast: typing.Callable[[_ValueT_co], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
         raise NotImplementedError
 
 
-class DatabaseIterator(Filterable, abc.ABC, typing.Generic[_ValueT]):
+class DatabaseIterator(DatabaseCollection[_ValueT_co], typing.Protocol[_ValueT_co]):
     __slots__: tuple[str, ...] = ()
 
-    @abc.abstractmethod
-    def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterable[_ValueT]]:
+    def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterable[_ValueT_co]]:
         raise NotImplementedError
 
-    @abc.abstractmethod
     def limit(self: _DatabaseIteratorT, limit: int, /) -> _DatabaseIteratorT:
         raise NotImplementedError
 
 
-class FilteredClear(Filterable, abc.ABC, typing.Generic[_ValueT]):
+class FilteredClear(DatabaseCollection[_ValueT_co], typing.Protocol[_ValueT_co]):
     __slots__: tuple[str, ...] = ()
 
-    @abc.abstractmethod
     def __await__(self) -> collections.Generator[typing.Any, None, int]:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    async def collect(self) -> collections.Collection[_ValueT]:
+    async def execute(self) -> int:
         raise NotImplementedError
 
-    @abc.abstractmethod
     def start(self) -> asyncio.Task[int]:
         raise NotImplementedError
 

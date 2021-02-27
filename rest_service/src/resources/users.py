@@ -42,7 +42,6 @@ __all__: list[str] = [
     "put_user",
 ]
 
-import asyncio
 import typing
 
 import fastapi
@@ -57,12 +56,6 @@ from ..sql import api as sql_api
 from ..sql import dao_protos
 
 
-async def _delete_my_user(user_id: int, database: sql_api.DatabaseHandler) -> None:
-    message_ids = [message.id for message in await database.iter_messages().filter("eq", ("user_id", user_id))]
-    await database.clear_files().filter("contains", ("id", message_ids))
-    await database.delete_user(user_id)
-
-
 @utilities.as_endpoint(
     "DELETE",
     "/users/@me",
@@ -75,7 +68,7 @@ async def delete_my_user(
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    asyncio.create_task(_delete_my_user(user.id, database))
+    await database.delete_user(user.id)
     return fastapi.Response(status_code=202)
 
 
@@ -164,7 +157,7 @@ async def get_user_devices(
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Device]:
-    return [dto_models.Device.from_orm(device) for device in await database.iter_devices_for_user(user.id)]
+    return list(await database.iter_devices_for_user(user.id).map(dto_models.Device.from_orm))
 
 
 async def retrieve_device(

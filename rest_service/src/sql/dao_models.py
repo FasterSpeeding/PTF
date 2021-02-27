@@ -84,7 +84,9 @@ Files = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column("id", sqlalchemy.BIGINT, primary_key=True),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column("message_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("messages.id"), nullable=False),
+    sqlalchemy.Column(
+        "message_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("messages.id", ondelete=CASCADE), nullable=False
+    ),
 )
 
 

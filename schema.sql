@@ -68,11 +68,11 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 
--- These wil have to be manually deleted within the CDN and thus shouldn't cascade.
+-- The actual files for deleted files will be deleted by a cron-job running on the file service at one point.
 CREATE TABLE IF NOT EXISTS files (
     id         BIGINT GENERATED ALWAYS AS IDENTITY,
     file_name  VARCHAR NOT NULL,
-    message_id BIGINT  NOT NULL REFERENCES Messages (id),
+    message_id BIGINT  NOT NULL REFERENCES Messages (id) ON DELETE CASCADE,
 
     CONSTRAINT file_pk
         PRIMARY KEY (id)
