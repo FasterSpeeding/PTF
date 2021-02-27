@@ -87,12 +87,12 @@ CREATE TABLE IF NOT EXISTS messages (
 
 -- The actual files for deleted files will be deleted by a cron-job running on the file service at one point.
 CREATE TABLE IF NOT EXISTS files (
-    id          BIGINT      GENERATED ALWAYS AS IDENTITY,
     file_name   VARCHAR     NOT NULL,
+    is_public   BOOLEAN     NOT NULL,
     message_id  BIGINT      NOT NULL,
 
     CONSTRAINT file_pk
-        PRIMARY KEY (id),
+        PRIMARY KEY (file_name, message_id),
 
     CONSTRAINT files_message_id_fk
         FOREIGN KEY (message_id)

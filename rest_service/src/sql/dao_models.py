@@ -95,11 +95,11 @@ Messages = sqlalchemy.Table(
 Files = sqlalchemy.Table(
     "files",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
+    sqlalchemy.Column("is_public", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("message_id", sqlalchemy.BIGINT, nullable=False),
     # Constraints
-    sqlalchemy.PrimaryKeyConstraint("id", name="file_pk"),
+    sqlalchemy.PrimaryKeyConstraint("file_name", "message_id", name="file_pk"),
     sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="files_message_id_fk"),
 )
 

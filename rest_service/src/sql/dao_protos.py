@@ -87,8 +87,8 @@ class File(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
-    id: int
     file_name: str
+    is_public: str
     message_id: int
 
 

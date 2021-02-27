@@ -296,11 +296,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_file(self, file_id: int, /) -> None:
+    async def delete_file(self, message_id: int, file_name: str, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_file(self, file_id: int, /) -> typing.Optional[dao_protos.File]:
+    async def get_file(self, message_id: int, file_name: str, /) -> typing.Optional[dao_protos.File]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -315,9 +315,9 @@ class DatabaseHandler(abc.ABC):
     async def set_file(self, *, file_name: str, message_id: int) -> dao_protos.File:
         raise NotImplementedError
 
-    @abc.abstractmethod
-    async def update_file(self, file_id: int, /, *, file_name: str = ...) -> typing.Optional[dao_protos.File]:
-        raise NotImplementedError
+    # @abc.abstractmethod
+    # async def update_file(self, file_id: int, /, *, file_name: str = ...) -> typing.Optional[dao_protos.File]:
+    #     raise NotImplementedError
 
     @abc.abstractmethod
     def clear_permissions(self) -> FilteredClear[dao_protos.Permission]:

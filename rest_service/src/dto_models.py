@@ -274,14 +274,10 @@ class Message(pydantic.BaseModel):
 
 
 class File(pydantic.BaseModel):
-    id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
     file_name: str
     message_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
 
     Config = _ModelConfig
-
-    def __int__(self) -> int:
-        return self.id
 
 
 class Permission(pydantic.BaseModel):

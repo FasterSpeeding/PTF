@@ -343,7 +343,7 @@ class PostgreDatabase(api.DatabaseHandler):
 
     async def update_device_by_id(self, device_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.Device]:
         if not kwargs:
-            return await self.get_user_by_id(device_id)
+            return await self.get_device_by_id(device_id)
 
         query = (
             dao_models.Devices.update(dao_models.Devices.columns["id"] == device_id)
@@ -402,11 +402,18 @@ class PostgreDatabase(api.DatabaseHandler):
     def clear_files(self) -> api.FilteredClear[dao_protos.File]:
         return FilteredClear(self._database, dao_models.Files, dao_models.Files.delete())
 
-    async def delete_file(self, file_id: int, /) -> None:
-        await self._execute(dao_models.Files.delete(dao_models.Files.c["id"] == file_id))
+    async def delete_file(self, message_id: int, file_name: str, /) -> None:
+        columns = dao_models.Files.columns
+        await self._execute(
+            dao_models.Files.delete(sqlalchemy.and_(columns["message_id"] == message_id, columns["name"] == file_name))
+        )
 
-    async def get_file(self, file_id: int, /) -> typing.Optional[dao_protos.File]:
-        return await self._fetch_one(dao_protos.File, dao_models.Files.select(dao_models.Files.c["id"] == file_id))
+    async def get_file(self, message_id: int, file_name: str, /) -> typing.Optional[dao_protos.File]:
+        columns = dao_models.Files.columns
+        query = dao_models.Files.select(
+            sqlalchemy.and_(columns["message_id"] == message_id, columns["name"] == file_name)
+        )
+        return await self._fetch_one(dao_protos.File, query)
 
     def iter_files(self) -> api.DatabaseIterator[dao_protos.File]:
         return PostgreIterator(self._database, dao_models.Files, dao_models.Files.select())
@@ -419,12 +426,12 @@ class PostgreDatabase(api.DatabaseHandler):
     async def set_file(self, **kwargs: typing.Any) -> dao_protos.File:
         return await self._set(dao_protos.File, dao_models.Files.insert(kwargs).returning(dao_models.Files))
 
-    async def update_file(self, file_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.File]:
-        if not kwargs:
-            return await self.get_file(file_id)
-
-        query = dao_models.Files.update(dao_models.Files.c["id"] == file_id).values(kwargs).returning(dao_models.Files)
-        return await self._update(dao_protos.File, query)
+    # async def update_file(self, file_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.File]:
+    #     if not kwargs:
+    #         return await self.get_file(file_id)
+    #
+    #     query = dao_models.Files.update(dao_models.Files.c["id"] == file_id).values(kwargs).returning(dao_models.Files)
+    #     return await self._update(dao_protos.File, query)
 
     def clear_permissions(self) -> api.FilteredClear[dao_protos.Permission]:
         return FilteredClear(self._database, dao_models.Permissions, dao_models.Permissions.delete())
