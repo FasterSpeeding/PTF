@@ -37,6 +37,7 @@ import typing
 
 import sqlalchemy
 
+ALWAYS: typing.Final[typing.Literal["ALWAYS"]] = "ALWAYS"
 CASCADE: typing.Final[typing.Literal["CASCADE"]] = "CASCADE"
 
 metadata = sqlalchemy.MetaData()
@@ -44,74 +45,88 @@ metadata = sqlalchemy.MetaData()
 Users = sqlalchemy.Table(
     "users",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, primary_key=True),
-    sqlalchemy.Column("created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False),
+    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
+    sqlalchemy.Column(
+        "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
+    ),
     sqlalchemy.Column("flags", sqlalchemy.BIGINT, nullable=False),
     sqlalchemy.Column("password_hash", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column("username", sqlalchemy.VARCHAR, nullable=False, unique=True),
+    sqlalchemy.Column("username", sqlalchemy.VARCHAR, nullable=False),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("id", name="user_pk"),
+    sqlalchemy.UniqueConstraint("username", name="user_username_uc"),
 )
 
 Devices = sqlalchemy.Table(
     "devices",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, primary_key=True),
+    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
     sqlalchemy.Column("access", sqlalchemy.INTEGER, nullable=False),
     sqlalchemy.Column("is_required_viewer", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("name", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column(
-        "user_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("users.id", ondelete=CASCADE), nullable=False
-    ),
+    sqlalchemy.Column("user_id", sqlalchemy.BIGINT, nullable=False),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("id", name="device_pk"),
+    sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="device_user_id_fk"),
+    sqlalchemy.UniqueConstraint("name", "user_id", name="device_uc"),
 )
 
 Messages = sqlalchemy.Table(
     "messages",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, primary_key=True),
-    sqlalchemy.Column("created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False),
+    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
+    sqlalchemy.Column(
+        "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
+    ),
     sqlalchemy.Column("expire_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=True),
     sqlalchemy.Column("is_public", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("is_transient", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("text", sqlalchemy.VARCHAR, nullable=True),
     sqlalchemy.Column("title", sqlalchemy.VARCHAR, nullable=True),
-    sqlalchemy.Column(
-        "user_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("users.id", ondelete=CASCADE), nullable=False
-    ),
+    sqlalchemy.Column("user_id", sqlalchemy.BIGINT, nullable=False),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("id", name="message_pk"),
+    sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="message_user_id_fk"),
 )
 
 
 Files = sqlalchemy.Table(
     "files",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, primary_key=True),
+    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column(
-        "message_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("messages.id", ondelete=CASCADE), nullable=False
-    ),
+    sqlalchemy.Column("message_id", sqlalchemy.BIGINT, nullable=False),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("id", name="file_pk"),
+    sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="files_message_id_fk"),
 )
 
 
 Permissions = sqlalchemy.Table(
     "permissions",
     metadata,
-    sqlalchemy.Column(
-        "message_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("message.id", ondelete=CASCADE), primary_key=True
-    ),
+    sqlalchemy.Column("message_id", sqlalchemy.BIGINT),
     sqlalchemy.Column("permissions", sqlalchemy.BIGINT, nullable=False),
-    sqlalchemy.Column(
-        "user_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("users.id", ondelete=CASCADE), primary_key=True
-    ),
+    sqlalchemy.Column("user_id", sqlalchemy.BIGINT),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("message_id", "user_id", name="permission_pk"),
+    sqlalchemy.ForeignKeyConstraint(["message_id"], ["message.id"], ondelete=CASCADE, name="permission_message_id_fk"),
+    sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="permission_user_id_fk"),
 )
 
 
 Views = sqlalchemy.Table(
     "views",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, primary_key=True),
-    sqlalchemy.Column("created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False),
+    sqlalchemy.Column("id", sqlalchemy.BIGINT),
     sqlalchemy.Column(
-        "device_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("devices.id", ondelete=CASCADE), nullable=False
+        "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
-    sqlalchemy.Column(
-        "message_id", sqlalchemy.BIGINT, sqlalchemy.ForeignKey("messages.id", ondelete=CASCADE), nullable=False
-    ),
+    sqlalchemy.Column("device_id", sqlalchemy.BIGINT, nullable=False),
+    sqlalchemy.Column("message_id", sqlalchemy.BIGINT, nullable=False),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("id", name="view_pk"),
+    sqlalchemy.ForeignKeyConstraint(["device_id"], ["devices.id"], ondelete=CASCADE, name="views_device_id_fk"),
+    sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="views_message_id_fk"),
+    sqlalchemy.UniqueConstraint("device_id", "message_id", name="view_uc"),
 )

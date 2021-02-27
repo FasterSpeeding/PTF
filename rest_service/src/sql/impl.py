@@ -76,12 +76,17 @@ class InsertErrorManager:
 
         # These should really be caught earlier on by validation
         if isinstance(exc_val, sqlalchemy.exc.IntegrityError):
-            if isinstance(exc_val.__cause__.__cause__, asyncpg.exceptions.IntegrityConstraintViolationError):
-                raise api.DataError(str(exc_val.__cause__.__cause__.args[0]))
+            root_error = exc_val.__cause__.__cause__
+            if isinstance(root_error, asyncpg.exceptions.IntegrityConstraintViolationError):
+                if isinstance(root_error, asyncpg.exceptions.UniqueViolationError):
+                    raise api.AlreadyExistsError(str(root_error.args[0])) from None
+
+                raise api.DataError(str(root_error.args[0])) from None
 
         elif isinstance(exc_val, sqlalchemy.exc.DBAPIError):
-            if isinstance(exc_val.__cause__.__cause__, asyncpg.exceptions.DataError):
-                raise api.DataError(str(exc_val.__cause__.__cause__.args[0]))
+            root_error = exc_val.__cause__.__cause__
+            if isinstance(root_error, asyncpg.exceptions.DataError):
+                raise api.DataError(str(root_error.args[0])) from None
 
 
 # Type error

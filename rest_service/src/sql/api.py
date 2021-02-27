@@ -61,19 +61,25 @@ FilterTypeT = typing.Union[
 # For a reference on what these all mean see https://docs.python.org/3/library/operator.html
 
 
-# TODO: make abstract
-# TODO: Remove this as we shouldn't be expecting sql to raise anything other than field already exists errors
-# as validation should catch other stuff
-class DataError(Exception):
+class SQLError(Exception):
     __slots__: tuple[str, ...] = ("message",)
-
-    message: str
 
     def __init__(self, message: str, /) -> None:
         self.message = message
 
     def __str__(self) -> str:
         return self.message
+
+
+# TODO: make abstract
+# TODO: Remove this as we shouldn't be expecting sql to raise anything other than field already exists errors
+# as validation should catch other stuff
+class DataError(SQLError):
+    __slots__: tuple[str, ...] = ()
+
+
+class AlreadyExistsError(SQLError):
+    __slots__: tuple[str, ...] = ()
 
 
 class DatabaseCollection(typing.Protocol[_ValueT_co]):

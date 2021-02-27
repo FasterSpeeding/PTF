@@ -61,9 +61,9 @@ async def retrieve_message(
         if permission and permission.permissions != flags.PermissionFlags.NONE:
             return stored_message
 
-        raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message")
+        raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message.") from None
 
-    raise fastapi.exceptions.HTTPException(404, detail="Message not found")
+    raise fastapi.exceptions.HTTPException(404, detail="Message not found.") from None
 
 
 @utilities.as_endpoint(
@@ -83,6 +83,25 @@ async def delete_messages(
     return fastapi.Response(status_code=202)
 
 
+async def viewer_device(
+    device_id: typing.Optional[int] = fastapi.Header(
+        default=None, ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT
+    ),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+) -> typing.Optional[dao_protos.Device]:
+    if device_id is None:
+        return None
+
+    if device := await database.get_device(device_id):
+        if device.user_id == user.id:
+            return device
+
+        raise fastapi.exceptions.HTTPException(403, detail="You don't own this device.") from None
+
+    raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
+
+
 @utilities.as_endpoint(
     "GET",
     "/users/@me/messages/{message_id}",
@@ -92,7 +111,16 @@ async def delete_messages(
 )
 async def get_message(
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    viewer: typing.Optional[dao_protos.Device] = fastapi.Depends(viewer_device),
 ) -> dto_models.Message:
+    if viewer and viewer.user_id == message.user_id:
+        try:
+            await database.set_view(message_id=message.id, device_id=viewer.id)
+
+        except sql_api.AlreadyExistsError:
+            pass
+
     return dto_models.Message.from_orm(message)
 
 
@@ -134,7 +162,7 @@ async def patch_message(
         permission = await database.get_permission(stored_message.id, user.id)
 
         if not permission or permission.permissions != flags.PermissionFlags.READ_AND_WRITE:
-            raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message")
+            raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
 
     try:
         fields: dict[str, typing.Any] = message_update.dict(skip_defaults=True)
@@ -147,9 +175,10 @@ async def patch_message(
                 fields["expire_at"] = None
 
         new_message = await database.update_message(stored_message.id, **fields)
+        assert new_message is not None, "existence should've been verified by retrieve_message"
 
     except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc))
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     return dto_models.Message.from_orm(new_message)
 
@@ -182,6 +211,6 @@ async def post_messages(
         )
 
     except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc))
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     return dto_models.Message.from_orm(result)

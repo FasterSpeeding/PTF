@@ -48,8 +48,8 @@ class User(typing.Protocol):
     id: int
     created_at: datetime.datetime
     flags: int
-    username: str
     password_hash: str
+    username: str
 
 
 @typing.runtime_checkable

@@ -103,7 +103,7 @@ async def patch_my_user(
         new_user = await database.update_user(stored_user.id, **fields)
 
     except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc))
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     return dto_models.User.from_orm(new_user)
 
@@ -117,16 +117,16 @@ async def put_user(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     hash_password: refs.HashPasswordProto = fastapi.Depends(refs.HashPasswordProto),
 ) -> dto_models.User:
-    if _ := await database.get_user_by_username(user.username):
-        raise fastapi.exceptions.HTTPException(409, detail=f"User `{user.username}` already exists")
-
     try:
         password = hash_password(user.password)
         result = await database.set_user(flags=user.flags, username=user.username, password_hash=password)
         return dto_models.User.from_orm(result)
 
+    except sql_api.AlreadyExistsError:
+        raise fastapi.exceptions.HTTPException(409, detail=f"User `{user.username}` already exists.") from None
+
     except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc))
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
 
 @utilities.as_endpoint(
@@ -169,9 +169,9 @@ async def retrieve_device(
         if user.id == stored_device.user_id:
             return stored_device
 
-        raise fastapi.exceptions.HTTPException(403, detail="You cannot access that device")
+        raise fastapi.exceptions.HTTPException(403, detail="You cannot access that device.") from None
 
-    raise fastapi.exceptions.HTTPException(404, detail="Device not found")
+    raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
 
 
 @utilities.as_endpoint(
@@ -195,7 +195,7 @@ async def patch_user_device(
         new_device = await database.update_device(stored_device.id, **device_update.dict(skip_defaults=True))
 
     except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc))
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     return dto_models.Device.from_orm(new_device)
 
@@ -204,7 +204,7 @@ async def patch_user_device(
     "POST",
     "/users/@me/devices",
     response_model=dto_models.Device,
-    responses={**dto_models.AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
+    responses={**dto_models.AUTH_RESPONSE, 400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR},
     tags=["Devices"],
 )
 async def post_user_devices(
@@ -218,5 +218,8 @@ async def post_user_devices(
         )
         return dto_models.Device.from_orm(result)
 
+    except sql_api.AlreadyExistsError:
+        raise fastapi.exceptions.HTTPException(409, detail=f"Device `{device.name}` already exists.") from None
+
     except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc))
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
