@@ -138,11 +138,13 @@ async def put_user(
     tags=["Devices"],
 )
 async def delete_user_devices(
-    device_ids: set[int] = fastapi.Body(..., qe=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT),
+    device_names: set[str] = fastapi.Body(
+        ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
+    ),
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    database.clear_devices().filter("eq", ("user_id", user.id)).filter("contains", ("id", device_ids)).start()
+    database.clear_devices().filter("eq", ("user_id", user.id)).filter("contains", ("name", device_names)).start()
     return fastapi.Response(status_code=202)
 
 
@@ -160,42 +162,35 @@ async def get_user_devices(
     return list(await database.iter_devices_for_user(user.id).map(dto_models.Device.from_orm))
 
 
-async def retrieve_device(
-    device_id: int = fastapi.Path(..., qe=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> dao_protos.Device:
-    if stored_device := await database.get_device(device_id):
-        if user.id == stored_device.user_id:
-            return stored_device
-
-        raise fastapi.exceptions.HTTPException(403, detail="You cannot access that device.") from None
-
-    raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
-
-
 @utilities.as_endpoint(
     "PATCH",
-    "/users/@me/devices/{device_id}",
+    "/users/@me/devices/{device_name}",
     response_model=dto_models.Device,
     responses={
         **dto_models.AUTH_RESPONSE,
         400: dto_models.BASIC_ERROR,
-        403: dto_models.BASIC_ERROR,
         404: dto_models.BASIC_ERROR,
     },
     tags=["Devices"],
 )
 async def patch_user_device(
     device_update: dto_models.ReceivedDeviceUpdate,
-    stored_device: dao_protos.Device = fastapi.Depends(retrieve_device),
+    device_name: str = fastapi.Path(
+        ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
+    ),
+    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Device:
     try:
-        new_device = await database.update_device(stored_device.id, **device_update.dict(skip_defaults=True))
+        new_device = await database.update_device_by_name(
+            user.id, device_name, **device_update.dict(skip_defaults=True)
+        )
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
+
+    if not new_device:
+        raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
 
     return dto_models.Device.from_orm(new_device)
 
@@ -208,7 +203,7 @@ async def patch_user_device(
     tags=["Devices"],
 )
 async def post_user_devices(
-    device: dto_models.ReceivedDevice,
+    device: dto_models.Device,
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Device:

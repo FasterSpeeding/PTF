@@ -49,8 +49,8 @@ MINIMUM_TIMEDELTA: typing.Final[datetime.timedelta] = datetime.timedelta(seconds
 
 RAW_USERNAME_REGEX: typing.Final[str] = r"[\w\-\s]+"
 USERNAME_REGEX: typing.Final[re.Pattern[str]] = re.compile(RAW_USERNAME_REGEX)
-MINIMUM_USERNAME_LENGTH: typing.Final[int] = 3
-MAXIMUM_USERNAME_LENGTH: typing.Final[int] = 20
+MINIMUM_NAME_LENGTH: typing.Final[int] = 3
+MAXIMUM_NAME_LENGTH: typing.Final[int] = 32
 
 MINIMUM_PASSWORD_LENGTH: typing.Final[int] = 8
 MAXIMUM_PASSWORD_LENGTH: typing.Final[int] = 120

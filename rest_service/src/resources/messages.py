@@ -84,20 +84,17 @@ async def delete_messages(
 
 
 async def viewer_device(
-    device_id: typing.Optional[int] = fastapi.Header(
-        default=None, ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT
+    device_name: typing.Optional[str] = fastapi.Header(
+        default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
 ) -> typing.Optional[dao_protos.Device]:
-    if device_id is None:
+    if device_name is None:
         return None
 
-    if device := await database.get_device(device_id):
-        if device.user_id == user.id:
-            return device
-
-        raise fastapi.exceptions.HTTPException(403, detail="You don't own this device.") from None
+    if device := await database.get_device_by_name(user.id, device_name):
+        return device
 
     raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
 
@@ -106,7 +103,7 @@ async def viewer_device(
     "GET",
     "/users/@me/messages/{message_id}",
     response_model=dto_models.Message,
-    responses={404: dto_models.BASIC_ERROR, 403: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
+    responses={404: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
     tags=["Messages"],
 )
 async def get_message(

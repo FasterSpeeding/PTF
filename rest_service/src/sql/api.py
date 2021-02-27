@@ -88,6 +88,9 @@ class DatabaseCollection(typing.Protocol[_ValueT_co]):
     async def collect(self) -> collections.Collection[_ValueT_co]:
         raise NotImplementedError
 
+    async def count(self) -> int:
+        raise NotImplementedError
+
     def filter(
         self: _DatabaseCollectionT, filter_type: FilterTypeT, *rules: tuple[str, typing.Any]
     ) -> _DatabaseCollectionT:
@@ -188,11 +191,19 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_device(self, device_id: int, /) -> None:
+    async def delete_device_by_id(self, device_id: int, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_device(self, device_id: int, /) -> typing.Optional[dao_protos.Device]:
+    async def delete_device_by_name(self, user_id: int, device_name: str, /) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def get_device_by_id(self, device_id: int, /) -> typing.Optional[dao_protos.Device]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def get_device_by_name(self, user_id: int, device_name: str, /) -> typing.Optional[dao_protos.Device]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -208,8 +219,27 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def update_device(
-        self, device_id: int, /, *, access: int = ..., is_required_viewer: bool = ..., user_id: int = ...
+    async def update_device_by_id(
+        self,
+        device_id: int,
+        /,
+        *,
+        access: int = ...,
+        is_required_viewer: bool = ...,
+        name: str = ...,
+    ) -> typing.Optional[dao_protos.Device]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def update_device_by_name(
+        self,
+        user_id: int,
+        device_name: str,
+        /,
+        *,
+        access: int = ...,
+        is_required_viewer: bool = ...,
+        name: str = ...,
     ) -> typing.Optional[dao_protos.Device]:
         raise NotImplementedError
 
@@ -328,11 +358,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_view(self, view_id: int, /) -> None:
+    async def delete_view(self, device_id: int, message_id: int, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_view(self, view_id: int, /) -> typing.Optional[dao_protos.View]:
+    async def get_view(self, device_id: int, message_id: int, /) -> typing.Optional[dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod

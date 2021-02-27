@@ -119,6 +119,12 @@ class _PostgresCollection(typing.Generic[_ValueT]):
             assert isinstance(result, collections.Collection)
             return result
 
+    async def count(self) -> int:
+        async with self._engine.begin() as connection:
+            cursor = await connection.execute(self._query)
+            assert isinstance(cursor.rowcount, int)
+            return cursor.rowcount
+
     def filter(
         self: _PostgresCollectionT, filter_type: api.FilterTypeT, *rules: tuple[str, typing.Any]
     ) -> _PostgresCollectionT:
@@ -169,10 +175,7 @@ class FilteredClear(_PostgresCollection[_ValueT], api.FilteredClear[_ValueT]):
         return self.execute().__await__()
 
     async def execute(self) -> int:
-        async with self._engine.begin() as connection:
-            cursor = await connection.execute(self._query)
-            assert isinstance(cursor.rowcount, int)
-            return cursor.rowcount
+        return await self.count()
 
     def start(self) -> asyncio.Task[int]:
         return asyncio.create_task(self.execute())
@@ -305,13 +308,27 @@ class PostgreDatabase(api.DatabaseHandler):
     def clear_devices(self) -> api.FilteredClear[dao_protos.Device]:
         return FilteredClear(self._database, dao_models.Devices, dao_models.Devices.delete())
 
-    async def delete_device(self, device_id: int, /) -> None:
-        await self._execute(dao_models.Devices.delete(dao_models.Devices.c["id"] == device_id))
+    async def delete_device_by_id(self, device_id: int, /) -> None:
+        await self._execute(dao_models.Devices.delete(dao_models.Devices.columns["id"] == device_id))
 
-    async def get_device(self, device_id: int, /) -> typing.Optional[dao_protos.Device]:
-        return await self._fetch_one(
-            dao_protos.Device, dao_models.Devices.select(dao_models.Devices.c["id"] == device_id)
+    async def delete_device_by_name(self, user_id: int, device_name: str, /) -> None:
+        columns = dao_models.Devices.columns
+        query = dao_models.Devices.delete(
+            sqlalchemy.and_(columns["user_id"] == user_id, columns["name"] == device_name)
         )
+        await self._execute(query)
+
+    async def get_device_by_id(self, device_id: int, /) -> typing.Optional[dao_protos.Device]:
+        return await self._fetch_one(
+            dao_protos.Device, dao_models.Devices.select(dao_models.Devices.columns["id"] == device_id)
+        )
+
+    async def get_device_by_name(self, user_id: int, device_name: str, /) -> typing.Optional[dao_protos.Device]:
+        columns = dao_models.Devices.columns
+        query = dao_models.Devices.select(
+            sqlalchemy.and_(columns["user_id"] == user_id, columns["name"] == device_name)
+        )
+        return await self._fetch_one(dao_protos.Device, query)
 
     def iter_devices(self) -> api.DatabaseIterator[dao_protos.Device]:
         return PostgreIterator(self._database, dao_models.Devices, dao_models.Devices.select())
@@ -324,12 +341,26 @@ class PostgreDatabase(api.DatabaseHandler):
     async def set_device(self, **kwargs: typing.Any) -> dao_protos.Device:
         return await self._set(dao_protos.Device, dao_models.Devices.insert(kwargs).returning(dao_models.Devices))
 
-    async def update_device(self, device_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.Device]:
+    async def update_device_by_id(self, device_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.Device]:
         if not kwargs:
-            return await self.get_device(device_id)
+            return await self.get_user_by_id(device_id)
 
         query = (
-            dao_models.Devices.update(dao_models.Devices.c["id"] == device_id)
+            dao_models.Devices.update(dao_models.Devices.columns["id"] == device_id)
+            .values(kwargs)
+            .returning(dao_models.Devices)
+        )
+        return await self._update(dao_protos.Device, query)
+
+    async def update_device_by_name(
+        self, user_id: int, device_name: str, /, **kwargs: typing.Any
+    ) -> typing.Optional[dao_protos.Device]:
+        if not kwargs:
+            return await self.get_device_by_name(user_id, device_name)
+
+        columns = dao_models.Devices.columns
+        query = (
+            dao_models.Devices.update(sqlalchemy.and_(columns["user_id"] == user_id, columns["name"] == device_name))
             .values(kwargs)
             .returning(dao_models.Devices)
         )
@@ -399,19 +430,18 @@ class PostgreDatabase(api.DatabaseHandler):
         return FilteredClear(self._database, dao_models.Permissions, dao_models.Permissions.delete())
 
     async def delete_permission(self, message_id: int, user_id: int, /) -> None:
-        await self._execute(
-            dao_models.Permissions.delete(
-                dao_models.Permissions.c["message_id"] == message_id and dao_models.Permissions.c["user_id"] == user_id
-            )
+        columns = dao_models.Permissions.columns
+        query = dao_models.Permissions.delete(
+            sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
         )
+        await self._execute(query)
 
     async def get_permission(self, message_id: int, user_id: int, /) -> typing.Optional[dao_protos.Permission]:
-        return await self._fetch_one(
-            dao_protos.Permission,
-            dao_models.Permissions.select(
-                dao_models.Permissions.c["message_id"] == message_id and dao_models.Permissions.c["user_id"] == user_id
-            ),
+        columns = dao_models.Permissions.columns
+        query = dao_models.Permissions.select(
+            sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
         )
+        return await self._fetch_one(dao_protos.Permission, query)
 
     def iter_permissions(self) -> api.DatabaseIterator[dao_protos.Permission]:
         return PostgreIterator(self._database, dao_models.Permissions, dao_models.Permissions.select())
@@ -435,9 +465,10 @@ class PostgreDatabase(api.DatabaseHandler):
         if not kwargs:
             return await self.get_permission(message_id, user_id)
 
+        columns = dao_models.Permissions.columns
         query = (
             dao_models.Permissions.update(
-                dao_models.Permissions.c["message_id"] == message_id and dao_models.Permissions.c["user_id"] == user_id
+                sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
             )
             .values(kwargs)
             .returning(dao_models.Permissions)
@@ -447,11 +478,19 @@ class PostgreDatabase(api.DatabaseHandler):
     def clear_views(self) -> api.FilteredClear[dao_protos.View]:
         return FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())
 
-    async def delete_view(self, view_id: int, /) -> None:
-        await self._execute(dao_models.Views.delete(dao_models.Views.c["id"] == view_id))
+    async def delete_view(self, device_id: int, message_id: int, /) -> None:
+        columns = dao_models.Views.columns
+        query = dao_models.Views.delete(
+            sqlalchemy.and_(columns["device_id"] == device_id, columns["message_id"] == message_id)
+        )
+        await self._execute(query)
 
-    async def get_view(self, view_id: int, /) -> typing.Optional[dao_protos.View]:
-        return await self._fetch_one(dao_protos.View, dao_models.Views.select(dao_models.Views.c["id"] == view_id))
+    async def get_view(self, device_id: int, message_id: int, /) -> typing.Optional[dao_protos.View]:
+        columns = dao_models.Views.columns
+        query = dao_models.Views.select(
+            sqlalchemy.and_(columns["device_id"] == device_id, columns["message_id"] == message_id)
+        )
+        return await self._fetch_one(dao_protos.View, query)
 
     def iter_views(self) -> api.DatabaseIterator[dao_protos.View]:
         return PostgreIterator(self._database, dao_models.Views, dao_models.Views.select())

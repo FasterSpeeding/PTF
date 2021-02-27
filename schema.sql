@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
     created_at    TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     flags         BIGINT                   NOT NULL,
     password_hash VARCHAR                  NOT NULL, -- argon2  -- TODO: bytea?
-    username      VARCHAR                  NOT NULL, -- TODO: case insensitivity?
+    username      VARCHAR(32)              NOT NULL, -- TODO: case insensitivity?
 
     CONSTRAINT user_pk PRIMARY KEY (id),
     CONSTRAINT user_username_uc UNIQUE (username)
@@ -43,10 +43,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS devices (
     id                 BIGINT GENERATED ALWAYS AS IDENTITY,
-    access             INT     NOT NULL,
-    is_required_viewer BOOLEAN NOT NULL, -- TODO: This might be backwards
-    name               VARCHAR NOT NULL,
-    user_id            BIGINT  NOT NULL,
+    access             INT         NOT NULL,
+    is_required_viewer BOOLEAN     NOT NULL, -- TODO: This might be backwards
+    name               VARCHAR(32) NOT NULL,
+    user_id            BIGINT      NOT NULL,
 
     CONSTRAINT device_pk PRIMARY KEY (id),
     CONSTRAINT device_user_id_fk FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE,
@@ -92,13 +92,11 @@ CREATE TABLE IF NOT EXISTS permissions (
 
 
 CREATE TABLE IF NOT EXISTS views (
-    id         BIGINT GENERATED ALWAYS AS IDENTITY,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     device_id  BIGINT                   NOT NULL,
     message_id BIGINT                   NOT NULL,
 
-    CONSTRAINT view_pk PRIMARY KEY (id),
+    CONSTRAINT view_pk PRIMARY KEY (device_id, message_id),
     CONSTRAINT views_device_id_fk FOREIGN KEY (device_id) REFERENCES devices (id) ON DELETE CASCADE,
-    CONSTRAINT views_message_id_fk FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE,
-    CONSTRAINT view_uc UNIQUE (device_id, message_id)
+    CONSTRAINT views_message_id_fk FOREIGN KEY (message_id) REFERENCES messages (id) ON DELETE CASCADE
 );

@@ -39,7 +39,6 @@ __all__: list[str] = [
     "ReceivedUser",
     "ReceivedUserUpdate",
     "User",
-    "ReceivedDevice",
     "Device",
     "ReceivedMessage",
     "ReceivedMessageUpdate",
@@ -110,8 +109,8 @@ class BasicError(pydantic.BaseModel):
 class ReceivedUser(pydantic.BaseModel):
     flags: flags.UserFlags = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
     username: str = pydantic.Field(
-        min_length=validation.MINIMUM_USERNAME_LENGTH,
-        max_length=validation.MAXIMUM_USERNAME_LENGTH,
+        min_length=validation.MINIMUM_NAME_LENGTH,
+        max_length=validation.MAXIMUM_NAME_LENGTH,
         regex=validation.RAW_USERNAME_REGEX,  # We may be duping this check but this keeps the regex documented.
     )
     password: str = pydantic.Field(
@@ -142,8 +141,8 @@ else:
     class ReceivedUserUpdate(pydantic.BaseModel):
         username: str = pydantic.Field(
             default_factory=UndefinedType,
-            min_length=validation.MINIMUM_USERNAME_LENGTH,
-            max_length=validation.MAXIMUM_USERNAME_LENGTH,
+            min_length=validation.MINIMUM_NAME_LENGTH,
+            max_length=validation.MAXIMUM_NAME_LENGTH,
             regex=validation.RAW_USERNAME_REGEX,  # We may be duping this check but this keeps the regex documented.
         )
         password: str = pydantic.Field(
@@ -175,10 +174,12 @@ class User(pydantic.BaseModel):
         return self.id
 
 
-class ReceivedDevice(pydantic.BaseModel):
+class Device(pydantic.BaseModel):
     access: flags.DeviceAccessLevel = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
     is_required_viewer: bool
-    name: str
+    name: str = pydantic.Field(
+        ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
+    )
 
     Config = _ModelConfig
 
@@ -198,17 +199,13 @@ else:
             default_factory=UndefinedType, ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT
         )
         is_required_viewer: bool = pydantic.Field(default_factory=UndefinedType)
-        name: str = pydantic.Field(default_factory=UndefinedType)
+        name: str = pydantic.Field(
+            default_factory=UndefinedType,
+            min_length=validation.MINIMUM_NAME_LENGTH,
+            max_length=validation.MAXIMUM_NAME_LENGTH,
+        )
 
         Config = _ModelConfig
-
-
-class Device(ReceivedDevice, pydantic.BaseModel):
-    id: int
-    user_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-
-    def __int__(self) -> int:
-        return self.id
 
 
 class ReceivedMessage(pydantic.BaseModel):
@@ -303,11 +300,7 @@ class ReceivedView(pydantic.BaseModel):
 
 
 class View(ReceivedView, pydantic.BaseModel):
-    id: int
     created_at: datetime.datetime
-
-    def __int__(self) -> int:
-        return self.id
 
 
 BASIC_ERROR: typing.Final[dict[str, typing.Any]] = {"model": BasicError}

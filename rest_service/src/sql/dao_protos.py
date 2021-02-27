@@ -109,7 +109,6 @@ class View(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
-    id: int
     created_at: datetime.datetime
     device_id: int
     message_id: int
