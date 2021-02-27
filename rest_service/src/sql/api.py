@@ -47,7 +47,6 @@ _DatabaseT = typing.TypeVar("_DatabaseT", bound="DatabaseHandler")
 _ValueT_co = typing.TypeVar("_ValueT_co", covariant=True)
 _OtherValueT = typing.TypeVar("_OtherValueT")
 _DatabaseCollectionT = typing.TypeVar("_DatabaseCollectionT", bound="DatabaseCollection[typing.Any]")
-_DatabaseIteratorT = typing.TypeVar("_DatabaseIteratorT", bound="DatabaseIterator[typing.Any]")
 
 
 FilterTypeT = typing.Union[
@@ -94,8 +93,14 @@ class DatabaseCollection(typing.Protocol[_ValueT_co]):
     async def iter(self) -> collections.Iterator[_ValueT_co]:
         raise NotImplementedError
 
+    def limit(self: _DatabaseCollectionT, limit: int, /) -> _DatabaseCollectionT:
+        raise NotImplementedError
+
     # TODO: do we want to finalise here?
     async def map(self, cast: typing.Callable[[_ValueT_co], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
+        raise NotImplementedError
+
+    def order_by(self: _DatabaseCollectionT, field: str, /, descending: bool = False) -> _DatabaseCollectionT:
         raise NotImplementedError
 
 
@@ -103,9 +108,6 @@ class DatabaseIterator(DatabaseCollection[_ValueT_co], typing.Protocol[_ValueT_c
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterable[_ValueT_co]]:
-        raise NotImplementedError
-
-    def limit(self: _DatabaseIteratorT, limit: int, /) -> _DatabaseIteratorT:
         raise NotImplementedError
 
 

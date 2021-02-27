@@ -107,7 +107,9 @@ async def get_messages(
     user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Message]:
-    return list(await database.iter_messages_for_user(user.id).map(dto_models.Message.from_orm))
+    return list(
+        await database.iter_messages_for_user(user.id).order_by("id", descending=True).map(dto_models.Message.from_orm)
+    )
 
 
 @utilities.as_endpoint(

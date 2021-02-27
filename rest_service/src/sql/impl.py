@@ -34,6 +34,7 @@ from __future__ import annotations
 __all__: list[str] = ["DatabaseManager", "PostgreDatabase"]
 
 import asyncio
+import collections.abc as collections
 import operator
 import typing
 import urllib.parse
@@ -48,7 +49,6 @@ from . import dao_models
 from . import dao_protos
 
 if typing.TYPE_CHECKING:
-    import collections.abc as collections
     import types
 
 _DatabaseT = typing.TypeVar("_DatabaseT", bound=api.DatabaseHandler)
@@ -135,8 +135,17 @@ class _PostgresCollection(typing.Generic[_ValueT]):
     async def iter(self) -> collections.Iterator[_ValueT]:
         return iter(await self.collect())
 
+    def limit(self: _PostgresCollectionT, limit: int, /) -> _PostgresCollectionT:
+        self._query = self._query.limit(limit)
+        return self
+
     async def map(self, cast: typing.Callable[[_ValueT], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
         return map(cast, await self.collect())
+
+    def order_by(self: _PostgresCollectionT, field: str, /, descending: bool = False) -> _PostgresCollectionT:
+        order = sqlalchemy.desc if descending else sqlalchemy.asc
+        self._query = self._query.order_by(order(self._table.entity_namespace[field]))
+        return self
 
 
 class PostgreIterator(_PostgresCollection[_ValueT], api.DatabaseIterator[_ValueT]):
@@ -144,10 +153,6 @@ class PostgreIterator(_PostgresCollection[_ValueT], api.DatabaseIterator[_ValueT
 
     def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterator[_ValueT]]:
         return self.iter().__await__()
-
-    def limit(self, limit: int, /) -> PostgreIterator[_ValueT]:
-        self._query = self._query.limit(limit)
-        return self
 
 
 class FilteredClear(_PostgresCollection[_ValueT], api.FilteredClear[_ValueT]):
