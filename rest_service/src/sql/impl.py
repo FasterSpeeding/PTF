@@ -121,8 +121,10 @@ class _PostgresCollection(typing.Generic[_ValueT]):
         if filter_type == "contains":
             self._query = self._query.filter(*(namespace[attr].in_(value) for attr, value in rules))
 
-        operator_ = _operators[filter_type]
-        self._query = self._query.filter(*(operator_(namespace[attr], value) for attr, value in rules))
+        else:
+            operator_ = _operators[filter_type]
+            self._query = self._query.filter(*(operator_(namespace[attr], value) for attr, value in rules))
+
         return self
 
     def filter_truth(self: _PostgresCollectionT, *fields: str, truth: bool = True) -> _PostgresCollectionT:
