@@ -97,7 +97,7 @@ async def patch_my_user(
     try:
         # TODO: validate flags being changed
         fields: dict[str, typing.Any] = user_update.dict(skip_defaults=True)
-        if password := fields.pop("password", None):
+        if password := fields.pop("password"):
             fields["password_hash"] = hash_password(password)
 
         new_user = await database.update_user(stored_user.id, **fields)

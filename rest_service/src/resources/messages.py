@@ -138,9 +138,13 @@ async def patch_message(
 
     try:
         fields: dict[str, typing.Any] = message_update.dict(skip_defaults=True)
-        if expire_after := fields.pop("expire_after", None):
-            assert isinstance(expire_after, datetime.timedelta)
-            fields["expire_at"] = datetime.datetime.now(tz=datetime.timezone.utc) + expire_after
+        if (expire_after := fields.pop("expire_after", ...)) is not ...:
+            assert expire_after is None or isinstance(expire_after, datetime.timedelta)
+            if expire_after:
+                fields["expire_at"] = datetime.datetime.now(tz=datetime.timezone.utc) + expire_after
+
+            else:
+                fields["expire_at"] = None
 
         new_message = await database.update_message(stored_message.id, **fields)
 

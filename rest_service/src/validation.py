@@ -52,7 +52,7 @@ USERNAME_REGEX: typing.Final[re.Pattern[str]] = re.compile(RAW_USERNAME_REGEX)
 MINIMUM_USERNAME_LENGTH: typing.Final[int] = 3
 MAXIMUM_USERNAME_LENGTH: typing.Final[int] = 20
 
-MINIMUM_PASSWORD_LENGTH: typing.Final[int] = 16
+MINIMUM_PASSWORD_LENGTH: typing.Final[int] = 8
 MAXIMUM_PASSWORD_LENGTH: typing.Final[int] = 120
 
 

@@ -101,10 +101,6 @@ class _ModelConfig(pydantic.BaseConfig):
     use_enum_values = True
 
 
-# class _ReceivedModelConfig(_ModelConfig):
-#     arbitrary_types_allowed = True
-
-
 class BasicError(pydantic.BaseModel):
     detail: str
 
