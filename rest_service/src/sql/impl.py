@@ -142,8 +142,8 @@ class _PostgresCollection(typing.Generic[_ValueT]):
     async def map(self, cast: typing.Callable[[_ValueT], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
         return map(cast, await self.collect())
 
-    def order_by(self: _PostgresCollectionT, field: str, /, descending: bool = False) -> _PostgresCollectionT:
-        order = sqlalchemy.desc if descending else sqlalchemy.asc
+    def order_by(self: _PostgresCollectionT, field: str, /, ascending: bool = True) -> _PostgresCollectionT:
+        order = sqlalchemy.asc if ascending else sqlalchemy.desc
         self._query = self._query.order_by(order(self._table.entity_namespace[field]))
         return self
 
@@ -274,18 +274,10 @@ class PostgreDatabase(api.DatabaseHandler):
     async def delete_user(self, user_id: int, /) -> None:
         await self._execute(dao_models.Users.delete(dao_models.Users.c["id"] == user_id))
 
-    async def get_user_by_id(
-        self,
-        user_id: typing.Union[int, str],
-        /,
-    ) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_id(self, user_id: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(dao_protos.User, dao_models.Users.select(dao_models.Users.c["id"] == user_id))
 
-    async def get_user_by_username(
-        self,
-        username: typing.Union[int, str],
-        /,
-    ) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_username(self, username: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(
             dao_protos.User, dao_models.Users.select(dao_models.Users.c["username"] == username)
         )
@@ -342,11 +334,7 @@ class PostgreDatabase(api.DatabaseHandler):
     async def delete_message(self, message_id: int, /) -> None:
         await self._execute(dao_models.Messages.delete(dao_models.Messages.c["id"] == message_id))
 
-    async def get_message(
-        self,
-        message_id: int,
-        /,
-    ) -> typing.Optional[dao_protos.Message]:
+    async def get_message(self, message_id: int, /) -> typing.Optional[dao_protos.Message]:
         return await self._fetch_one(
             dao_protos.Message, dao_models.Messages.select(dao_models.Messages.c["id"] == message_id)
         )
@@ -461,7 +449,7 @@ class PostgreDatabase(api.DatabaseHandler):
     def iter_views(self) -> api.DatabaseIterator[dao_protos.View]:
         return PostgreIterator(self._database, dao_models.Views, dao_models.Views.select())
 
-    def iter_views_for_device(self, device_id: int) -> api.DatabaseIterator[dao_protos.View]:
+    def iter_views_for_device(self, device_id: int, /) -> api.DatabaseIterator[dao_protos.View]:
         return PostgreIterator(
             self._database, dao_models.Views, dao_models.Views.select(dao_models.Views.c["device_id"] == device_id)
         )

@@ -100,7 +100,7 @@ class DatabaseCollection(typing.Protocol[_ValueT_co]):
     async def map(self, cast: typing.Callable[[_ValueT_co], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
         raise NotImplementedError
 
-    def order_by(self: _DatabaseCollectionT, field: str, /, descending: bool = False) -> _DatabaseCollectionT:
+    def order_by(self: _DatabaseCollectionT, field: str, /, ascending: bool = True) -> _DatabaseCollectionT:
         raise NotImplementedError
 
 
@@ -150,19 +150,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_user_by_id(
-        self,
-        user_id: int,
-        /,
-    ) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_id(self, user_id: int, /) -> typing.Optional[dao_protos.User]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_user_by_username(
-        self,
-        username: str,
-        /,
-    ) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_username(self, username: str, /) -> typing.Optional[dao_protos.User]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -224,11 +216,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_message(
-        self,
-        message_id: int,
-        /,
-    ) -> typing.Optional[dao_protos.Message]:
+    async def get_message(self, message_id: int, /) -> typing.Optional[dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -346,7 +334,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_views_for_device(self, device_id: int) -> DatabaseIterator[dao_protos.View]:
+    def iter_views_for_device(self, device_id: int, /) -> DatabaseIterator[dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod

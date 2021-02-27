@@ -108,7 +108,7 @@ async def get_messages(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Message]:
     return list(
-        await database.iter_messages_for_user(user.id).order_by("id", descending=True).map(dto_models.Message.from_orm)
+        await database.iter_messages_for_user(user.id).order_by("id", ascending=False).map(dto_models.Message.from_orm)
     )
 
 
