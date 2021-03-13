@@ -516,7 +516,7 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._set(dao_protos.View, dao_models.Views.insert(kwargs).returning(dao_models.Views))
 
 
-class DatabaseManager(typing.Generic[_DatabaseT]):
+class DatabaseManager:
     __slots__: tuple[str, ...] = ("_database",)
 
     def __init__(self, url: str, /) -> None:
