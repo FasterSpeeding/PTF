@@ -48,6 +48,7 @@ __all__: list[str] = [
     "patch_my_user",
     "patch_user_device",
     "post_user_devices",
+    "put_message_view",
     "put_user",
 ]
 

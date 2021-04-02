@@ -31,7 +31,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["delete_messages", "get_message", "get_messages", "patch_message", "post_messages"]
+__all__: list[str] = [
+    "delete_messages",
+    "get_message",
+    "get_messages",
+    "patch_message",
+    "post_messages",
+    "put_message_view",
+]
 
 import datetime
 import typing
@@ -94,6 +101,37 @@ async def viewer_device(
 
 
 @utilities.as_endpoint(
+    "PUT",
+    "/users/@me/messages/{message_id}/views/{device_name}",
+    response_class=fastapi.Response,
+    status_code=204,
+    responses={400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
+    tags=["Messages"],
+)
+async def put_message_view(
+    device_name: str = fastapi.Path(
+        default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
+    ),
+    message: dao_protos.Message = fastapi.Depends(retrieve_message),
+    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+) -> fastapi.Response:
+    if not (device := await database.get_device_by_name(user.id, device_name)):
+        raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
+
+    try:
+        await database.set_view(device_id=device.id, message_id=message.id)
+
+    except sql_api.AlreadyExistsError:
+        raise fastapi.exceptions.HTTPException(409, detail="View already exists.") from None
+
+    except sql_api.DataError as exc:
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
+
+    return fastapi.Response(status_code=204)
+
+
+@utilities.as_endpoint(
     "GET",
     "/users/@me/messages/{message_id}",
     response_model=dto_models.Message,
@@ -102,16 +140,7 @@ async def viewer_device(
 )
 async def get_message(
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-    viewer: typing.Optional[dao_protos.Device] = fastapi.Depends(viewer_device),
 ) -> dto_models.Message:
-    if viewer and viewer.user_id == message.user_id:
-        try:
-            await database.set_view(message_id=message.id, device_id=viewer.id)
-
-        except sql_api.AlreadyExistsError:
-            pass
-
     return dto_models.Message.from_orm(message)
 
 
