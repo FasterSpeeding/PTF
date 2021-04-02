@@ -95,6 +95,7 @@ Messages = sqlalchemy.Table(
 Files = sqlalchemy.Table(
     "files",
     metadata,
+    sqlalchemy.Column("content_type", sqlalchemy.VARCHAR, nullable=True),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
     sqlalchemy.Column("is_public", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("message_id", sqlalchemy.BIGINT, nullable=False),

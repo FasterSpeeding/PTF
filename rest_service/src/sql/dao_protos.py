@@ -87,6 +87,7 @@ class File(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
+    content_type: typing.Optional[str]
     file_name: str
     is_public: str
     message_id: int

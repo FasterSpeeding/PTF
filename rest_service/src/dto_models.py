@@ -252,7 +252,9 @@ class Message(pydantic.BaseModel):
 
 
 class File(pydantic.BaseModel):
+    content_type: typing.Optional[str]
     file_name: str
+    is_public: bool
     message_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
 
     Config = _ModelConfig
