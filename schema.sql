@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS users (
 );
 
 
+-- TODO: replace id as primary key with (name, user_id)
 CREATE TABLE IF NOT EXISTS devices (
     id                  BIGINT      GENERATED ALWAYS AS IDENTITY,
     access              INT         NOT NULL,
@@ -87,9 +88,10 @@ CREATE TABLE IF NOT EXISTS messages (
 
 -- The actual files for deleted files will be deleted by a cron-job running on the file service at one point.
 CREATE TABLE IF NOT EXISTS files (
-    file_name   VARCHAR     NOT NULL,
-    is_public   BOOLEAN     NOT NULL,
-    message_id  BIGINT      NOT NULL,
+    content_type    VARCHAR,
+    file_name       VARCHAR     NOT NULL,
+    is_public       BOOLEAN     NOT NULL,
+    message_id      BIGINT      NOT NULL,
 
     CONSTRAINT file_pk
         PRIMARY KEY (file_name, message_id),

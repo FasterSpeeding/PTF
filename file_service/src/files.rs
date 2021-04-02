@@ -29,20 +29,59 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 use std::error::Error;
+use std::path::Path;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::sql::dao_models;
+use crate::sql;
+
+#[async_trait]
+pub trait FileReader: Sync {
+    async fn delete_file(&self, file: &sql::dao_models::File) -> Result<(), Box<dyn Error>>;
+    async fn read_file(&self, file: &sql::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
+    async fn save_file(&self, message_id: &i64, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
+}
+
+#[derive(Clone, Debug)]
+pub struct LocalReader {
+    base_url: Arc<std::path::Path>
+}
 
 
-pub type DatabaseResult<Model> = Result<Option<Model>, Box<dyn Error>>;
+impl LocalReader {
+    pub fn new(base_url: &str) -> Self {
+        Self {
+            base_url: Arc::from(Path::new(base_url))
+        }
+    }
+
+    // TODO: normalise file_name
+    fn build_url(&self, message_id: &i64, file_name: &str) -> std::path::PathBuf {
+        let mut path = self.base_url.to_path_buf();
+        path.push(format!("{}_{}", message_id, file_name));
+        path
+    }
+}
 
 
 #[async_trait]
-pub trait Database: Sync {
-    async fn get_file(&self, message_id: &i64, file_name: &str) -> DatabaseResult<dao_models::File>;
-    async fn get_message(&self, message_id: &i64) -> DatabaseResult<dao_models::Message>;
-    async fn get_permission(&self, user_id: &i64, message_id: &i64) -> DatabaseResult<dao_models::Permission>;
-    async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::User>;
-    async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::User>;
+impl FileReader for LocalReader {
+    async fn delete_file(&self, file: &sql::dao_models::File) -> Result<(), Box<dyn Error>> {
+        tokio::fs::remove_file(self.build_url(&file.message_id, &file.file_name))
+            .await
+            .map_err(Box::from)
+    }
+
+    async fn read_file(&self, file: &sql::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>> {
+        tokio::fs::read(self.build_url(&file.message_id, &file.file_name))
+            .await
+            .map_err(Box::from)
+    }
+
+    async fn save_file(&self, message_id: &i64, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>> {
+        tokio::fs::write(self.build_url(message_id, file_name), data)
+            .await
+            .map_err(Box::from)
+    }
 }
