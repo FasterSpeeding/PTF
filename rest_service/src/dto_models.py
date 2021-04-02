@@ -108,24 +108,11 @@ class BasicError(pydantic.BaseModel):
 
 class ReceivedUser(pydantic.BaseModel):
     flags: flags.UserFlags = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-    username: str = pydantic.Field(
-        min_length=validation.MINIMUM_NAME_LENGTH,
-        max_length=validation.MAXIMUM_NAME_LENGTH,
-        regex=validation.RAW_USERNAME_REGEX,  # We may be duping this check but this keeps the regex documented.
-    )
     password: str = pydantic.Field(
         min_length=validation.MINIMUM_PASSWORD_LENGTH, max_length=validation.MAXIMUM_PASSWORD_LENGTH
     )
 
     Config = _ModelConfig
-
-    # Pydantic's builtin regex matching only uses match as opposed to full match which is not the behaviour we want.
-    @pydantic.validator("username")
-    def validate_username(cls, username_: str) -> str:
-        if validation.USERNAME_REGEX.fullmatch(username_):
-            return username_
-
-        raise ValueError(f"username does not match regex {validation.RAW_USERNAME_REGEX}")
 
 
 if typing.TYPE_CHECKING:
@@ -143,7 +130,7 @@ else:
             default_factory=UndefinedType,
             min_length=validation.MINIMUM_NAME_LENGTH,
             max_length=validation.MAXIMUM_NAME_LENGTH,
-            regex=validation.RAW_USERNAME_REGEX,  # We may be duping this check but this keeps the regex documented.
+            regex=validation.USERNAME_REGEX,
         )
         password: str = pydantic.Field(
             default_factory=UndefinedType,
@@ -152,14 +139,6 @@ else:
         )
 
         Config = _ModelConfig
-
-        # Pydantic's builtin regex matching only uses match as opposed to full match which is not the behaviour we want.
-        @pydantic.validator("username")
-        def validate_username(cls, username_: str) -> str:
-            if validation.USERNAME_REGEX.fullmatch(username_):
-                return username_
-
-            raise ValueError(f"username does not match regex {validation.RAW_USERNAME_REGEX}")
 
 
 class User(pydantic.BaseModel):

@@ -109,21 +109,31 @@ async def patch_my_user(
 
 
 @utilities.as_endpoint(
-    "PUT", "/users", response_model=dto_models.User, responses={400: dto_models.BASIC_ERROR}, tags=["Users"]
+    "PUT",
+    "/users/{username}",
+    response_model=dto_models.User,
+    responses={400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR},
+    tags=["Users"],
 )
 async def put_user(
     user: dto_models.ReceivedUser,
+    username: str = fastapi.Path(
+        ...,
+        min_length=validation.MINIMUM_NAME_LENGTH,
+        max_length=validation.MAXIMUM_NAME_LENGTH,
+        regex=validation.USERNAME_REGEX,
+    ),
     _: typing.Any = fastapi.Depends(security.RequireFlags(flags.UserFlags.CREATE_USER)),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     hash_password: refs.HashPasswordProto = fastapi.Depends(refs.HashPasswordProto),
 ) -> dto_models.User:
     try:
-        password = hash_password(user.password)
-        result = await database.set_user(flags=user.flags, username=user.username, password_hash=password)
+        password_hash = hash_password(user.password)
+        result = await database.set_user(flags=user.flags, username=username, password_hash=password_hash)
         return dto_models.User.from_orm(result)
 
     except sql_api.AlreadyExistsError:
-        raise fastapi.exceptions.HTTPException(409, detail=f"User `{user.username}` already exists.") from None
+        raise fastapi.exceptions.HTTPException(409, detail=f"User `{username}` already exists.") from None
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None

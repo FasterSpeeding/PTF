@@ -35,7 +35,6 @@ from __future__ import annotations
 __all__: list[str] = ["MINIMUM_BIG_INT", "MINIMUM_TIMEDELTA", "MAXIMUM_BIG_INT", "ZERO"]
 
 import datetime
-import re
 import typing
 
 ZERO: typing.Final[int] = 0
@@ -47,8 +46,7 @@ MAXIMUM_BIG_INT: typing.Final[int] = (1 << 63) - 1
 MINIMUM_TIMEDELTA: typing.Final[datetime.timedelta] = datetime.timedelta(seconds=60)
 # MAXIMUM_EXPIRE_AFTER: typing.Final[datetime.timedelta] = datetime.timedelta()
 
-RAW_USERNAME_REGEX: typing.Final[str] = r"[\w\-\s]+"
-USERNAME_REGEX: typing.Final[re.Pattern[str]] = re.compile(RAW_USERNAME_REGEX)
+USERNAME_REGEX: typing.Final[str] = r"^[\w\-\s]+$"
 MINIMUM_NAME_LENGTH: typing.Final[int] = 3
 MAXIMUM_NAME_LENGTH: typing.Final[int] = 32
 
