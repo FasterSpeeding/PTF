@@ -36,10 +36,12 @@ use crate::sql::dao_models;
 
 
 pub type DatabaseResult<Model> = Result<Option<Model>, Box<dyn Error>>;
+pub type DeleteResult = Result<bool, Box<dyn Error>>;
 
 
 #[async_trait]
 pub trait Database: Sync {
+    async fn delete_file(&self, message_id: &i64, file_name: &str) -> DeleteResult;
     async fn get_file(&self, message_id: &i64, file_name: &str) -> DatabaseResult<dao_models::File>;
     async fn get_message(&self, message_id: &i64) -> DatabaseResult<dao_models::Message>;
     async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::User>;

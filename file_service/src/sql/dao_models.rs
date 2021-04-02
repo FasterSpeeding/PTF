@@ -64,7 +64,7 @@ pub struct Message {
 }
 
 
-#[derive(Clone, Debug, sqlx::FromRow)]
+#[derive(Clone, Debug, serde::Serialize, sqlx::FromRow)]
 pub struct File {
     pub content_type: Option<String>,
     pub file_name:    String,

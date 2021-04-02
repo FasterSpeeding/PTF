@@ -47,36 +47,48 @@ impl Pool {
 
 #[async_trait]
 impl traits::Database for Pool {
+    async fn delete_file(&self, message_id: &i64, file_name: &str) -> traits::DeleteResult {
+        sqlx::query!(
+            "DELETE FROM files WHERE message_id=$1 AND file_name=$2;",
+            message_id,
+            file_name
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(Box::from)
+        .map(|result| result.rows_affected() > 0)
+    }
+
     async fn get_file(&self, message_id: &i64, file_name: &str) -> traits::DatabaseResult<dao_models::File> {
-        let result = sqlx::query_as!(
+        sqlx::query_as!(
             dao_models::File,
             "SELECT * FROM files WHERE message_id=$1 AND file_name=$2;",
             message_id,
             file_name
         )
         .fetch_optional(&self.pool)
-        .await?;
-        Ok(result)
+        .await
+        .map_err(Box::from)
     }
 
     async fn get_message(&self, message_id: &i64) -> traits::DatabaseResult<dao_models::Message> {
-        let result = sqlx::query_as!(dao_models::Message, "SELECT * FROM messages WHERE id=$1;", message_id)
+        sqlx::query_as!(dao_models::Message, "SELECT * FROM messages WHERE id=$1;", message_id)
             .fetch_optional(&self.pool)
-            .await?;
-        Ok(result)
+            .await
+            .map_err(Box::from)
     }
 
     async fn get_user_by_id(&self, user_id: &i64) -> traits::DatabaseResult<dao_models::User> {
-        let result = sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
+        sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)
-            .await?;
-        Ok(result)
+            .await
+            .map_err(Box::from)
     }
 
     async fn get_user_by_username(&self, username: &str) -> traits::DatabaseResult<dao_models::User> {
-        let result = sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE username=$1;", username)
+        sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE username=$1;", username)
             .fetch_optional(&self.pool)
-            .await?;
-        Ok(result)
+            .await
+            .map_err(Box::from)
     }
 }
