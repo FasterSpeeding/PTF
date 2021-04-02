@@ -31,20 +31,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["DeviceAccessLevel", "PermissionFlags", "UserFlags"]
+__all__: list[str] = ["DeviceAccessLevel", "UserFlags"]
 
 import enum
 
 
 # TODO: better range checking for theses
-class DeviceAccessLevel(int, enum.Enum):
-    NONE = 0
-    READ = 1
-    READ_AND_WRITE = 2
-
-
-# TODO: finalise this
-class PermissionFlags(int, enum.Enum):
+class DeviceAccessLevel(int, enum.Enum):  # TODO: remove?
     NONE = 0
     READ = 1
     READ_AND_WRITE = 2

@@ -103,26 +103,6 @@ CREATE TABLE IF NOT EXISTS files (
 );
 
 
-CREATE TABLE IF NOT EXISTS permissions (
-    message_id  BIGINT  NOT NULL,
-    permissions BIGINT  NOT NULL,
-    user_id     BIGINT  NOT NULL,
-
-    CONSTRAINT permission_pk
-        PRIMARY KEY (message_id, user_id),
-
-    CONSTRAINT permission_message_id_fk
-        FOREIGN KEY (message_id)
-        REFERENCES messages (id)
-        ON DELETE CASCADE,
-
-    CONSTRAINT permission_user_id_fk
-        FOREIGN KEY (user_id)
-        REFERENCES users (id)
-        ON DELETE CASCADE
-);
-
-
 CREATE TABLE IF NOT EXISTS views (
     created_at  TIMESTAMP WITH TIME ZONE    NOT NULL    DEFAULT CURRENT_TIMESTAMP,
     device_id   BIGINT                      NOT NULL,

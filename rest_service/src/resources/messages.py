@@ -39,7 +39,6 @@ import typing
 import fastapi
 
 from .. import dto_models
-from .. import flags
 from .. import refs
 from .. import utilities
 from .. import validation
@@ -53,15 +52,10 @@ async def retrieve_message(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dao_protos.Message:
     if stored_message := await database.get_message(message_id):
-        if stored_message.user_id == user.id:
-            return stored_message
+        if stored_message.user_id != user.id:
+            raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message.") from None
 
-        permission = await database.get_permission(message_id, user.id)
-
-        if permission and permission.permissions != flags.PermissionFlags.NONE:
-            return stored_message
-
-        raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message.") from None
+        return stored_message
 
     raise fastapi.exceptions.HTTPException(404, detail="Message not found.") from None
 
@@ -156,10 +150,7 @@ async def patch_message(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Message:
     if stored_message.user_id != user.id:
-        permission = await database.get_permission(stored_message.id, user.id)
-
-        if not permission or permission.permissions != flags.PermissionFlags.READ_AND_WRITE:
-            raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
+        raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
 
     try:
         fields: dict[str, typing.Any] = message_update.dict(skip_defaults=True)

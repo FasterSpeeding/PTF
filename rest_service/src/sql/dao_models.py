@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["Users", "Devices", "Messages", "Files", "Permissions", "Views"]
+__all__: list[str] = ["Users", "Devices", "Messages", "Files", "Views"]
 
 import typing
 
@@ -101,19 +101,6 @@ Files = sqlalchemy.Table(
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("file_name", "message_id", name="file_pk"),
     sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="files_message_id_fk"),
-)
-
-
-Permissions = sqlalchemy.Table(
-    "permissions",
-    metadata,
-    sqlalchemy.Column("message_id", sqlalchemy.BIGINT),
-    sqlalchemy.Column("permissions", sqlalchemy.BIGINT, nullable=False),
-    sqlalchemy.Column("user_id", sqlalchemy.BIGINT),
-    # Constraints
-    sqlalchemy.PrimaryKeyConstraint("message_id", "user_id", name="permission_pk"),
-    sqlalchemy.ForeignKeyConstraint(["message_id"], ["message.id"], ondelete=CASCADE, name="permission_message_id_fk"),
-    sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="permission_user_id_fk"),
 )
 
 

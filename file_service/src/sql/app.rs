@@ -66,18 +66,6 @@ impl traits::Database for Pool {
         Ok(result)
     }
 
-    async fn get_permission(&self, user_id: &i64, message_id: &i64) -> traits::DatabaseResult<dao_models::Permission> {
-        let result = sqlx::query_as!(
-            dao_models::Permission,
-            "SELECT * FROM permissions WHERE user_id=$1 AND message_id=$2;",
-            user_id,
-            message_id
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(result)
-    }
-
     async fn get_user_by_id(&self, user_id: &i64) -> traits::DatabaseResult<dao_models::User> {
         let result = sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)

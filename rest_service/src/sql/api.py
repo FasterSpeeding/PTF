@@ -292,14 +292,6 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def clear_files(self) -> FilteredClear[dao_protos.File]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_file(self, message_id: int, file_name: str, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     async def get_file(self, message_id: int, file_name: str, /) -> typing.Optional[dao_protos.File]:
         raise NotImplementedError
 
@@ -309,48 +301,6 @@ class DatabaseHandler(abc.ABC):
 
     @abc.abstractmethod
     def iter_files_for_message(self, message_id: int, /) -> DatabaseIterator[dao_protos.Message]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def set_file(self, *, file_name: str, message_id: int) -> dao_protos.File:
-        raise NotImplementedError
-
-    # @abc.abstractmethod
-    # async def update_file(self, file_id: int, /, *, file_name: str = ...) -> typing.Optional[dao_protos.File]:
-    #     raise NotImplementedError
-
-    @abc.abstractmethod
-    def clear_permissions(self) -> FilteredClear[dao_protos.Permission]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_permission(self, message_id: int, user: int, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def get_permission(self, message_id: int, user: int, /) -> typing.Optional[dao_protos.Permission]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_permissions(self) -> DatabaseIterator[dao_protos.Permission]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_permissions_for_message(self, message_id: int, /) -> DatabaseIterator[dao_protos.Permission]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_permissions_for_user(self, user_id: int, /) -> DatabaseIterator[dao_protos.Permission]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def set_permission(self, *, message_id: int, permissions: int, user_id: int) -> dao_protos.Permission:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def update_permission(
-        self, message_id: int, user_id: int, /, *, permissions: int = ...
-    ) -> typing.Optional[dao_protos.Permission]:
         raise NotImplementedError
 
     @abc.abstractmethod

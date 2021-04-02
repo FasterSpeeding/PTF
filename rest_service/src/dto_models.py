@@ -44,7 +44,6 @@ __all__: list[str] = [
     "ReceivedMessageUpdate",
     "Message",
     "File",
-    "Permission",
     "ReceivedView",
     "View",
     "BASIC_ERROR",
@@ -255,14 +254,6 @@ class Message(pydantic.BaseModel):
 class File(pydantic.BaseModel):
     file_name: str
     message_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-
-    Config = _ModelConfig
-
-
-class Permission(pydantic.BaseModel):
-    message_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-    permissions: flags.PermissionFlags = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-    user_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
 
     Config = _ModelConfig
 

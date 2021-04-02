@@ -66,17 +66,10 @@ pub struct Message {
 
 #[derive(Clone, Debug, sqlx::FromRow)]
 pub struct File {
-    pub file_name:  String,
-    pub is_public:  bool,
-    pub message_id: i64
-}
-
-
-#[derive(Clone, Debug, sqlx::FromRow)]
-pub struct Permission {
-    pub message_id:  i64,
-    pub permissions: i64, // TODO: flags?
-    pub user_id:     i64
+    pub content_type: Option<String>,
+    pub file_name:    String,
+    pub is_public:    bool,
+    pub message_id:   i64
 }
 
 

@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["User", "Device", "Message", "File", "Permission", "View"]
+__all__: list[str] = ["User", "Device", "Message", "File", "View"]
 
 import typing
 
@@ -90,17 +90,6 @@ class File(typing.Protocol):
     file_name: str
     is_public: str
     message_id: int
-
-
-@typing.runtime_checkable
-class Permission(typing.Protocol):
-    """Definition of the structure returned by database implementations for permission entries."""
-
-    __slots__: tuple[str, ...] = ()
-
-    message_id: int
-    permissions: int
-    user_id: int
 
 
 @typing.runtime_checkable

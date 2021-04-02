@@ -399,15 +399,6 @@ class PostgreDatabase(api.DatabaseHandler):
         )
         return await self._update(dao_protos.Message, query)
 
-    def clear_files(self) -> api.FilteredClear[dao_protos.File]:
-        return FilteredClear(self._database, dao_models.Files, dao_models.Files.delete())
-
-    async def delete_file(self, message_id: int, file_name: str, /) -> None:
-        columns = dao_models.Files.columns
-        await self._execute(
-            dao_models.Files.delete(sqlalchemy.and_(columns["message_id"] == message_id, columns["name"] == file_name))
-        )
-
     async def get_file(self, message_id: int, file_name: str, /) -> typing.Optional[dao_protos.File]:
         columns = dao_models.Files.columns
         query = dao_models.Files.select(
@@ -422,65 +413,6 @@ class PostgreDatabase(api.DatabaseHandler):
         return PostgreIterator(
             self._database, dao_models.Files, dao_models.Files.select(dao_models.Files.c["message_id"] == message_id)
         )
-
-    async def set_file(self, **kwargs: typing.Any) -> dao_protos.File:
-        return await self._set(dao_protos.File, dao_models.Files.insert(kwargs).returning(dao_models.Files))
-
-    # async def update_file(self, file_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.File]:
-    #     if not kwargs:
-    #         return await self.get_file(file_id)
-    #
-    #     query = dao_models.Files.update(dao_models.Files.c["id"] == file_id).values(kwargs).returning(dao_models.Files)
-    #     return await self._update(dao_protos.File, query)
-
-    def clear_permissions(self) -> api.FilteredClear[dao_protos.Permission]:
-        return FilteredClear(self._database, dao_models.Permissions, dao_models.Permissions.delete())
-
-    async def delete_permission(self, message_id: int, user_id: int, /) -> None:
-        columns = dao_models.Permissions.columns
-        query = dao_models.Permissions.delete(
-            sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
-        )
-        await self._execute(query)
-
-    async def get_permission(self, message_id: int, user_id: int, /) -> typing.Optional[dao_protos.Permission]:
-        columns = dao_models.Permissions.columns
-        query = dao_models.Permissions.select(
-            sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
-        )
-        return await self._fetch_one(dao_protos.Permission, query)
-
-    def iter_permissions(self) -> api.DatabaseIterator[dao_protos.Permission]:
-        return PostgreIterator(self._database, dao_models.Permissions, dao_models.Permissions.select())
-
-    def iter_permissions_for_message(self, message_id: int, /) -> api.DatabaseIterator[dao_protos.Permission]:
-        query = dao_models.Permissions.select(dao_models.Permissions.c["message_id"] == message_id)
-        return PostgreIterator(self._database, dao_models.Permissions, query)
-
-    def iter_permissions_for_user(self, user_id: int, /) -> api.DatabaseIterator[dao_protos.Permission]:
-        query = dao_models.Permissions.select(dao_models.Permissions.c["user_id"] == user_id)
-        return PostgreIterator(self._database, dao_models.Permissions, query)
-
-    async def set_permission(self, **kwargs: typing.Any) -> dao_protos.Permission:
-        return await self._set(
-            dao_protos.Permission, dao_models.Permissions.insert(kwargs).returning(dao_models.Permissions)
-        )
-
-    async def update_permission(
-        self, message_id: int, user_id: int, /, **kwargs: typing.Any
-    ) -> typing.Optional[dao_protos.Permission]:
-        if not kwargs:
-            return await self.get_permission(message_id, user_id)
-
-        columns = dao_models.Permissions.columns
-        query = (
-            dao_models.Permissions.update(
-                sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
-            )
-            .values(kwargs)
-            .returning(dao_models.Permissions)
-        )
-        return await self._update(dao_protos.Permission, query)
 
     def clear_views(self) -> api.FilteredClear[dao_protos.View]:
         return FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())
