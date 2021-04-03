@@ -234,7 +234,6 @@ class Message(pydantic.BaseModel):
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]
-    user_id: int
 
     Config = _ModelConfig
 
