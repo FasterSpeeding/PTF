@@ -98,7 +98,7 @@ async def patch_my_user(
         # TODO: validate flags being changed
         fields: dict[str, typing.Any] = user_update.dict(skip_defaults=True)
         if password := fields.pop("password"):
-            fields["password_hash"] = hash_password(password)
+            fields["password_hash"] = await hash_password(password)
 
         new_user = await database.update_user(stored_user.id, **fields)
 
@@ -128,7 +128,7 @@ async def put_user(
     hash_password: refs.HashPasswordProto = fastapi.Depends(refs.HashPasswordProto),
 ) -> dto_models.User:
     try:
-        password_hash = hash_password(user.password)
+        password_hash = await hash_password(user.password)
         result = await database.set_user(flags=user.flags, username=username, password_hash=password_hash)
         return dto_models.User.from_orm(result)
 
@@ -172,6 +172,7 @@ async def get_user_devices(
     return list(await database.iter_devices_for_user(user.id).map(dto_models.Device.from_orm))
 
 
+# TODO: merge PATCH and POST to PUT
 @utilities.as_endpoint(
     "PATCH",
     "/users/@me/devices/{device_name}",
@@ -206,6 +207,7 @@ async def patch_user_device(
 
 
 # TODO: move to devices resources
+# TODO: merge PATCH and POST to PUT
 @utilities.as_endpoint(
     "POST",
     "/users/@me/devices",

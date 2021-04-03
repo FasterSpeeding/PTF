@@ -40,7 +40,7 @@ use crate::sql;
 pub trait FileReader: Sync {
     async fn delete_file(&self, file: &sql::dao_models::File) -> Result<(), Box<dyn Error>>;
     async fn read_file(&self, file: &sql::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
-    async fn save_file(&self, message_id: &i64, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
+    async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
 }
 
 #[derive(Clone, Debug)]
@@ -57,7 +57,7 @@ impl LocalReader {
     }
 
     // TODO: normalise file_name
-    fn build_url(&self, message_id: &i64, file_name: &str) -> std::path::PathBuf {
+    fn build_url(&self, message_id: &uuid::Uuid, file_name: &str) -> std::path::PathBuf {
         let mut path = self.base_url.to_path_buf();
         path.push(format!("{}_{}", message_id, file_name));
         path
@@ -79,7 +79,7 @@ impl FileReader for LocalReader {
             .map_err(Box::from) // TODO: lazily read and return a stream
     }
 
-    async fn save_file(&self, message_id: &i64, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>> {
+    async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>> {
         tokio::fs::write(self.build_url(message_id, file_name), data)
             .await
             .map_err(Box::from) // TODO: take a stream and lazily save

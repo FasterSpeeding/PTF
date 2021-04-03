@@ -41,9 +41,14 @@ pub type DeleteResult = Result<bool, Box<dyn Error>>;
 
 #[async_trait]
 pub trait Database: Sync {
-    async fn delete_file(&self, message_id: &i64, file_name: &str) -> DeleteResult;
-    async fn get_file(&self, message_id: &i64, file_name: &str) -> DatabaseResult<dao_models::File>;
-    async fn get_message(&self, message_id: &i64) -> DatabaseResult<dao_models::Message>;
+    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DeleteResult;
+    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
+    async fn get_message(&self, message_id: &uuid::Uuid) -> DatabaseResult<dao_models::Message>;
+    async fn get_message_link(
+        &self,
+        message_id: &uuid::Uuid,
+        link_token: &str
+    ) -> DatabaseResult<dao_models::MessageLink>;
     async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::User>;
     async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::User>;
 }

@@ -53,10 +53,9 @@ pub struct Device {
 
 #[derive(Clone, Debug, sqlx::FromRow)]
 pub struct Message {
-    pub id:           i64,
+    pub id:           uuid::Uuid,
     pub created_at:   chrono::DateTime<chrono::Utc>,
     pub expire_at:    Option<chrono::DateTime<chrono::Utc>>,
-    pub is_public:    bool,
     pub is_transient: bool,
     pub text:         Option<String>,
     pub title:        Option<String>,
@@ -68,8 +67,7 @@ pub struct Message {
 pub struct File {
     pub content_type: Option<String>,
     pub file_name:    String,
-    pub is_public:    bool,
-    pub message_id:   i64
+    pub message_id:   uuid::Uuid
 }
 
 
@@ -77,5 +75,13 @@ pub struct File {
 pub struct View {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub device_id:  i64,
-    pub message_id: i64
+    pub message_id: uuid::Uuid
+}
+
+
+#[derive(Clone, Debug, sqlx::FromRow)]
+pub struct MessageLink {
+    pub message_id: uuid::Uuid,
+    pub token:      String,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>
 }

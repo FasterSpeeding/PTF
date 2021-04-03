@@ -31,9 +31,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["User", "Device", "Message", "File", "View"]
+__all__: list[str] = ["User", "Device", "Message", "MessageLink", "File", "View"]
 
 import typing
+import uuid
 
 if typing.TYPE_CHECKING:
     import datetime
@@ -71,14 +72,22 @@ class Message(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
-    id: int
+    id: uuid.UUID
     created_at: datetime.datetime
     expire_at: typing.Optional[datetime.datetime]
-    is_public: bool
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]
     user_id: int
+
+
+@typing.runtime_checkable
+class MessageLink(typing.Protocol):
+    __slots__: tuple[str, ...] = ()
+
+    token: str
+    message_id: uuid.UUID
+    expires_at: typing.Optional[datetime.datetime]
 
 
 @typing.runtime_checkable
@@ -89,8 +98,7 @@ class File(typing.Protocol):
 
     content_type: typing.Optional[str]
     file_name: str
-    is_public: str
-    message_id: int
+    message_id: uuid.UUID
 
 
 @typing.runtime_checkable
@@ -101,4 +109,4 @@ class View(typing.Protocol):
 
     created_at: datetime.datetime
     device_id: int
-    message_id: int
+    message_id: uuid.UUID

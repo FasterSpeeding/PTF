@@ -13,18 +13,23 @@ edition = "2018"
     async-trait     = "0.1.42"
     base64          = "0.13.0"
     dotenv_codegen  = "0.15.0"
-    serde           = "1.0.117"
     log             = "0.4.14"
+    serde           = "1.0.117"
     simple_logger   = "1.11.0"
+    # sodiumoxide     = "0.2.6" TODO: use this or a different algorithm all together?
 
-[dependencies.argon2]
-    version     = "0.1.4"
-    features    = ["password-hash"]
+[dependencies.argonautica]
+    version     = "0.2.0"
+    features    = ["simd"]
 
 [dependencies.sqlx]
-    features    = ["chrono", "postgres", "runtime-tokio-native-tls"]
     version     = "0.5.1"
+    features    = ["chrono", "postgres", "runtime-tokio-native-tls", "uuid"]
 
 [dependencies.tokio]
     version     = "1.4.0"
     features    = ["macros", "rt"]  # "io-util", "stream"
+
+[dependencies.uuid]
+    version     = "0.8.2"
+    features    = ["serde"]

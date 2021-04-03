@@ -31,11 +31,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["Users", "Devices", "Messages", "Files", "Views"]
+__all__: list[str] = ["Users", "Devices", "Messages", "MessageLinks", "Files", "Views"]
 
 import typing
 
 import sqlalchemy
+from sqlalchemy.dialects import postgresql
 
 from .. import validation
 
@@ -59,6 +60,7 @@ Users = sqlalchemy.Table(
     sqlalchemy.UniqueConstraint("username", name="user_username_uc"),
 )
 
+
 Devices = sqlalchemy.Table(
     "devices",
     metadata,
@@ -76,12 +78,11 @@ Devices = sqlalchemy.Table(
 Messages = sqlalchemy.Table(
     "messages",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
+    sqlalchemy.Column("id", postgresql.UUID(as_uuid=True)),
     sqlalchemy.Column(
         "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
     sqlalchemy.Column("expire_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=True),
-    sqlalchemy.Column("is_public", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("is_transient", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("text", sqlalchemy.VARCHAR, nullable=True),
     sqlalchemy.Column("title", sqlalchemy.VARCHAR, nullable=True),
@@ -92,13 +93,25 @@ Messages = sqlalchemy.Table(
 )
 
 
+MessageLinks = sqlalchemy.Table(
+    "message_links",
+    metadata,
+    sqlalchemy.Column("token", sqlalchemy.VARCHAR, nullable=False),
+    sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
+    sqlalchemy.Column("expires_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False),
+    # Constraints
+    sqlalchemy.PrimaryKeyConstraint("message_id", "token", name="message_link_pk"),
+    sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="message_link_fk"),
+    sqlalchemy.UniqueConstraint("token", name="message_link_token_uc"),
+)
+
+
 Files = sqlalchemy.Table(
     "files",
     metadata,
     sqlalchemy.Column("content_type", sqlalchemy.VARCHAR, nullable=True),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column("is_public", sqlalchemy.BOOLEAN, nullable=False),
-    sqlalchemy.Column("message_id", sqlalchemy.BIGINT, nullable=False),
+    sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("file_name", "message_id", name="file_pk"),
     sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="files_message_id_fk"),
@@ -112,7 +125,7 @@ Views = sqlalchemy.Table(
         "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
     sqlalchemy.Column("device_id", sqlalchemy.BIGINT, nullable=False),
-    sqlalchemy.Column("message_id", sqlalchemy.BIGINT, nullable=False),
+    sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("device_id", "message_id", name="view_pk"),
     sqlalchemy.ForeignKeyConstraint(["device_id"], ["devices.id"], ondelete=CASCADE, name="views_device_id_fk"),

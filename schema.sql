@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS users (
     id              BIGINT                      GENERATED ALWAYS AS IDENTITY,
     created_at      TIMESTAMP WITH TIME ZONE    NOT NULL                        DEFAULT CURRENT_TIMESTAMP,
     flags           BIGINT                      NOT NULL,
-    password_hash   VARCHAR                     NOT NULL,                       -- argon2  -- TODO: bytea?
+    password_hash   VARCHAR                     NOT NULL,                       -- argon2  -- TODO: binary?
     username        VARCHAR(32)                 NOT NULL,                       -- TODO: case insensitivity?
 
     CONSTRAINT user_pk
@@ -46,8 +46,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- TODO: replace id as primary key with (name, user_id)
 CREATE TABLE IF NOT EXISTS devices (
-    id                  BIGINT      GENERATED ALWAYS AS IDENTITY,
-    access              INT         NOT NULL,
+    id                  BIGINT      GENERATED ALWAYS AS IDENTITY,   -- TODO: replace with (name, user_id)
+    access              INT         NOT NULL,                       -- TODO: can we just remove this field?
     is_required_viewer  BOOLEAN     NOT NULL,                       -- TODO: This might be backwards
     name                VARCHAR(32) NOT NULL,
     user_id             BIGINT      NOT NULL,
@@ -67,10 +67,9 @@ CREATE TABLE IF NOT EXISTS devices (
 
  -- TODO: Find a better name for if this should delete after being viewed than "is_transient"
 CREATE TABLE IF NOT EXISTS messages (
-    id              BIGINT                      GENERATED ALWAYS AS IDENTITY,
+    id              UUID,
     created_at      TIMESTAMP WITH TIME ZONE    NOT NULL                        DEFAULT CURRENT_TIMESTAMP,
     expire_at       TIMESTAMP WITH TIME ZONE,
-    is_public       BOOLEAN                     NOT NULL                        DEFAULT False,
     is_transient    BOOLEAN                     NOT NULL,
     text            VARCHAR,                    -- TODO: not nullable?
     title           VARCHAR,                    -- TODO: not nullable?
@@ -86,12 +85,30 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 
 
+-- TODO: is_unlisted?
+CREATE TABLE IF NOT EXISTS message_links (
+    message_id  UUID                        NOT NULL,
+    token       CHAR(32)                    NOT NULL,
+    expires_at  TIMESTAMP WITH TIME ZONE,
+
+    CONSTRAINT message_link_pk
+        PRIMARY KEY (message_id, token),
+
+    CONSTRAINT message_link_token_uc
+        UNIQUE (token),
+
+    CONSTRAINT message_link_fk
+        FOREIGN KEY (message_id)
+        REFERENCES messages (id)
+        ON DELETE CASCADE
+);
+
+
 -- The actual files for deleted files will be deleted by a cron-job running on the file service at one point.
 CREATE TABLE IF NOT EXISTS files (
     content_type    VARCHAR,
     file_name       VARCHAR     NOT NULL,
-    is_public       BOOLEAN     NOT NULL,
-    message_id      BIGINT      NOT NULL,
+    message_id      UUID        NOT NULL,
 
     CONSTRAINT file_pk
         PRIMARY KEY (file_name, message_id),
@@ -103,10 +120,10 @@ CREATE TABLE IF NOT EXISTS files (
 );
 
 
-CREATE TABLE IF NOT EXISTS views (
+CREATE TABLE IF NOT EXISTS views (  -- TODO: remove?
     created_at  TIMESTAMP WITH TIME ZONE    NOT NULL    DEFAULT CURRENT_TIMESTAMP,
     device_id   BIGINT                      NOT NULL,
-    message_id  BIGINT                      NOT NULL,
+    message_id  UUID                        NOT NULL,
 
     CONSTRAINT view_pk
         PRIMARY KEY (device_id, message_id),

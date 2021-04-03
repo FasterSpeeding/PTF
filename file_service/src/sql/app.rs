@@ -47,7 +47,7 @@ impl Pool {
 
 #[async_trait]
 impl traits::Database for Pool {
-    async fn delete_file(&self, message_id: &i64, file_name: &str) -> traits::DeleteResult {
+    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> traits::DeleteResult {
         sqlx::query!(
             "DELETE FROM files WHERE message_id=$1 AND file_name=$2;",
             message_id,
@@ -59,7 +59,7 @@ impl traits::Database for Pool {
         .map(|result| result.rows_affected() > 0)
     }
 
-    async fn get_file(&self, message_id: &i64, file_name: &str) -> traits::DatabaseResult<dao_models::File> {
+    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> traits::DatabaseResult<dao_models::File> {
         sqlx::query_as!(
             dao_models::File,
             "SELECT * FROM files WHERE message_id=$1 AND file_name=$2;",
@@ -71,11 +71,27 @@ impl traits::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn get_message(&self, message_id: &i64) -> traits::DatabaseResult<dao_models::Message> {
+    async fn get_message(&self, message_id: &uuid::Uuid) -> traits::DatabaseResult<dao_models::Message> {
         sqlx::query_as!(dao_models::Message, "SELECT * FROM messages WHERE id=$1;", message_id)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)
+    }
+
+    async fn get_message_link(
+        &self,
+        message_id: &uuid::Uuid,
+        link_token: &str
+    ) -> traits::DatabaseResult<dao_models::MessageLink> {
+        sqlx::query_as!(
+            dao_models::MessageLink,
+            "SELECT * FROM message_links WHERE message_id=$1 AND token=$2",
+            message_id,
+            link_token
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(Box::from)
     }
 
     async fn get_user_by_id(&self, user_id: &i64) -> traits::DatabaseResult<dao_models::User> {

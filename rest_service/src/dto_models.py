@@ -41,8 +41,10 @@ __all__: list[str] = [
     "User",
     "Device",
     "ReceivedMessage",
+    "ReceivedMessageLink",
     "ReceivedMessageUpdate",
     "Message",
+    "MessageLink",
     "File",
     "ReceivedView",
     "View",
@@ -52,6 +54,7 @@ __all__: list[str] = [
 
 import datetime
 import typing
+import uuid
 
 import pydantic
 
@@ -141,15 +144,11 @@ else:
 
 
 class User(pydantic.BaseModel):
-    id: int
     created_at: datetime.datetime
     flags: flags.UserFlags
     username: str
 
     Config = _ModelConfig
-
-    def __int__(self) -> int:
-        return self.id
 
 
 class Device(pydantic.BaseModel):
@@ -188,7 +187,6 @@ else:
 
 class ReceivedMessage(pydantic.BaseModel):
     expire_after: typing.Optional[datetime.timedelta] = None
-    is_public: bool = False
     is_transient: bool = True
     text: typing.Optional[str] = None
     title: typing.Optional[str] = None
@@ -196,19 +194,16 @@ class ReceivedMessage(pydantic.BaseModel):
     Config = _ModelConfig
 
     @pydantic.validator("expire_after")
-    def validate_expire_after(cls, expire_after_: datetime.timedelta) -> datetime.timedelta:
-        if expire_after_ > validation.MINIMUM_TIMEDELTA:
-            return expire_after_
-
-        minimum = validation.MINIMUM_TIMEDELTA.total_seconds()
-        raise ValueError(f"expire_after must be greater than or equal to {minimum} seconds")
+    def validate_expire_after(
+        cls, expire_after_: typing.Optional[datetime.timedelta]
+    ) -> typing.Optional[datetime.timedelta]:
+        return validation.validate_timedelta(expire_after_) if expire_after_ is not None else None
 
 
 if typing.TYPE_CHECKING:
 
     class ReceivedMessageUpdate(pydantic.BaseModel):
         expire_after: typing.Union[datetime.timedelta, UndefinedType, None]
-        is_public: UndefinedOr[bool]
         is_transient: UndefinedOr[bool]
         text: typing.Union[str, UndefinedType, None]
         title: typing.Union[str, UndefinedType, None]
@@ -219,7 +214,6 @@ else:
     # We can't type this as undefinable at runtime as this breaks FastAPI's handling.
     class ReceivedMessageUpdate(pydantic.BaseModel):
         expire_after: typing.Optional[datetime.timedelta] = pydantic.Field(default_factory=UndefinedType)
-        is_public: bool = pydantic.Field(default_factory=UndefinedType)
         is_transient: bool = pydantic.Field(default_factory=UndefinedType)
         text: typing.Optional[str] = pydantic.Field(default_factory=UndefinedType)
         title: typing.Optional[str] = pydantic.Field(default_factory=UndefinedType)
@@ -227,19 +221,16 @@ else:
         Config = _ModelConfig
 
         @pydantic.validator("expire_after")
-        def validate_expire_after(cls, expire_after_: datetime.timedelta) -> datetime.timedelta:
-            if expire_after_ > validation.MINIMUM_TIMEDELTA:
-                return expire_after_
-
-            minimum = validation.MINIMUM_TIMEDELTA.total_seconds()
-            raise ValueError(f"expire_after must be greater than or equal to {minimum} seconds")
+        def validate_expire_after(
+            cls, expire_after_: typing.Optional[datetime.timedelta]
+        ) -> typing.Optional[datetime.timedelta]:
+            return validation.validate_timedelta(expire_after_) if expire_after_ is not None else None
 
 
 class Message(pydantic.BaseModel):
-    id: int
+    id: uuid.UUID
     created_at: datetime.datetime
     expire_at: typing.Union[datetime.datetime, None]
-    is_public: bool
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]
@@ -247,22 +238,32 @@ class Message(pydantic.BaseModel):
 
     Config = _ModelConfig
 
-    def __int__(self) -> int:
-        return self.id
+
+class ReceivedMessageLink(pydantic.BaseModel):
+    expires_after: typing.Optional[datetime.timedelta] = pydantic.Field(default=None)
+
+    @pydantic.validator("expires_after")
+    def validate_expire_after(cls, expire_after_: datetime.timedelta) -> typing.Optional[datetime.timedelta]:
+        return validation.validate_timedelta(expire_after_) if expire_after_ is not None else None
+
+
+class MessageLink(ReceivedMessageLink, pydantic.BaseModel):
+    token: str
+    message_id: uuid.UUID
+    expires_at: typing.Optional[datetime.datetime] = pydantic.Field()
 
 
 class File(pydantic.BaseModel):
     content_type: typing.Optional[str]
     file_name: str
-    is_public: bool
-    message_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
+    message_id: uuid.UUID
 
     Config = _ModelConfig
 
 
 class ReceivedView(pydantic.BaseModel):
     device_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-    message_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
+    message_id: uuid.UUID
 
     Config = _ModelConfig
 
@@ -271,6 +272,7 @@ class View(ReceivedView, pydantic.BaseModel):
     created_at: datetime.datetime
 
 
+# TODO: switch to func which accepts description
 BASIC_ERROR: typing.Final[dict[str, typing.Any]] = {"model": BasicError}
 AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
     401: {**BASIC_ERROR, "description": "Returned when invalid user authorization was provided."}

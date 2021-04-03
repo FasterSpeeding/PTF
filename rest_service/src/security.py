@@ -33,6 +33,8 @@ from __future__ import annotations
 
 __all__: list[str] = ["RequireFlags", "UserAuth"]
 
+import asyncio
+
 import argon2
 import fastapi.security
 
@@ -48,7 +50,8 @@ class UserAuth:
     __globals__ = {"fastapi": fastapi, "sql_api": sql_api, "refs": refs}  # TODO: open issue
 
     def __init__(self) -> None:
-        self.hasher: argon2.PasswordHasher = argon2.PasswordHasher()
+        # TODO: this seems bad, do we want to use a better algorithm?
+        self.hasher: argon2.PasswordHasher = argon2.PasswordHasher(memory_cost=131072)
 
     async def __call__(
         self,
@@ -57,7 +60,10 @@ class UserAuth:
     ) -> dao_protos.User:
         if user := await database.get_user_by_username(credentials.username):
             try:
-                self.hasher.verify(user.password_hash, credentials.password)
+                # TODO: does this even help?
+                await asyncio.get_event_loop().run_in_executor(
+                    None, self.hasher.verify, user.password_hash, credentials.password
+                )
 
             except argon2.exceptions.VerifyMismatchError:
                 pass
@@ -69,8 +75,9 @@ class UserAuth:
             401, detail="Incorrect username or password", headers={"WWW-Authenticate": "Basic"}
         )
 
-    def hash_password(self, password: str, /) -> str:
-        result = self.hasher.hash(password)
+    async def hash_password(self, password: str, /) -> str:
+        # TODO: does this even help?
+        result = await asyncio.get_event_loop().run_in_executor(None, self.hasher.hash, password)
         assert isinstance(result, str)
         return result
 

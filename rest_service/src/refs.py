@@ -51,7 +51,7 @@ class UserAuthProto(typing.Protocol):
 
 
 class HashPasswordProto(typing.Protocol):
-    def __call__(self, password: str, /) -> str:
+    async def __call__(self, password: str, /) -> str:
         raise NotImplementedError
 
 
