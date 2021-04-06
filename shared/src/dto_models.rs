@@ -28,7 +28,45 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-#[derive(serde::Serialize)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct User {
+    pub id:         i64,
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub flags:      i64, // TODO: flags?
+    pub username:   String
+}
+
+// TODO: find a better (possibly automatic) way to handle this
+impl User {
+    pub fn from_dao(user: crate::dao_models::User) -> Self {
+        Self {
+            id:         user.id,
+            created_at: user.created_at,
+            flags:      user.flags,
+            username:   user.username
+        }
+    }
+}
+
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct ReceivedUser {
+    pub flags:    i64, // TODO: flags?
+    pub password: String
+}
+
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct UserUpdate {
+    pub flags:    Option<i64>,
+    pub username: Option<String>,
+    pub password: Option<String>
+}
+
+
+#[derive(Deserialize, Serialize)]
 pub struct ErrorsResponse {
     pub errors: Vec<Error>
 }
@@ -44,8 +82,9 @@ impl ErrorsResponse {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Error {
+    // TODO: this is currently JSON:API error style but look at rfc2616 and rfc7807
     #[serde(skip_serializing_if = "Option::is_none")]
     code:       Option<Box<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,7 +165,7 @@ impl Error {
     }
 }
 
-#[derive(serde::Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct Source {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pointer:   Option<Box<str>>,

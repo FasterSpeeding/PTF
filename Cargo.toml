@@ -1,0 +1,6 @@
+[workspace]
+members = [
+	"auth_service",
+	"file_service",
+	"shared"
+]

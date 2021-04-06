@@ -1,5 +1,5 @@
 [package]
-name    = "file_service"
+name = "auth_service"
 version = "0.1.0"
 authors = ["Faster Speeding <luke@lmbyrne.dev>"]
 edition = "2018"
@@ -9,13 +9,15 @@ edition = "2018"
 
 [dependencies]
     actix-web       = "4.0.0-beta.4"
+    # actix-web-httpauth = "0.5.1"  # TODO: when actix web 4.0.0 releases
     async-trait     = "0.1.42"
- 	log	            = "0.4.14"
+    base64          = "0.13.0"
+    log             = "0.4.14"
+    # sodiumoxide     = "0.2.6" TODO: use this or a different algorithm all together?
 
-[dependencies.reqwest]
-    features    = ["json"]
-    version     = "0.11.2"
-
+[dependencies.argonautica]
+    version     = "0.2.0"
+    features    = ["simd"]
 
 [dependencies.shared]
     path        = "../shared"
@@ -24,7 +26,3 @@ edition = "2018"
 [dependencies.tokio]
     version     = "1.4.0"
     features    = ["macros", "rt"]  # "io-util", "stream"
-
-[dependencies.uuid]
-    version     = "0.8.2"
-    features    = ["serde"]

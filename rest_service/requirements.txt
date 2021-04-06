@@ -1,4 +1,4 @@
-argon2-cffi==20.1.0
+aiohttp==3.7.4.post0
 asyncpg==0.22.0
 python-dotenv==0.15.0
 fastapi==0.63.0

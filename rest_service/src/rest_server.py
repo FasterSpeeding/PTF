@@ -61,18 +61,23 @@ def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.Database
 
     dotenv.load_dotenv()
     database_url = os.getenv("database_url")
+    auth_service_url = os.getenv("auth_service_address")
     if database_url is None:
         raise RuntimeError("Must set database connection URL in .env")
+
+    database_url = "//" + database_url.split("//", 1)[1]  # TODO: there must be a better way to handle this
+
+    if auth_service_url is None:
+        raise RuntimeError("Must set auth service url in .env")
 
     if not sql_builder:
         sql_builder = sql_impl.DatabaseManager(database_url)
 
-    user_auth_handler = security.UserAuth()
+    user_auth_handler = security.UserAuth(auth_service_url)
 
     server = fastapi.FastAPI(title="PTF API")
     server.dependency_overrides[refs.DatabaseProto] = sql_builder
-    server.dependency_overrides[refs.UserAuthProto] = user_auth_handler
-    server.dependency_overrides[refs.HashPasswordProto] = lambda: user_auth_handler.hash_password
+    server.dependency_overrides[refs.AuthGetterProto] = user_auth_handler
     server.add_event_handler("shutdown", _on_shutdown)
 
     for value in vars(resources).values():

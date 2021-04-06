@@ -60,11 +60,11 @@ from ..sql import dao_protos
 
 async def retrieve_message(
     message_id: uuid.UUID = fastapi.Path(...),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dao_protos.Message:
     if stored_message := await database.get_message(message_id):
-        if stored_message.user_id != user.id:
+        if stored_message.user_id != auth.user.id:
             raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message.") from None
 
         return stored_message
@@ -82,10 +82,10 @@ async def retrieve_message(
 )
 async def delete_messages(
     message_ids: set[int] = fastapi.Body(..., qe=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", user.id)).start()
+    database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", auth.user.id)).start()
     return fastapi.Response(status_code=202)
 
 
@@ -94,12 +94,12 @@ async def viewer_device(
         default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
 ) -> typing.Optional[dao_protos.Device]:
     if device_name is None:
         return None
 
-    if device := await database.get_device_by_name(user.id, device_name):
+    if device := await database.get_device_by_name(auth.user.id, device_name):
         return device
 
     raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
@@ -118,10 +118,10 @@ async def put_message_view(
         default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    if not (device := await database.get_device_by_name(user.id, device_name)):
+    if not (device := await database.get_device_by_name(auth.user.id, device_name)):
         raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
 
     try:
@@ -157,11 +157,13 @@ async def get_message(
     tags=["Messages"],
 )
 async def get_messages(
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Message]:
     return list(
-        await database.iter_messages_for_user(user.id).order_by("id", ascending=False).map(dto_models.Message.from_orm)
+        await database.iter_messages_for_user(auth.user.id)
+        .order_by("id", ascending=False)
+        .map(dto_models.Message.from_orm)
     )
 
 
@@ -180,14 +182,14 @@ async def get_messages(
 async def patch_message(
     message_update: dto_models.ReceivedMessageUpdate,
     stored_message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Message:
-    if stored_message.user_id != user.id:
+    if stored_message.user_id != auth.user.id:
         raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
 
     try:
-        fields: dict[str, typing.Any] = message_update.dict(skip_defaults=True)
+        fields: dict[str, typing.Any] = message_update.dict(exclude_unset=True)
         if (expire_after := fields.pop("expire_after", ...)) is not ...:
             assert expire_after is None or isinstance(expire_after, datetime.timedelta)
             if expire_after:
@@ -214,7 +216,7 @@ async def patch_message(
 )
 async def post_messages(
     message: dto_models.ReceivedMessage,
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Message:
     # TODO: files
@@ -228,7 +230,7 @@ async def post_messages(
             is_transient=message.is_transient,
             text=message.text,
             title=message.title,
-            user_id=user.id,
+            user_id=auth.user.id,
         )
 
     except sql_api.DataError as exc:
@@ -248,10 +250,10 @@ async def post_messages(
 async def delete_message_link(
     link_token: str,
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    if message.user_id != user.id:
+    if message.user_id != auth.user.id:
         raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
 
     await database.delete_message_link(message.id, link_token)
@@ -267,10 +269,10 @@ async def delete_message_link(
 )
 async def get_message_links(
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.MessageLink]:
-    if message.user_id != user.id:
+    if message.user_id != auth.user.id:
         raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
 
     return list(await database.iter_message_link_for_message(message.id).map(dto_models.MessageLink.from_orm))
@@ -291,10 +293,10 @@ async def get_message_links(
 async def post_message_links(
     link: dto_models.ReceivedMessageLink,
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    user: dao_protos.User = fastapi.Depends(refs.UserAuthProto),
+    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.MessageLink:
-    if user.id != message.user_id:
+    if auth.user.id != message.user_id:
         raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
 
     expires_at: typing.Optional[datetime.datetime] = None

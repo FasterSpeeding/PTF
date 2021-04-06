@@ -28,60 +28,53 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-use sqlx::types::chrono;
+use actix_web::{http, HttpRequest, HttpResponse};
+use async_trait::async_trait;
 
+use crate::utility;
 
-#[derive(Clone, Debug, sqlx::FromRow)]
-pub struct User {
-    pub id:            i64,
-    pub created_at:    chrono::DateTime<chrono::Utc>,
-    pub flags:         i64, // TODO: flags?
-    pub password_hash: String,
-    pub username:      String
+#[async_trait]
+pub trait Auth: Send {
+    async fn resolve_user(&self, authorization: &str) -> Result<shared::dto_models::User, Box<dyn std::error::Error>>;
 }
 
 
-#[derive(Clone, Debug, sqlx::FromRow)]
-pub struct Device {
-    pub id:                 i64,
-    pub access:             i16, // What is int in sql?
-    pub is_required_viewer: bool,
-    pub name:               String,
-    pub user_id:            i64
+#[derive(Clone, Debug)]
+pub struct AuthClient {
+    base_url: Box<str>,
+    client:   reqwest::Client
 }
 
 
-#[derive(Clone, Debug, sqlx::FromRow)]
-pub struct Message {
-    pub id:           uuid::Uuid,
-    pub created_at:   chrono::DateTime<chrono::Utc>,
-    pub expire_at:    Option<chrono::DateTime<chrono::Utc>>,
-    pub is_transient: bool,
-    pub text:         Option<String>,
-    pub title:        Option<String>,
-    pub user_id:      i64
+impl AuthClient {
+    pub fn new(base_url: &str) -> Self {
+        Self {
+            base_url: Box::from(base_url),
+            client:   reqwest::Client::new()
+        }
+    }
 }
 
 
-#[derive(Clone, Debug, serde::Serialize, sqlx::FromRow)]
-pub struct File {
-    pub content_type: Option<String>,
-    pub file_name:    String,
-    pub message_id:   uuid::Uuid
+#[async_trait]
+impl Auth for AuthClient {
+    async fn resolve_user(&self, authorization: &str) -> Result<shared::dto_models::User, Box<dyn std::error::Error>> {
+        self.client
+            .get(self.base_url.to_string() + "/users/@me")
+            .header("Authorization", authorization)
+            .send()
+            .await?
+            .json::<shared::dto_models::User>()
+            .await
+            .map_err(Box::from)
+    }
 }
 
 
-#[derive(Clone, Debug, sqlx::FromRow)]
-pub struct View {
-    pub created_at: chrono::DateTime<chrono::Utc>,
-    pub device_id:  i64,
-    pub message_id: uuid::Uuid
-}
-
-
-#[derive(Clone, Debug, sqlx::FromRow)]
-pub struct MessageLink {
-    pub message_id: uuid::Uuid,
-    pub token:      String,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>
+pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
+    req.headers()
+        .get(http::header::AUTHORIZATION)
+        .ok_or_else(|| utility::single_error(401, "Missing authorization header"))?
+        .to_str()
+        .map_err(|_| utility::single_error(400, "Invalid authorization header"))
 }

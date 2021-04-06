@@ -29,15 +29,11 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 #![allow(dead_code)]
-#[macro_use]
-extern crate dotenv_codegen;
 use std::sync::Arc;
 
 use actix_web::{delete, get, put, web, App, HttpRequest, HttpResponse, HttpServer};
-
-mod sql;
-use sql::traits::Database;
-mod errors;
+use shared::sql::Database;
+mod auth;
 mod files;
 mod utility;
 
@@ -45,12 +41,20 @@ mod utility;
 #[delete("/users/@me/messages/{message_id}/files/{file_name}")]
 async fn delete_my_message_file(
     req: HttpRequest,
+    auth_handler: web::Data<Arc<dyn auth::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
-    let user = utility::resolve_user(&req, &db).await?;
+    let user = auth_handler
+        .resolve_user(auth::get_auth_header(&req)?)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to check authorization due to {:?}", e);
+            utility::single_error(500, "Internal server error")
+        })?;
+
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
     if user.id != message.user_id {
@@ -63,7 +67,7 @@ async fn delete_my_message_file(
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "File not found")),
         Err(error) => {
-            log::error!("Failed to delete file entry due to {}", error);
+            log::error!("Failed to delete file entry due to {:?}", error);
             Err(utility::single_error(404, "Failed to delete file"))
         }
     }
@@ -74,12 +78,20 @@ async fn delete_my_message_file(
 async fn get_my_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
+    auth_handler: web::Data<Arc<dyn auth::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
-    let user = utility::resolve_user(&req, &db).await?;
+    let user = auth_handler
+        .resolve_user(auth::get_auth_header(&req)?)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to check authorization due to {:?}", e);
+            utility::single_error(500, "Internal server error")
+        })?;
+
     let file = utility::resolve_database_entry(db.get_file(&message_id, &file_name).await, "file")?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
@@ -90,21 +102,37 @@ async fn get_my_message_file(
     match file_reader.read_file(&file).await {
         Ok(file_contents) => Ok(HttpResponse::Ok().body(file_contents)),
         Err(error) => {
-            log::error!("Failed to read file due to {}", error);
+            log::error!("Failed to read file due to {:?}", error);
             Err(utility::single_error(500, "Failed to load file's contents"))
         }
     }
 }
 
 
+// #[put("/users/@me/messages/{message_id}/files/{file_name}")]
+// async fn put_message_file(
+//     db: web::Data<Arc<dyn Database>>,
+//     file_reader: web::Data<Arc<dyn files::FileReader>>,
+//     path: web::Path<(uuid::Uuid, String)>
+// ) -> Result<HttpResponse, HttpResponse> {
+// }
+
+
 // #[actix_web::main]
 async fn actix_main() -> std::io::Result<()> {
-    let url = dotenv!("DATABASE_URL");
-    let file_reader = files::LocalReader::new(dotenv!("BASE_URL"));
-    let pool = sql::app::Pool::new(sqlx::PgPool::connect(url).await.unwrap());
+    let url = shared::get_env_variable("FILE_SERVICE_ADDRESS")
+        .map(shared::remove_protocol)
+        .unwrap();
+    let auth_url = shared::get_env_variable("AUTH_SERVICE_ADDRESS").unwrap();
+    let database_url = shared::get_env_variable("DATABASE_URL").unwrap();
+    let file_base_url = shared::get_env_variable("FILE_BASE_URL").unwrap();
+    let auth_handler = auth::AuthClient::new(&auth_url);
+    let file_reader = files::LocalReader::new(&file_base_url);
+    let pool = shared::postgres::Pool::connect(&database_url).await.unwrap();
 
     HttpServer::new(move || {
         App::new()
+            .app_data(web::Data::new(Arc::from(auth_handler.clone()) as Arc<dyn auth::Auth>))
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
             .app_data(web::Data::new(
                 Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
@@ -112,13 +140,13 @@ async fn actix_main() -> std::io::Result<()> {
             .service(delete_my_message_file)
             .service(get_my_message_file)
     })
-    .bind("127.0.0.1:8080")?
+    .bind(url)?
     .run()
     .await
 }
 
 fn main() {
-    utility::setup_logging("DEBUG");
+    shared::setup_logging();
     actix_web::rt::System::with_tokio_rt(|| {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()

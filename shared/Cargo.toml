@@ -1,0 +1,34 @@
+[package]
+name = "shared"
+version = "0.1.0"
+authors = ["Faster Speeding <luke@lmbyrne.dev>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+    async-trait     = "0.1.42"
+    dotenv          = "0.15.0"
+	log	            = "0.4.14"
+    simple_logger   = "1.11.0"
+
+[dependencies.chrono]
+    version     = "0.4.2"
+    features    = ["serde"]
+
+[dependencies.serde]
+    version     = "1.0.117"
+    features    = ["derive"]
+
+
+[dependencies.sqlx]
+    version     = "0.5.1"
+    features    = ["chrono", "runtime-tokio-native-tls", "uuid"]
+
+[dependencies.uuid]
+    version     = "0.8.2"
+    features    = ["serde"]
+
+[features]
+    postgres    = ["sqlx/postgres"]
+

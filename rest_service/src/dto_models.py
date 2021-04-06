@@ -39,6 +39,7 @@ __all__: list[str] = [
     "ReceivedUser",
     "ReceivedUserUpdate",
     "User",
+    "AuthUser",
     "Device",
     "ReceivedMessage",
     "ReceivedMessageLink",
@@ -149,6 +150,10 @@ class User(pydantic.BaseModel):
     username: str
 
     Config = _ModelConfig
+
+
+class AuthUser(User, pydantic.BaseModel):
+    id: int
 
 
 class Device(pydantic.BaseModel):

@@ -28,6 +28,55 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-pub mod app;
 pub mod dao_models;
-pub mod traits;
+pub mod dto_models;
+pub mod sql;
+
+#[cfg(feature = "postgres")]
+pub mod postgres;
+
+
+#[derive(Debug)]
+pub struct MissingEnvVariable<'a> {
+    pub key: &'a str
+}
+
+impl std::error::Error for MissingEnvVariable<'_> {
+}
+
+impl std::fmt::Display for MissingEnvVariable<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Couldnt load missing env variable {}", self.key)
+    }
+}
+
+
+pub fn get_env_variable<'a>(key: &'a str) -> Result<String, MissingEnvVariable<'a>> {
+    dotenv::var(key)
+        .or_else(|_| std::env::var(key))
+        .map_err(|_| MissingEnvVariable { key })
+}
+
+pub fn setup_logging() {
+    let level = get_env_variable("LOG_LEVEL").unwrap();
+    let level = match level.to_uppercase().as_str() {
+        "TRACE" => log::LevelFilter::Trace,
+        "DEBUG" => log::LevelFilter::Debug,
+        "INFO" => log::LevelFilter::Info,
+        "WARN" => log::LevelFilter::Warn,
+        "ERROR" => log::LevelFilter::Error,
+        _ => panic!("Invalid log level provided, expected TRACE, DEBUG, INFO, WARN or ERROR")
+    };
+
+    simple_logger::SimpleLogger::new().with_level(level).init().unwrap();
+}
+
+
+pub fn remove_protocol(url: String) -> String {
+    let mut result: Vec<String> = url.splitn(2, "//").map(str::to_owned).collect();
+    if result.len() > 1 {
+        result.remove(1)
+    } else {
+        result.remove(0)
+    }
+}

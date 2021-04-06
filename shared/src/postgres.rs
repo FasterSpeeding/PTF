@@ -29,25 +29,29 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 use async_trait::async_trait;
+use sqlx::Arguments;
 
-use crate::sql::{dao_models, traits};
+use crate::{dao_models, sql};
 
 #[derive(Clone)]
 pub struct Pool {
     pool: sqlx::Pool<sqlx::Postgres>
 }
 
-
 impl Pool {
     pub fn new(pool: sqlx::Pool<sqlx::Postgres>) -> Self {
         Self { pool }
+    }
+
+    pub async fn connect(url: &str) -> Result<Self, sqlx::Error> {
+        sqlx::PgPool::connect(url).await.map(Self::new)
     }
 }
 
 
 #[async_trait]
-impl traits::Database for Pool {
-    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> traits::DeleteResult {
+impl sql::Database for Pool {
+    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DeleteResult {
         sqlx::query!(
             "DELETE FROM files WHERE message_id=$1 AND file_name=$2;",
             message_id,
@@ -59,7 +63,7 @@ impl traits::Database for Pool {
         .map(|result| result.rows_affected() > 0)
     }
 
-    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> traits::DatabaseResult<dao_models::File> {
+    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DatabaseResult<dao_models::File> {
         sqlx::query_as!(
             dao_models::File,
             "SELECT * FROM files WHERE message_id=$1 AND file_name=$2;",
@@ -71,7 +75,7 @@ impl traits::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn get_message(&self, message_id: &uuid::Uuid) -> traits::DatabaseResult<dao_models::Message> {
+    async fn get_message(&self, message_id: &uuid::Uuid) -> sql::DatabaseResult<dao_models::Message> {
         sqlx::query_as!(dao_models::Message, "SELECT * FROM messages WHERE id=$1;", message_id)
             .fetch_optional(&self.pool)
             .await
@@ -82,7 +86,7 @@ impl traits::Database for Pool {
         &self,
         message_id: &uuid::Uuid,
         link_token: &str
-    ) -> traits::DatabaseResult<dao_models::MessageLink> {
+    ) -> sql::DatabaseResult<dao_models::MessageLink> {
         sqlx::query_as!(
             dao_models::MessageLink,
             "SELECT * FROM message_links WHERE message_id=$1 AND token=$2",
@@ -94,15 +98,82 @@ impl traits::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn get_user_by_id(&self, user_id: &i64) -> traits::DatabaseResult<dao_models::User> {
+    async fn get_user_by_id(&self, user_id: &i64) -> sql::DatabaseResult<dao_models::User> {
         sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)
     }
 
-    async fn get_user_by_username(&self, username: &str) -> traits::DatabaseResult<dao_models::User> {
+    async fn get_user_by_username(&self, username: &str) -> sql::DatabaseResult<dao_models::User> {
         sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE username=$1;", username)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(Box::from)
+    }
+
+    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> sql::SetResult<dao_models::User> {
+        let result = sqlx::query_as!(
+            dao_models::User,
+            "INSERT INTO users (flags, password_hash, username) VALUES ($1, $2, $3) RETURNING *;",
+            flags,
+            password_hash,
+            username
+        )
+        .fetch_one(&self.pool)
+        .await;
+
+        match result {
+            Ok(user) => Ok(user),
+            // TODO: this only works with postgres
+            Err(sqlx::Error::Database(error)) if error.constraint().is_some() => Err(sql::SetError::conflict()),
+            Err(other) => Err(sql::SetError::unknown(Box::from(other)))
+        }
+    }
+
+    // TODO: this doesn't feel rusty and how would setting fields to null work here?
+    async fn update_user(
+        &self,
+        user_id: &i64,
+        flags: &Option<i64>,
+        password_hash: &Option<&str>,
+        username: &Option<&str>
+    ) -> sql::DatabaseResult<dao_models::User> {
+        let mut query = String::new();
+        let mut values = sqlx::postgres::PgArguments::default();
+        values.add(user_id);
+        let mut index: i8 = 1;
+
+        query += "UPDATE USERS SET ";
+
+        if let Some(flags) = flags {
+            index += 1;
+            query += &format!("flags = ${},", index);
+            values.add(flags);
+        };
+
+        if let Some(value) = password_hash {
+            index += 1;
+            query += &format!("password_hash = ${}", index);
+            values.add(value);
+        };
+
+        if let Some(username) = username {
+            index += 1;
+            query += &format!("username = ${},", index);
+            values.add(username);
+        };
+
+        if query.ends_with(',') {
+            query.pop();
+        } else {
+            // This covers the case when no fields are updated to avoid an SQL syntax error
+            return self.get_user_by_id(user_id).await;
+        }
+
+        query += " WHERE id = $1 RETURNING *;";
+
+        sqlx::query_as_with(&query, values)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)

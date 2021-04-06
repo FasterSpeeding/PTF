@@ -28,27 +28,55 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-use std::error::Error;
+use serde::{Deserialize, Serialize};
 
-use async_trait::async_trait;
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct User {
+    pub id:            i64,
+    pub created_at:    chrono::DateTime<chrono::Utc>,
+    pub flags:         i64, // TODO: flags?
+    pub password_hash: String,
+    pub username:      String
+}
 
-use crate::sql::dao_models;
 
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct Device {
+    pub id:                 i64,
+    pub access:             i16, // What is int in sql?
+    pub is_required_viewer: bool,
+    pub name:               String,
+    pub user_id:            i64
+}
 
-pub type DatabaseResult<Model> = Result<Option<Model>, Box<dyn Error>>;
-pub type DeleteResult = Result<bool, Box<dyn Error>>;
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct Message {
+    pub id:           uuid::Uuid,
+    pub created_at:   chrono::DateTime<chrono::Utc>,
+    pub expire_at:    Option<chrono::DateTime<chrono::Utc>>,
+    pub is_transient: bool,
+    pub text:         Option<String>,
+    pub title:        Option<String>,
+    pub user_id:      i64
+}
 
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct File {
+    pub content_type: Option<String>,
+    pub file_name:    String,
+    pub message_id:   uuid::Uuid
+}
 
-#[async_trait]
-pub trait Database: Sync {
-    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DeleteResult;
-    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
-    async fn get_message(&self, message_id: &uuid::Uuid) -> DatabaseResult<dao_models::Message>;
-    async fn get_message_link(
-        &self,
-        message_id: &uuid::Uuid,
-        link_token: &str
-    ) -> DatabaseResult<dao_models::MessageLink>;
-    async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::User>;
-    async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::User>;
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct View {
+    pub created_at: chrono::DateTime<chrono::Utc>,
+    pub device_id:  i64,
+    pub message_id: uuid::Uuid
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct MessageLink {
+    pub message_id: uuid::Uuid,
+    pub token:      String,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>
 }

@@ -34,12 +34,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::sql;
-
 #[async_trait]
 pub trait FileReader: Sync {
-    async fn delete_file(&self, file: &sql::dao_models::File) -> Result<(), Box<dyn Error>>;
-    async fn read_file(&self, file: &sql::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
+    async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>>;
+    async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
     async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
 }
 
@@ -67,13 +65,13 @@ impl LocalReader {
 
 #[async_trait]
 impl FileReader for LocalReader {
-    async fn delete_file(&self, file: &sql::dao_models::File) -> Result<(), Box<dyn Error>> {
+    async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>> {
         tokio::fs::remove_file(self.build_url(&file.message_id, &file.file_name))
             .await
             .map_err(Box::from)
     }
 
-    async fn read_file(&self, file: &sql::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>> {
+    async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>> {
         tokio::fs::read(self.build_url(&file.message_id, &file.file_name))
             .await
             .map_err(Box::from) // TODO: lazily read and return a stream

@@ -192,7 +192,7 @@ class PostgreDatabase(api.DatabaseHandler):
             password=url.password,
             host=url.hostname,
             port=url.port or 5432,
-            database=url.path or "ptf",
+            database=url.path.strip("/") or "ptf",
             query=urllib.parse.parse_qs(url.query),
         )
         self._database: sqlalchemy.ext.asyncio.AsyncEngine = sqlalchemy.ext.asyncio.create_async_engine(
@@ -259,7 +259,7 @@ class PostgreDatabase(api.DatabaseHandler):
         results = cursor.fetchall()
 
         if results:
-            assert isinstance(results[1], expected_type)
+            assert isinstance(results[0], expected_type)
 
         return typing.cast("collections.Sequence[_ValueT]", results)
 
