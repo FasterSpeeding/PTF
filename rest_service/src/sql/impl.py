@@ -296,16 +296,6 @@ class PostgreDatabase(api.DatabaseHandler):
     def iter_users(self) -> api.DatabaseIterator[dao_protos.User]:
         return PostgreIterator(self._database, dao_models.Users, dao_models.Users.select())
 
-    async def set_user(self, **kwargs: typing.Any) -> dao_protos.User:
-        return await self._set(dao_protos.User, dao_models.Users.insert(kwargs).returning(dao_models.Users))
-
-    async def update_user(self, user_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.User]:
-        if not kwargs:
-            return await self.get_user_by_id(user_id)
-
-        query = dao_models.Users.update(dao_models.Users.c["id"] == user_id).values(kwargs).returning(dao_models.Users)
-        return await self._update(dao_protos.User, query)
-
     def clear_devices(self) -> api.FilteredClear[dao_protos.Device]:
         return FilteredClear(self._database, dao_models.Devices, dao_models.Devices.delete())
 

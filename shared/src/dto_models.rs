@@ -66,23 +66,19 @@ pub struct UserUpdate {
 }
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(std::default::Default, Deserialize, Serialize)]
 pub struct ErrorsResponse {
     pub errors: Vec<Error>
 }
 
 impl ErrorsResponse {
-    pub fn new() -> Self {
-        Self { errors: Vec::new() }
-    }
-
     pub fn with_error(mut self, error: Error) -> Self {
         self.errors.push(error);
         self
     }
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(std::default::Default, Deserialize, Serialize)]
 pub struct Error {
     // TODO: this is currently JSON:API error style but look at rfc2616 and rfc7807
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -103,18 +99,6 @@ pub struct Error {
 
 // TODO: links?
 impl Error {
-    pub fn new() -> Self {
-        Self {
-            code:   None,
-            detail: None,
-            id:     None,
-            source: None,
-            status: None,
-            title:  None,
-            meta:   None
-        }
-    }
-
     pub fn code(mut self, code: &str) -> Self {
         self.code = Some(Box::from(code));
         self

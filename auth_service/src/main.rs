@@ -39,7 +39,8 @@ mod crypto;
 use crypto::Hasher;
 
 pub fn single_error(status: u16, detail: &str) -> HttpResponse {
-    let response = dto_models::ErrorsResponse::new().with_error(dto_models::Error::new().status(status).detail(detail));
+    let response =
+        dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(status).detail(detail));
 
     HttpResponse::build(http::StatusCode::from_u16(status).unwrap()).json(response)
 }

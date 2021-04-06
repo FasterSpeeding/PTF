@@ -49,7 +49,6 @@ class User(typing.Protocol):
     id: int
     created_at: datetime.datetime
     flags: int
-    password_hash: str
     username: str
 
 

@@ -172,22 +172,6 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def set_user(self, *, flags: int, password_hash: str, username: str) -> dao_protos.User:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def update_user(
-        self,
-        user_id: int,
-        /,
-        *,
-        flags: int = ...,
-        password_hash: str = ...,
-        username: str = ...,
-    ) -> typing.Optional[dao_protos.User]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def clear_devices(self) -> FilteredClear[dao_protos.Device]:
         raise NotImplementedError
 

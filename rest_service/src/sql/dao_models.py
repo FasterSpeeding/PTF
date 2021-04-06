@@ -53,7 +53,6 @@ Users = sqlalchemy.Table(
         "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
     sqlalchemy.Column("flags", sqlalchemy.BIGINT, nullable=False),
-    sqlalchemy.Column("password_hash", sqlalchemy.VARCHAR, nullable=False),
     sqlalchemy.Column("username", sqlalchemy.VARCHAR(validation.MAXIMUM_NAME_LENGTH), nullable=False),
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("id", name="user_pk"),

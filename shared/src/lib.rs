@@ -51,7 +51,7 @@ impl std::fmt::Display for MissingEnvVariable<'_> {
 }
 
 
-pub fn get_env_variable<'a>(key: &'a str) -> Result<String, MissingEnvVariable<'a>> {
+pub fn get_env_variable(key: &str) -> Result<String, MissingEnvVariable<'_>> {
     dotenv::var(key)
         .or_else(|_| std::env::var(key))
         .map_err(|_| MissingEnvVariable { key })
