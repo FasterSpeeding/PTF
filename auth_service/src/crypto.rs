@@ -28,9 +28,11 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
+use core::convert::AsRef;
 use std::error::Error;
 
 use async_trait::async_trait;
+use sodiumoxide::crypto::pwhash::argon2id13;
 
 
 #[async_trait]
@@ -41,16 +43,26 @@ pub trait Hasher: Sync {
 
 
 #[derive(Clone, Debug)]
-pub struct ArgonError {
-    pub inner_error: argonautica::Error
+pub struct HashError {
+    pub message: String
 }
 
-impl Error for ArgonError {
+impl HashError {
+    pub fn new(message: &str) -> Self {
+        Self::from_string(message.to_owned())
+    }
+
+    pub fn from_string(message: String) -> Self {
+        Self { message }
+    }
 }
 
-impl std::fmt::Display for ArgonError {
+impl Error for HashError {
+}
+
+impl std::fmt::Display for HashError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.inner_error.fmt(f)
+        write!(f, "{}", self.message)
     }
 }
 
@@ -68,40 +80,41 @@ impl Argon {
 #[async_trait]
 impl Hasher for Argon {
     async fn verify(&self, hash: &str, password: &str) -> Result<bool, Box<dyn Error>> {
-        // TODO this is really slow
-        let hash = hash.to_owned();
-        let password = password.to_owned();
-        let result = tokio::task::spawn_blocking(move || {
-            argonautica::Verifier::default()
-                .with_hash(&hash)
-                .with_password(password)
-                .verify() // TOOD: verify_non_blocking
-        })
-        .await;
+        let mut hash = hash.as_bytes().to_owned();
+        hash.resize(128, 0);
 
-        match result {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(error)) => Err(Box::from(ArgonError { inner_error: error })),
-            Err(error) => Err(Box::from(error))
-        }
+        let hash =
+            argon2id13::HashedPassword::from_slice(&hash).ok_or_else(|| HashError::new("Invalid stored hash"))?;
+        let password = password.to_owned();
+        tokio::task::spawn_blocking(move || {
+            // TODO: is this necessary?
+            argon2id13::pwhash_verify(&hash, password.as_bytes())
+        })
+        .await
+        .map_err(Box::from)
     }
 
     async fn hash(&self, password: &str) -> Result<String, Box<dyn Error>> {
-        // TODO this is really slow
+        // TODO this is slightly slow
         let password = password.to_owned();
-        let result = tokio::task::spawn_blocking(move || {
-            argonautica::Hasher::default()
-                .with_password(password)
-                .opt_out_of_secret_key(true)
-                .configure_variant(argonautica::config::Variant::Argon2id)
-                .hash() // TODO: hash_non_blocking
+        let mut result = tokio::task::spawn_blocking(move || {
+            argon2id13::pwhash(
+                password.as_bytes(),
+                argon2id13::OPSLIMIT_INTERACTIVE,
+                argon2id13::MEMLIMIT_INTERACTIVE
+            )
+            .map_err(|_| Box::new(HashError::new("Failed to hash password")))
         })
-        .await;
+        .await
+        .map_err(Box::new)?
+        .map(|v| v.as_ref().to_vec())?;
 
-        match result {
-            Ok(Ok(value)) => Ok(value),
-            Ok(Err(error)) => Err(Box::from(ArgonError { inner_error: error })),
-            Err(error) => Err(Box::from(error))
+        while result.ends_with(&[0]) {
+            result.pop();  // Remove padding which would otherwise lead to an error down the line.
         }
+
+        std::string::String::from_utf8(result).map_err(|e| {
+            Box::new(HashError::from_string(format!("Failed to parse password due to {}", e))) as Box<dyn Error>
+        })
     }
 }

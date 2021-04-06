@@ -82,7 +82,8 @@ async fn resolve_user(
         return Err(single_error(401, "Expected a Bearer token"));
     }
 
-    let token = base64::decode(token).map_err(|_| single_error(400, "Invalid authorization header"))?;
+    let token = sodiumoxide::base64::decode(token, sodiumoxide::base64::Variant::Original)
+        .map_err(|_| single_error(400, "Invalid authorization header"))?;
     let (username, password) = std::str::from_utf8(&token)
         .map_err(|_| single_error(400, "Invalid authorization header"))
         .and_then(|v| {
@@ -217,6 +218,7 @@ async fn actix_main() -> std::io::Result<()> {
 
 fn main() {
     shared::setup_logging();
+    sodiumoxide::init().unwrap();
     actix_web::rt::System::with_tokio_rt(|| {
         tokio::runtime::Builder::new_multi_thread()
             .enable_all()
