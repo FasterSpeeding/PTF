@@ -126,8 +126,8 @@ impl sql::Database for Pool {
         match result {
             Ok(user) => Ok(user),
             // TODO: this only works with postgres
-            Err(sqlx::Error::Database(error)) if error.constraint().is_some() => Err(sql::SetError::conflict()),
-            Err(other) => Err(sql::SetError::unknown(Box::from(other)))
+            Err(sqlx::Error::Database(error)) if error.constraint().is_some() => Err(sql::SetError::Conflict),
+            Err(other) => Err(sql::SetError::Unknown(Box::from(other)))
         }
     }
 

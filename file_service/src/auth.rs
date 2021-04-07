@@ -34,7 +34,7 @@ use async_trait::async_trait;
 use crate::utility;
 
 #[async_trait]
-pub trait Auth: Send {
+pub trait Auth: Send + Sync {
     async fn resolve_user(&self, authorization: &str) -> Result<shared::dto_models::User, Box<dyn std::error::Error>>;
 }
 

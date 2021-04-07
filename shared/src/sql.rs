@@ -47,17 +47,6 @@ pub enum SetError {
 }
 
 
-impl SetError {
-    pub fn conflict() -> Self {
-        Self::Conflict
-    }
-
-    pub fn unknown(error: Box<dyn Error>) -> Self {
-        Self::Unknown(error)
-    }
-}
-
-
 impl Error for SetError {
 }
 
@@ -73,7 +62,7 @@ impl fmt::Display for SetError {
 
 
 #[async_trait]
-pub trait Database: Sync {
+pub trait Database: Send + Sync {
     async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DeleteResult;
     async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
     async fn get_message(&self, message_id: &uuid::Uuid) -> DatabaseResult<dao_models::Message>;

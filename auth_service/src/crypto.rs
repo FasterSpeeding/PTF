@@ -36,7 +36,7 @@ use sodiumoxide::crypto::pwhash::argon2id13;
 
 
 #[async_trait]
-pub trait Hasher: Sync {
+pub trait Hasher: Send + Sync {
     async fn verify(&self, hash: &str, password: &str) -> Result<bool, Box<dyn Error>>;
     async fn hash(&self, password: &str) -> Result<String, Box<dyn Error>>;
 }
@@ -81,17 +81,14 @@ impl Argon {
 impl Hasher for Argon {
     async fn verify(&self, hash: &str, password: &str) -> Result<bool, Box<dyn Error>> {
         let mut hash = hash.as_bytes().to_owned();
-        hash.resize(128, 0);
+        hash.resize(argon2id13::HASHEDPASSWORDBYTES, 0);
 
         let hash =
             argon2id13::HashedPassword::from_slice(&hash).ok_or_else(|| HashError::new("Invalid stored hash"))?;
         let password = password.to_owned();
-        tokio::task::spawn_blocking(move || {
-            // TODO: is this necessary?
-            argon2id13::pwhash_verify(&hash, password.as_bytes())
-        })
-        .await
-        .map_err(Box::from)
+        tokio::task::spawn_blocking(move || argon2id13::pwhash_verify(&hash, password.as_bytes()))
+            .await
+            .map_err(Box::from)
     }
 
     async fn hash(&self, password: &str) -> Result<String, Box<dyn Error>> {
@@ -110,7 +107,8 @@ impl Hasher for Argon {
         .map(|v| v.as_ref().to_vec())?;
 
         while result.ends_with(&[0]) {
-            result.pop();  // Remove padding which would otherwise lead to an error down the line.
+            // Remove padding which would otherwise lead to an error down the line.
+            result.pop();
         }
 
         std::string::String::from_utf8(result).map_err(|e| {

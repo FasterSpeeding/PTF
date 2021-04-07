@@ -35,7 +35,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 #[async_trait]
-pub trait FileReader: Sync {
+pub trait FileReader: Send + Sync {
     async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>>;
     async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
     async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
