@@ -33,10 +33,16 @@ use shared::dto_models;
 use shared::sql::DatabaseResult;
 
 pub fn single_error(status: u16, detail: &str) -> HttpResponse {
-    let response =
+    let data =
         dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(status).detail(detail));
 
-    HttpResponse::build(http::StatusCode::from_u16(status).unwrap()).json(response)
+    let mut response = HttpResponse::build(http::StatusCode::from_u16(status).unwrap());
+
+    if status == 401 {
+        response.insert_header((actix_web::http::header::WWW_AUTHENTICATE, "Basic"));
+    };
+
+    response.json(data)
 }
 
 

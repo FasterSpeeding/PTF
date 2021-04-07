@@ -52,10 +52,7 @@ async fn delete_my_message_file(
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
         .await
-        .map_err(|e| {
-            log::error!("Failed to check authorization due to {:?}", e);
-            utility::single_error(500, "Internal server error")
-        })?;
+        .map_err(auth::map_auth_response)?;
 
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
@@ -90,10 +87,7 @@ async fn get_my_message_file(
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
         .await
-        .map_err(|e| {
-            log::error!("Failed to check authorization due to {:?}", e);
-            utility::single_error(500, "Internal server error")
-        })?;
+        .map_err(auth::map_auth_response)?;
 
     let file = utility::resolve_database_entry(db.get_file(&message_id, &file_name).await, "file")?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
@@ -104,7 +98,7 @@ async fn get_my_message_file(
 
     match file_reader.read_file(&file).await {
         Ok(file_contents) => Ok(HttpResponse::Ok()
-            .append_header((http::header::CONTENT_TYPE, file.content_type))
+            .insert_header((http::header::CONTENT_TYPE, file.content_type))
             .body(file_contents)),
         Err(error) => {
             log::error!("Failed to read file due to {:?}", error);
@@ -120,18 +114,28 @@ async fn put_my_message_file(
     path: web::Path<(uuid::Uuid, String)>,
     data: actix_web::web::Bytes,
     // data: actix_web::web::Payload,
+    auth_handler: web::Data<Arc<dyn auth::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
     let file_name = file_reader.process_name(file_name)?;
 
+    let user = auth_handler
+        .resolve_user(auth::get_auth_header(&req)?)
+        .await
+        .map_err(auth::map_auth_response)?;
+
     let content_type = req.content_type();
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
+    if user.id != message.user_id {
+        return Err(utility::single_error(404, "File not found"));
+    };
+
     // We save the file before making an SQL entry as while an entry-less file will
-    // ignored and eventually garbage collected, a file-less SQL entry will persist
-    // and lead to errors if it's looked up
+    // be ignored and eventually garbage collected, a file-less SQL entry will
+    // persist and lead to errors if it's looked up
     file_reader
         .save_file(&message.id, &file_name, &data)
         .await
