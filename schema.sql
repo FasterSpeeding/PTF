@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS message_links (
 
 -- The actual files for deleted files will be deleted by a cron-job running on the file service at one point.
 CREATE TABLE IF NOT EXISTS files (
-    content_type    VARCHAR,
+    content_type    VARCHAR     NOT NULL,
     file_name       VARCHAR     NOT NULL,
     message_id      UUID        NOT NULL,
 

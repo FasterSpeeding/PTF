@@ -54,7 +54,7 @@ impl Error for SetError {
 impl fmt::Display for SetError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Conflict => write!(f, "Entry already exists"),
+            Self::Conflict => write!(f, "Couldn't create due to a conflict"),
             Self::Unknown(error) => error.fmt(f)
         }
     }
@@ -74,6 +74,12 @@ pub trait Database: Send + Sync {
     ) -> DatabaseResult<dao_models::MessageLink>;
     async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::User>;
     async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::User>;
+    async fn set_or_update_file(
+        &self,
+        message_id: &uuid::Uuid,
+        file_name: &str,
+        content_type: &str
+    ) -> SetResult<dao_models::File>;
     async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::User>;
     // TODO: this is bad
     async fn update_user(

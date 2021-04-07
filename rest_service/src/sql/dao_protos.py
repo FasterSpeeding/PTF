@@ -95,7 +95,7 @@ class File(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
-    content_type: typing.Optional[str]
+    content_type: str
     file_name: str
     message_id: uuid.UUID
 

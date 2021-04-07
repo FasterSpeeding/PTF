@@ -584,6 +584,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "log",
+ "regex",
  "reqwest",
  "shared",
  "tokio",

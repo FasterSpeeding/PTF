@@ -54,6 +54,7 @@ __all__: list[str] = [
 ]
 
 import datetime
+import inspect
 import typing
 import uuid
 
@@ -239,6 +240,7 @@ class Message(pydantic.BaseModel):
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]
+    files: list[File] = pydantic.Field(default_factory=list)
 
     Config = _ModelConfig
 
@@ -258,7 +260,7 @@ class MessageLink(ReceivedMessageLink, pydantic.BaseModel):
 
 
 class File(pydantic.BaseModel):
-    content_type: typing.Optional[str]
+    content_type: str
     file_name: str
     message_id: uuid.UUID
 
@@ -281,3 +283,11 @@ BASIC_ERROR: typing.Final[dict[str, typing.Any]] = {"model": BasicError}
 AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
     401: {**BASIC_ERROR, "description": "Returned when invalid user authorization was provided."}
 }
+
+
+if not typing.TYPE_CHECKING:
+    for entry in globals().copy().values():
+        if inspect.isclass(entry) and issubclass(entry, pydantic.BaseModel):
+            entry.update_forward_refs()
+
+    del entry

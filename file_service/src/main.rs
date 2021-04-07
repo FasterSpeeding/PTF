@@ -31,7 +31,7 @@
 #![allow(dead_code)]
 use std::sync::Arc;
 
-use actix_web::{delete, get, put, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{delete, get, http, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
 use shared::sql::Database;
 mod auth;
 mod files;
@@ -41,11 +41,13 @@ mod utility;
 #[delete("/users/@me/messages/{message_id}/files/{file_name}")]
 async fn delete_my_message_file(
     req: HttpRequest,
+    path: web::Path<(uuid::Uuid, String)>,
     auth_handler: web::Data<Arc<dyn auth::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    path: web::Path<(uuid::Uuid, String)>
+    file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
+    let file_name = file_reader.process_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -83,6 +85,7 @@ async fn get_my_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
+    let file_name = file_reader.process_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -100,7 +103,9 @@ async fn get_my_message_file(
     };
 
     match file_reader.read_file(&file).await {
-        Ok(file_contents) => Ok(HttpResponse::Ok().body(file_contents)),
+        Ok(file_contents) => Ok(HttpResponse::Ok()
+            .append_header((http::header::CONTENT_TYPE, file.content_type))
+            .body(file_contents)),
         Err(error) => {
             log::error!("Failed to read file due to {:?}", error);
             Err(utility::single_error(500, "Failed to load file's contents"))
@@ -109,13 +114,43 @@ async fn get_my_message_file(
 }
 
 
-// #[put("/users/@me/messages/{message_id}/files/{file_name}")]
-// async fn put_message_file(
-//     db: web::Data<Arc<dyn Database>>,
-//     file_reader: web::Data<Arc<dyn files::FileReader>>,
-//     path: web::Path<(uuid::Uuid, String)>
-// ) -> Result<HttpResponse, HttpResponse> {
-// }
+#[put("/users/@me/messages/{message_id}/files/{file_name}")]
+async fn put_my_message_file(
+    req: HttpRequest,
+    path: web::Path<(uuid::Uuid, String)>,
+    data: actix_web::web::Bytes,
+    // data: actix_web::web::Payload,
+    db: web::Data<Arc<dyn Database>>,
+    file_reader: web::Data<Arc<dyn files::FileReader>>
+) -> Result<HttpResponse, HttpResponse> {
+    let (message_id, file_name) = path.into_inner();
+    let file_name = file_reader.process_name(file_name)?;
+
+    let content_type = req.content_type();
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
+
+    // We save the file before making an SQL entry as while an entry-less file will
+    // ignored and eventually garbage collected, a file-less SQL entry will persist
+    // and lead to errors if it's looked up
+    file_reader
+        .save_file(&message.id, &file_name, &data)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to save file due to {:?}", e);
+            utility::single_error(500, "Internal server error")
+        })?;
+
+    let result = db
+        .set_or_update_file(&message.id, &file_name, &content_type)
+        .await
+        // TODO: should some cases of this actually be handled as the message not existing
+        .map_err(|e| {
+            log::error!("Failed to set file database entry due to {:?}", e);
+            utility::single_error(500, "Internal server error")
+        })?;
+
+    Ok(HttpResponse::Ok().json(result))
+}
 
 
 // #[actix_web::main]
@@ -139,6 +174,7 @@ async fn actix_main() -> std::io::Result<()> {
             ))
             .service(delete_my_message_file)
             .service(get_my_message_file)
+            .service(put_my_message_file)
     })
     .bind(url)?
     .run()

@@ -145,8 +145,11 @@ async def put_message_view(
 )
 async def get_message(
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Message:
-    return dto_models.Message.from_orm(message)
+    result = dto_models.Message.from_orm(message)
+    result.files.extend(await database.iter_files_for_message(message.id).map(dto_models.File.from_orm))
+    return result
 
 
 @utilities.as_endpoint(
@@ -160,11 +163,17 @@ async def get_messages(
     auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Message]:
-    return list(
-        await database.iter_messages_for_user(auth.user.id)
-        .order_by("id", ascending=False)
-        .map(dto_models.Message.from_orm)
+    messages = {m.id: m for m in await database.iter_messages_for_user(auth.user.id).map(dto_models.Message.from_orm)}
+    files = (
+        await database.iter_files()
+        .filter("contains", ("message_id", set(messages.keys())))
+        .map(dto_models.File.from_orm)
     )
+
+    for file in files:
+        messages[file.message_id].files.append(file)
+
+    return list(messages.values())
 
 
 @utilities.as_endpoint(
@@ -204,7 +213,9 @@ async def patch_message(
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
-    return dto_models.Message.from_orm(new_message)
+    result = dto_models.Message.from_orm(new_message)
+    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    return result
 
 
 @utilities.as_endpoint(

@@ -49,6 +49,15 @@ impl Pool {
 }
 
 
+fn process_insert_error(result: sqlx::Error) -> sql::SetError {
+    match result {
+        // TODO: this only works with postgres
+        sqlx::Error::Database(error) if error.constraint().is_some() => sql::SetError::Conflict,
+        other => sql::SetError::Unknown(Box::from(other))
+    }
+}
+
+
 #[async_trait]
 impl sql::Database for Pool {
     async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DeleteResult {
@@ -112,8 +121,27 @@ impl sql::Database for Pool {
             .map_err(Box::from)
     }
 
+    async fn set_or_update_file(
+        &self,
+        message_id: &uuid::Uuid,
+        file_name: &str,
+        content_type: &str
+    ) -> sql::SetResult<dao_models::File> {
+        sqlx::query_as!(
+            dao_models::File,
+            "INSERT INTO files (message_id, file_name, content_type) VALUES ($1, $2, $3) ON CONFLICT (message_id, \
+             file_name) DO UPDATE SET content_type = $3  RETURNING *;",
+            message_id,
+            file_name,
+            content_type
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(process_insert_error)
+    }
+
     async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> sql::SetResult<dao_models::User> {
-        let result = sqlx::query_as!(
+        sqlx::query_as!(
             dao_models::User,
             "INSERT INTO users (flags, password_hash, username) VALUES ($1, $2, $3) RETURNING *;",
             flags,
@@ -121,14 +149,8 @@ impl sql::Database for Pool {
             username
         )
         .fetch_one(&self.pool)
-        .await;
-
-        match result {
-            Ok(user) => Ok(user),
-            // TODO: this only works with postgres
-            Err(sqlx::Error::Database(error)) if error.constraint().is_some() => Err(sql::SetError::Conflict),
-            Err(other) => Err(sql::SetError::Unknown(Box::from(other)))
-        }
+        .await
+        .map_err(process_insert_error)
     }
 
     // TODO: this doesn't feel rusty and how would setting fields to null work here?

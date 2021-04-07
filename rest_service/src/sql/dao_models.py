@@ -108,7 +108,7 @@ MessageLinks = sqlalchemy.Table(
 Files = sqlalchemy.Table(
     "files",
     metadata,
-    sqlalchemy.Column("content_type", sqlalchemy.VARCHAR, nullable=True),
+    sqlalchemy.Column("content_type", sqlalchemy.VARCHAR, nullable=False),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
     sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
     # Constraints

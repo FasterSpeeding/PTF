@@ -32,13 +32,18 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
+use actix_web::HttpResponse;
 use async_trait::async_trait;
+
+use crate::utility;
 
 #[async_trait]
 pub trait FileReader: Send + Sync {
     async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>>;
     async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
     async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
+    fn is_normalised(&self, name: &str) -> bool;
+    fn process_name(&self, name: String) -> Result<String, HttpResponse>;
 }
 
 #[derive(Clone, Debug)]
@@ -82,4 +87,21 @@ impl FileReader for LocalReader {
             .await
             .map_err(Box::from) // TODO: take a stream and lazily save
     }
+
+    fn is_normalised(&self, name: &str) -> bool {
+        regex::Regex::new(NAME_REGEX).unwrap().is_match(name)
+    }
+
+    fn process_name(&self, name: String) -> Result<String, HttpResponse> {
+        if self.is_normalised(&name) {
+            Ok(name)
+        } else {
+            Err(utility::single_error(
+                400,
+                &format!("File name must match this regex: {}", NAME_REGEX)
+            ))
+        }
+    }
 }
+
+pub const NAME_REGEX: &str = r"^([a-zA-Z_\-\t\r ]+)\.([a-zA-Z_\-\t\r ]+)$";

@@ -62,7 +62,7 @@ pub struct Message {
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct File {
-    pub content_type: Option<String>,
+    pub content_type: String,
     pub file_name:    String,
     pub message_id:   uuid::Uuid
 }
