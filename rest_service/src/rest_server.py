@@ -45,10 +45,6 @@ if typing.TYPE_CHECKING:
     from .sql import api as sql_api
 
 
-async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
-    await database.close()
-
-
 def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.DatabaseHandler]] = None, /) -> fastapi.FastAPI:
     import os
 
@@ -78,6 +74,11 @@ def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.Database
     server = fastapi.FastAPI(title="PTF API")
     server.dependency_overrides[refs.DatabaseProto] = sql_builder
     server.dependency_overrides[refs.AuthGetterProto] = user_auth_handler
+
+    async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
+        await database.close()
+        await user_auth_handler.close()
+
     server.add_event_handler("shutdown", _on_shutdown)
 
     for value in vars(resources).values():

@@ -86,6 +86,10 @@ class UserAuth:
         headers = {"WWW-Authenticate": "Basic"} if response.status == 401 else None
         raise fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
 
+    async def close(self) -> None:
+        if self._client:
+            await self._client.close()
+
     async def create_user(
         self, credentials: fastapi.security.HTTPBasicCredentials, username: str, user: dto_models.ReceivedUser
     ) -> dto_models.AuthUser:
