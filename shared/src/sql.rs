@@ -63,8 +63,18 @@ impl fmt::Display for SetError {
 
 #[async_trait]
 pub trait Database: Send + Sync {
-    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DeleteResult;
-    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
+    async fn delete_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> DeleteResult;
+    async fn delete_file_by_set_at(
+        &self,
+        message_id: &uuid::Uuid,
+        set_at: chrono::DateTime<chrono::Utc>
+    ) -> DeleteResult;
+    async fn get_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
+    async fn get_file_by_set_at(
+        &self,
+        message_id: &uuid::Uuid,
+        set_at: chrono::DateTime<chrono::Utc>
+    ) -> DatabaseResult<dao_models::File>;
     async fn get_message(&self, message_id: &uuid::Uuid) -> DatabaseResult<dao_models::Message>;
     async fn get_message_link(
         // TODO: gonna need mutating and deleting methods
@@ -78,7 +88,8 @@ pub trait Database: Send + Sync {
         &self,
         message_id: &uuid::Uuid,
         file_name: &str,
-        content_type: &str
+        content_type: &str,
+        set_at: &chrono::DateTime<chrono::Utc>
     ) -> SetResult<dao_models::File>;
     async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::User>;
     // TODO: this is bad

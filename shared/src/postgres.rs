@@ -60,7 +60,7 @@ fn process_insert_error(result: sqlx::Error) -> sql::SetError {
 
 #[async_trait]
 impl sql::Database for Pool {
-    async fn delete_file(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DeleteResult {
+    async fn delete_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DeleteResult {
         sqlx::query!(
             "DELETE FROM files WHERE message_id=$1 AND file_name=$2;",
             message_id,
@@ -72,12 +72,48 @@ impl sql::Database for Pool {
         .map(|result| result.rows_affected() > 0)
     }
 
-    async fn get_file(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DatabaseResult<dao_models::File> {
+    async fn delete_file_by_set_at(
+        &self,
+        message_id: &uuid::Uuid,
+        set_at: chrono::DateTime<chrono::Utc>
+    ) -> sql::DeleteResult {
+        sqlx::query!(
+            "DELETE FROM files WHERE message_id=$1 AND set_at=$2;",
+            message_id,
+            set_at
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(Box::from)
+        .map(|result| result.rows_affected() > 0)
+    }
+
+    async fn get_file_by_name(
+        &self,
+        message_id: &uuid::Uuid,
+        file_name: &str
+    ) -> sql::DatabaseResult<dao_models::File> {
         sqlx::query_as!(
             dao_models::File,
             "SELECT * FROM files WHERE message_id=$1 AND file_name=$2;",
             message_id,
             file_name
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(Box::from)
+    }
+
+    async fn get_file_by_set_at(
+        &self,
+        message_id: &uuid::Uuid,
+        set_at: chrono::DateTime<chrono::Utc>
+    ) -> sql::DatabaseResult<dao_models::File> {
+        sqlx::query_as!(
+            dao_models::File,
+            "SELECT * FROM files WHERE message_id=$1 AND set_at=$2;",
+            message_id,
+            set_at
         )
         .fetch_optional(&self.pool)
         .await
@@ -125,15 +161,17 @@ impl sql::Database for Pool {
         &self,
         message_id: &uuid::Uuid,
         file_name: &str,
-        content_type: &str
+        content_type: &str,
+        set_at: &chrono::DateTime<chrono::Utc>
     ) -> sql::SetResult<dao_models::File> {
         sqlx::query_as!(
             dao_models::File,
-            "INSERT INTO files (message_id, file_name, content_type) VALUES ($1, $2, $3) ON CONFLICT (message_id, \
-             file_name) DO UPDATE SET content_type = $3  RETURNING *;",
+            "INSERT INTO files (message_id, file_name, content_type, set_at) VALUES ($1, $2, $3, $4) ON CONFLICT \
+             (message_id, file_name) DO UPDATE SET content_type = $3, set_at = $4  RETURNING *;",
             message_id,
             file_name,
-            content_type
+            content_type,
+            set_at
         )
         .fetch_one(&self.pool)
         .await

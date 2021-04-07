@@ -64,7 +64,8 @@ pub struct Message {
 pub struct File {
     pub content_type: String,
     pub file_name:    String,
-    pub message_id:   uuid::Uuid
+    pub message_id:   uuid::Uuid,
+    pub set_at:       chrono::DateTime<chrono::Utc>
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]

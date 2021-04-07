@@ -41,9 +41,13 @@ use crate::utility;
 pub trait FileReader: Send + Sync {
     async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>>;
     async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
-    async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>>;
-    fn is_normalised(&self, name: &str) -> bool;
-    fn process_name(&self, name: String) -> Result<String, HttpResponse>;
+    async fn save_file(
+        &self,
+        message_id: &uuid::Uuid,
+        set_at: &chrono::DateTime<chrono::Utc>,
+        file_name: &str,
+        data: &[u8]
+    ) -> Result<(), Box<dyn Error>>;
 }
 
 #[derive(Clone, Debug)]
@@ -60,9 +64,9 @@ impl LocalReader {
     }
 
     // TODO: normalise file_name
-    fn build_url(&self, message_id: &uuid::Uuid, file_name: &str) -> std::path::PathBuf {
+    fn build_url(&self, message_id: &uuid::Uuid, created_at: &chrono::DateTime<chrono::Utc>) -> std::path::PathBuf {
         let mut path = self.base_url.to_path_buf();
-        path.push(format!("{}_{}", message_id, file_name));
+        path.push(format!("{}#{}", message_id, created_at.timestamp_millis()));
         path
     }
 }
@@ -71,37 +75,40 @@ impl LocalReader {
 #[async_trait]
 impl FileReader for LocalReader {
     async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>> {
-        tokio::fs::remove_file(self.build_url(&file.message_id, &file.file_name))
+        tokio::fs::remove_file(self.build_url(&file.message_id, &file.set_at))
             .await
             .map_err(Box::from)
     }
 
     async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>> {
-        tokio::fs::read(self.build_url(&file.message_id, &file.file_name))
+        tokio::fs::read(self.build_url(&file.message_id, &file.set_at))
             .await
             .map_err(Box::from) // TODO: lazily read and return a stream
     }
 
-    async fn save_file(&self, message_id: &uuid::Uuid, file_name: &str, data: &[u8]) -> Result<(), Box<dyn Error>> {
-        tokio::fs::write(self.build_url(message_id, file_name), data)
+    async fn save_file(
+        &self,
+        message_id: &uuid::Uuid,
+        set_at: &chrono::DateTime<chrono::Utc>,
+        _file_name: &str,
+        data: &[u8]
+    ) -> Result<(), Box<dyn Error>> {
+        tokio::fs::write(self.build_url(message_id, set_at), data)
             .await
             .map_err(Box::from) // TODO: take a stream and lazily save
-    }
-
-    fn is_normalised(&self, name: &str) -> bool {
-        regex::Regex::new(NAME_REGEX).unwrap().is_match(name)
-    }
-
-    fn process_name(&self, name: String) -> Result<String, HttpResponse> {
-        if self.is_normalised(&name) {
-            Ok(name)
-        } else {
-            Err(utility::single_error(
-                400,
-                &format!("File name must match this regex: {}", NAME_REGEX)
-            ))
-        }
     }
 }
 
 pub const NAME_REGEX: &str = r"^([a-zA-Z_\-\t\r ]+)\.([a-zA-Z_\-\t\r ]+)$";
+
+
+pub fn validate_name(name: String) -> Result<String, HttpResponse> {
+    if regex::Regex::new(NAME_REGEX).unwrap().is_match(&name) {
+        Ok(name)
+    } else {
+        Err(utility::single_error(
+            400,
+            &format!("File name must match this regex: {}", NAME_REGEX)
+        ))
+    }
+}

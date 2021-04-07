@@ -263,6 +263,7 @@ class File(pydantic.BaseModel):
     content_type: str
     file_name: str
     message_id: uuid.UUID
+    set_at: datetime.datetime
 
     Config = _ModelConfig
 

@@ -106,12 +106,16 @@ CREATE TABLE IF NOT EXISTS message_links (
 
 -- The actual files for deleted files will be deleted by a cron-job running on the file service at one point.
 CREATE TABLE IF NOT EXISTS files (
-    content_type    VARCHAR     NOT NULL,
-    file_name       VARCHAR     NOT NULL,
-    message_id      UUID        NOT NULL,
+    content_type    VARCHAR                     NOT NULL,
+    file_name       VARCHAR                     NOT NULL,
+    message_id      UUID                        NOT NULL,
+    set_at          TIMESTAMP WITH TIME ZONE    NOT NULL,
 
     CONSTRAINT file_pk
-        PRIMARY KEY (file_name, message_id),
+        PRIMARY KEY (set_at, message_id),
+
+    CONSTRAINT file_uc
+        UNIQUE (file_name, message_id),
 
     CONSTRAINT files_message_id_fk
         FOREIGN KEY (message_id)

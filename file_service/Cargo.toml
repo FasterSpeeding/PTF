@@ -8,10 +8,11 @@ edition = "2018"
 
 
 [dependencies]
-    actix-web       = "4.0.0-beta.4"
-    async-trait     = "0.1.42"
- 	log	            = "0.4.14"
-    regex           = "1.4.5"
+    actix-web   = "4.0.0-beta.4"
+    async-trait = "0.1.42"
+    chrono      = "0.4.19"
+ 	log	        = "0.4.14"
+    regex       = "1.4.5"
 
 [dependencies.reqwest]
     features    = ["json"]

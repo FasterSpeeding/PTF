@@ -43,11 +43,10 @@ async fn delete_my_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
     auth_handler: web::Data<Arc<dyn auth::Auth>>,
-    db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>
+    db: web::Data<Arc<dyn Database>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
-    let file_name = file_reader.process_name(file_name)?;
+    let file_name = files::validate_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -61,13 +60,13 @@ async fn delete_my_message_file(
     };
 
     // TODO: the actual file should be deleted by a CRON job at a later date
-    match db.delete_file(&message_id, &file_name).await {
+    match db.delete_file_by_name(&message_id, &file_name).await {
         // TODO: normalised file name
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "File not found")),
         Err(error) => {
             log::error!("Failed to delete file entry due to {:?}", error);
-            Err(utility::single_error(404, "Failed to delete file"))
+            Err(utility::single_error(500, "Failed to delete file"))
         }
     }
 }
@@ -82,14 +81,14 @@ async fn get_my_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
-    let file_name = file_reader.process_name(file_name)?;
+    let file_name = files::validate_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
         .await
         .map_err(auth::map_auth_response)?;
 
-    let file = utility::resolve_database_entry(db.get_file(&message_id, &file_name).await, "file")?;
+    let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
     if user.id != message.user_id {
@@ -119,7 +118,7 @@ async fn put_my_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
-    let file_name = file_reader.process_name(file_name)?;
+    let file_name = files::validate_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -133,11 +132,13 @@ async fn put_my_message_file(
         return Err(utility::single_error(404, "File not found"));
     };
 
+    let date = chrono::Utc::now();
+
     // We save the file before making an SQL entry as while an entry-less file will
     // be ignored and eventually garbage collected, a file-less SQL entry will
     // persist and lead to errors if it's looked up
     file_reader
-        .save_file(&message.id, &file_name, &data)
+        .save_file(&message.id, &date, &file_name, &data)
         .await
         .map_err(|e| {
             log::error!("Failed to save file due to {:?}", e);
@@ -145,7 +146,7 @@ async fn put_my_message_file(
         })?;
 
     let result = db
-        .set_or_update_file(&message.id, &file_name, &content_type)
+        .set_or_update_file(&message.id, &file_name, &content_type, &date)
         .await
         // TODO: should some cases of this actually be handled as the message not existing
         .map_err(|e| {

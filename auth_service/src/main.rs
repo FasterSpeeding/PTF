@@ -89,7 +89,7 @@ async fn resolve_user(
         .and_then(|value| {
             let mut iterator = value.splitn(2, ':');
             match (iterator.next(), iterator.next()) {
-                (Some(username), Some(password)) if password != "" => Ok((username, password)),
+                (Some(username), Some(password)) if !password.is_empty() => Ok((username, password)),
                 _ => Err(single_error(400, "Invalid authorization header"))
             }
         })?;

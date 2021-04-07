@@ -111,8 +111,10 @@ Files = sqlalchemy.Table(
     sqlalchemy.Column("content_type", sqlalchemy.VARCHAR, nullable=False),
     sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
     sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
+    sqlalchemy.Column("set_at", sqlalchemy.DateTime(timezone=True), nullable=False),
     # Constraints
-    sqlalchemy.PrimaryKeyConstraint("file_name", "message_id", name="file_pk"),
+    sqlalchemy.PrimaryKeyConstraint("set_at", "message_id", name="file_pk"),
+    sqlalchemy.UniqueConstraint("file_name", "message_id", name="file_uc"),
     sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="files_message_id_fk"),
 )
 

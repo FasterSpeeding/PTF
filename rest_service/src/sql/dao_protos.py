@@ -98,6 +98,7 @@ class File(typing.Protocol):
     content_type: str
     file_name: str
     message_id: uuid.UUID
+    set_at: datetime.datetime
 
 
 @typing.runtime_checkable

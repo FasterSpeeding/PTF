@@ -230,7 +230,6 @@ async def post_messages(
     auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dto_models.Message:
-    # TODO: files
     try:
         expire_at: typing.Optional[datetime.datetime] = None
         if message.expire_after:
