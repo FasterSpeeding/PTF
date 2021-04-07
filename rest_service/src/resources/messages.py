@@ -81,7 +81,7 @@ async def retrieve_message(
     tags=["Messages"],
 )
 async def delete_messages(
-    message_ids: set[int] = fastapi.Body(..., qe=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT),
+    message_ids: set[uuid.UUID] = fastapi.Body(...),
     auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:

@@ -20,7 +20,6 @@ edition = "2018"
     version     = "1.0.117"
     features    = ["derive"]
 
-
 [dependencies.sqlx]
     version     = "0.5.1"
     features    = ["chrono", "runtime-tokio-native-tls", "uuid"]

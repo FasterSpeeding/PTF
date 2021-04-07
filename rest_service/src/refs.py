@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["DatabaseProto", "UserAuthProto", "AuthGetterProto"]
+__all__: list[str] = ["AuthGetterProto", "DatabaseProto", "UserAuthProto"]
 
 import typing
 
@@ -42,11 +42,6 @@ if typing.TYPE_CHECKING:
 
 class DatabaseProto(typing.Protocol):
     def __call__(self) -> sql_api.DatabaseHandler:
-        raise NotImplementedError
-
-
-class GenAuthProto(typing.Protocol):
-    def __call__(self) -> UserAuthProto:
         raise NotImplementedError
 
 

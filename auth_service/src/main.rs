@@ -79,15 +79,15 @@ async fn resolve_user(
     let (token_type, token) = value.split_at(6);
 
     if !"Basic ".eq_ignore_ascii_case(token_type) {
-        return Err(single_error(401, "Expected a Bearer token"));
+        return Err(single_error(401, "Expected a Basic authorization token"));
     }
 
     let token = sodiumoxide::base64::decode(token, sodiumoxide::base64::Variant::Original)
         .map_err(|_| single_error(400, "Invalid authorization header"))?;
     let (username, password) = std::str::from_utf8(&token)
         .map_err(|_| single_error(400, "Invalid authorization header"))
-        .and_then(|v| {
-            let mut iterator = v.splitn(2, ':');
+        .and_then(|value| {
+            let mut iterator = value.splitn(2, ':');
             match (iterator.next(), iterator.next()) {
                 (Some(username), Some(password)) if password != "" => Ok((username, password)),
                 _ => Err(single_error(400, "Invalid authorization header"))
@@ -141,9 +141,7 @@ async fn put_user(
         single_error(500, "Internal server error")
     })?;
 
-    let result = db
-        .set_user(&user.flags, password_hash.as_str(), &username.as_str())
-        .await;
+    let result = db.set_user(&user.flags, &password_hash, &username).await;
 
     match result {
         Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_dao(user))),

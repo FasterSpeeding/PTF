@@ -16,7 +16,6 @@ edition = "2018"
     features    = ["json"]
     version     = "0.11.2"
 
-
 [dependencies.shared]
     path        = "../shared"
     features    = ["postgres"]

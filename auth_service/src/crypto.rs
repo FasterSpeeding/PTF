@@ -100,10 +100,9 @@ impl Hasher for Argon {
                 argon2id13::OPSLIMIT_INTERACTIVE,
                 argon2id13::MEMLIMIT_INTERACTIVE
             )
-            .map_err(|_| Box::new(HashError::new("Failed to hash password")))
+            .map_err(|_| HashError::new("Failed to hash password"))
         })
-        .await
-        .map_err(Box::new)?
+        .await?
         .map(|v| v.as_ref().to_vec())?;
 
         while result.ends_with(&[0]) {
@@ -111,8 +110,7 @@ impl Hasher for Argon {
             result.pop();
         }
 
-        std::string::String::from_utf8(result).map_err(|e| {
-            Box::new(HashError::from_string(format!("Failed to parse password due to {}", e))) as Box<dyn Error>
-        })
+        std::string::String::from_utf8(result)
+            .map_err(|e| Box::from(HashError::from_string(format!("Failed to parse password due to {}", e))))
     }
 }
