@@ -38,6 +38,7 @@ import collections.abc as collections
 import operator
 import typing
 import urllib.parse
+import uuid
 
 # https://github.com/MagicStack/asyncpg/issues/699
 import asyncpg.exceptions  # TODO: wait for asyncpg to add python 3.10 support
@@ -191,7 +192,7 @@ class PostgreDatabase(api.DatabaseHandler):
             password=url.password,
             host=url.hostname,
             port=url.port or 5432,
-            database=url.path or "ptf",
+            database=url.path.strip("/") or "ptf",
             query=urllib.parse.parse_qs(url.query),
         )
         self._database: sqlalchemy.ext.asyncio.AsyncEngine = sqlalchemy.ext.asyncio.create_async_engine(
@@ -258,7 +259,7 @@ class PostgreDatabase(api.DatabaseHandler):
         results = cursor.fetchall()
 
         if results:
-            assert isinstance(results[1], expected_type)
+            assert isinstance(results[0], expected_type)
 
         return typing.cast("collections.Sequence[_ValueT]", results)
 
@@ -294,16 +295,6 @@ class PostgreDatabase(api.DatabaseHandler):
 
     def iter_users(self) -> api.DatabaseIterator[dao_protos.User]:
         return PostgreIterator(self._database, dao_models.Users, dao_models.Users.select())
-
-    async def set_user(self, **kwargs: typing.Any) -> dao_protos.User:
-        return await self._set(dao_protos.User, dao_models.Users.insert(kwargs).returning(dao_models.Users))
-
-    async def update_user(self, user_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.User]:
-        if not kwargs:
-            return await self.get_user_by_id(user_id)
-
-        query = dao_models.Users.update(dao_models.Users.c["id"] == user_id).values(kwargs).returning(dao_models.Users)
-        return await self._update(dao_protos.User, query)
 
     def clear_devices(self) -> api.FilteredClear[dao_protos.Device]:
         return FilteredClear(self._database, dao_models.Devices, dao_models.Devices.delete())
@@ -369,10 +360,10 @@ class PostgreDatabase(api.DatabaseHandler):
     def clear_messages(self) -> api.FilteredClear[dao_protos.Message]:
         return FilteredClear(self._database, dao_models.Messages, dao_models.Messages.delete())
 
-    async def delete_message(self, message_id: int, /) -> None:
+    async def delete_message(self, message_id: uuid.UUID, /) -> None:
         await self._execute(dao_models.Messages.delete(dao_models.Messages.c["id"] == message_id))
 
-    async def get_message(self, message_id: int, /) -> typing.Optional[dao_protos.Message]:
+    async def get_message(self, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.Message]:
         return await self._fetch_one(
             dao_protos.Message, dao_models.Messages.select(dao_models.Messages.c["id"] == message_id)
         )
@@ -386,9 +377,12 @@ class PostgreDatabase(api.DatabaseHandler):
         )
 
     async def set_message(self, **kwargs: typing.Any) -> dao_protos.Message:
+        kwargs["id"] = uuid.uuid4()
         return await self._set(dao_protos.Message, dao_models.Messages.insert(kwargs).returning(dao_models.Messages))
 
-    async def update_message(self, message_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.Message]:
+    async def update_message(
+        self, message_id: uuid.UUID, /, **kwargs: typing.Any
+    ) -> typing.Optional[dao_protos.Message]:
         if not kwargs:
             return await self.get_message(message_id)
 
@@ -399,16 +393,7 @@ class PostgreDatabase(api.DatabaseHandler):
         )
         return await self._update(dao_protos.Message, query)
 
-    def clear_files(self) -> api.FilteredClear[dao_protos.File]:
-        return FilteredClear(self._database, dao_models.Files, dao_models.Files.delete())
-
-    async def delete_file(self, message_id: int, file_name: str, /) -> None:
-        columns = dao_models.Files.columns
-        await self._execute(
-            dao_models.Files.delete(sqlalchemy.and_(columns["message_id"] == message_id, columns["name"] == file_name))
-        )
-
-    async def get_file(self, message_id: int, file_name: str, /) -> typing.Optional[dao_protos.File]:
+    async def get_file(self, message_id: uuid.UUID, file_name: str, /) -> typing.Optional[dao_protos.File]:
         columns = dao_models.Files.columns
         query = dao_models.Files.select(
             sqlalchemy.and_(columns["message_id"] == message_id, columns["name"] == file_name)
@@ -418,81 +403,54 @@ class PostgreDatabase(api.DatabaseHandler):
     def iter_files(self) -> api.DatabaseIterator[dao_protos.File]:
         return PostgreIterator(self._database, dao_models.Files, dao_models.Files.select())
 
-    def iter_files_for_message(self, message_id: int, /) -> api.DatabaseIterator[dao_protos.Message]:
+    def iter_files_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.Message]:
         return PostgreIterator(
             self._database, dao_models.Files, dao_models.Files.select(dao_models.Files.c["message_id"] == message_id)
         )
 
-    async def set_file(self, **kwargs: typing.Any) -> dao_protos.File:
-        return await self._set(dao_protos.File, dao_models.Files.insert(kwargs).returning(dao_models.Files))
+    def clear_message_links(self) -> api.FilteredClear[dao_protos.MessageLink]:
+        return FilteredClear(self._database, dao_models.MessageLinks, dao_models.MessageLinks.delete())
 
-    # async def update_file(self, file_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.File]:
-    #     if not kwargs:
-    #         return await self.get_file(file_id)
-    #
-    #     query = dao_models.Files.update(dao_models.Files.c["id"] == file_id).values(kwargs).returning(dao_models.Files)
-    #     return await self._update(dao_protos.File, query)
-
-    def clear_permissions(self) -> api.FilteredClear[dao_protos.Permission]:
-        return FilteredClear(self._database, dao_models.Permissions, dao_models.Permissions.delete())
-
-    async def delete_permission(self, message_id: int, user_id: int, /) -> None:
-        columns = dao_models.Permissions.columns
-        query = dao_models.Permissions.delete(
-            sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
+    async def delete_message_link(self, message_id: uuid.UUID, token: str, /) -> None:
+        columns = dao_models.MessageLinks.columns
+        query = dao_models.MessageLinks.delete(
+            sqlalchemy.and_(columns["message_id"] == message_id, columns["token"] == token)
         )
         await self._execute(query)
 
-    async def get_permission(self, message_id: int, user_id: int, /) -> typing.Optional[dao_protos.Permission]:
-        columns = dao_models.Permissions.columns
-        query = dao_models.Permissions.select(
-            sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
+    async def get_message_link(self, message_id: uuid.UUID, token: str, /) -> typing.Optional[dao_protos.MessageLink]:
+        columns = dao_models.MessageLinks.columns
+        query = dao_models.MessageLinks.select(
+            sqlalchemy.and_(columns["message_id"] == message_id, columns["token"] == token)
         )
-        return await self._fetch_one(dao_protos.Permission, query)
+        return await self._fetch_one(dao_protos.MessageLink, query)
 
-    def iter_permissions(self) -> api.DatabaseIterator[dao_protos.Permission]:
-        return PostgreIterator(self._database, dao_models.Permissions, dao_models.Permissions.select())
+    def iter_message_links(self) -> api.DatabaseIterator[dao_protos.MessageLink]:
+        return PostgreIterator(self._database, dao_models.MessageLinks, dao_models.MessageLinks.select())
 
-    def iter_permissions_for_message(self, message_id: int, /) -> api.DatabaseIterator[dao_protos.Permission]:
-        query = dao_models.Permissions.select(dao_models.Permissions.c["message_id"] == message_id)
-        return PostgreIterator(self._database, dao_models.Permissions, query)
+    def iter_message_link_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.MessageLink]:
+        return PostgreIterator(
+            self._database,
+            dao_models.MessageLinks,
+            dao_models.MessageLinks.select(dao_models.MessageLinks.c["message_id"] == message_id),
+        )
 
-    def iter_permissions_for_user(self, user_id: int, /) -> api.DatabaseIterator[dao_protos.Permission]:
-        query = dao_models.Permissions.select(dao_models.Permissions.c["user_id"] == user_id)
-        return PostgreIterator(self._database, dao_models.Permissions, query)
-
-    async def set_permission(self, **kwargs: typing.Any) -> dao_protos.Permission:
+    async def set_message_link(self, **kwargs: typing.Any) -> dao_protos.MessageLink:
         return await self._set(
-            dao_protos.Permission, dao_models.Permissions.insert(kwargs).returning(dao_models.Permissions)
+            dao_protos.MessageLink, dao_models.MessageLinks.insert(kwargs).returning(dao_models.MessageLinks)
         )
-
-    async def update_permission(
-        self, message_id: int, user_id: int, /, **kwargs: typing.Any
-    ) -> typing.Optional[dao_protos.Permission]:
-        if not kwargs:
-            return await self.get_permission(message_id, user_id)
-
-        columns = dao_models.Permissions.columns
-        query = (
-            dao_models.Permissions.update(
-                sqlalchemy.and_(columns["message_id"] == message_id, columns["user_id"] == user_id)
-            )
-            .values(kwargs)
-            .returning(dao_models.Permissions)
-        )
-        return await self._update(dao_protos.Permission, query)
 
     def clear_views(self) -> api.FilteredClear[dao_protos.View]:
         return FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())
 
-    async def delete_view(self, device_id: int, message_id: int, /) -> None:
+    async def delete_view(self, device_id: int, message_id: uuid.UUID, /) -> None:
         columns = dao_models.Views.columns
         query = dao_models.Views.delete(
             sqlalchemy.and_(columns["device_id"] == device_id, columns["message_id"] == message_id)
         )
         await self._execute(query)
 
-    async def get_view(self, device_id: int, message_id: int, /) -> typing.Optional[dao_protos.View]:
+    async def get_view(self, device_id: int, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.View]:
         columns = dao_models.Views.columns
         query = dao_models.Views.select(
             sqlalchemy.and_(columns["device_id"] == device_id, columns["message_id"] == message_id)
@@ -507,7 +465,7 @@ class PostgreDatabase(api.DatabaseHandler):
             self._database, dao_models.Views, dao_models.Views.select(dao_models.Views.c["device_id"] == device_id)
         )
 
-    def iter_views_for_message(self, message_id: int, /) -> api.DatabaseIterator[dao_protos.View]:
+    def iter_views_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.View]:
         return PostgreIterator(
             self._database, dao_models.Views, dao_models.Views.select(dao_models.Views.c["message_id"] == message_id)
         )

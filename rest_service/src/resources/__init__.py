@@ -35,10 +35,14 @@ __all__: list[str] = [
     # messages.py
     "messages",
     "delete_messages",
+    "delete_message_link",
     "get_message",
     "get_messages",
+    "get_message_links",
     "patch_message",
     "post_messages",
+    "post_message_links",
+    "put_message_view",
     # users.py
     "users",
     "delete_user_devices",

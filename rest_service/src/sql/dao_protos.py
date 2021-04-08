@@ -31,9 +31,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["User", "Device", "Message", "File", "Permission", "View"]
+__all__: list[str] = ["User", "Device", "Message", "MessageLink", "File", "View"]
 
 import typing
+import uuid
 
 if typing.TYPE_CHECKING:
     import datetime
@@ -48,7 +49,6 @@ class User(typing.Protocol):
     id: int
     created_at: datetime.datetime
     flags: int
-    password_hash: str
     username: str
 
 
@@ -71,14 +71,22 @@ class Message(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
-    id: int
+    id: uuid.UUID
     created_at: datetime.datetime
     expire_at: typing.Optional[datetime.datetime]
-    is_public: bool
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]
     user_id: int
+
+
+@typing.runtime_checkable
+class MessageLink(typing.Protocol):
+    __slots__: tuple[str, ...] = ()
+
+    token: str
+    message_id: uuid.UUID
+    expires_at: typing.Optional[datetime.datetime]
 
 
 @typing.runtime_checkable
@@ -87,20 +95,10 @@ class File(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
+    content_type: str
     file_name: str
-    is_public: str
-    message_id: int
-
-
-@typing.runtime_checkable
-class Permission(typing.Protocol):
-    """Definition of the structure returned by database implementations for permission entries."""
-
-    __slots__: tuple[str, ...] = ()
-
-    message_id: int
-    permissions: int
-    user_id: int
+    message_id: uuid.UUID
+    set_at: datetime.datetime
 
 
 @typing.runtime_checkable
@@ -111,4 +109,4 @@ class View(typing.Protocol):
 
     created_at: datetime.datetime
     device_id: int
-    message_id: int
+    message_id: uuid.UUID

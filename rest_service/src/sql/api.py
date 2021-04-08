@@ -40,6 +40,7 @@ if typing.TYPE_CHECKING:
     import asyncio
     import collections.abc as collections
     import datetime
+    import uuid
 
     from . import dao_protos
 
@@ -171,22 +172,6 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def set_user(self, *, flags: int, password_hash: str, username: str) -> dao_protos.User:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def update_user(
-        self,
-        user_id: int,
-        /,
-        *,
-        flags: int = ...,
-        password_hash: str = ...,
-        username: str = ...,
-    ) -> typing.Optional[dao_protos.User]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def clear_devices(self) -> FilteredClear[dao_protos.Device]:
         raise NotImplementedError
 
@@ -248,11 +233,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_message(self, message_id: int, /) -> None:
+    async def delete_message(self, message_id: uuid.UUID, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_message(self, message_id: int, /) -> typing.Optional[dao_protos.Message]:
+    async def get_message(self, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -268,7 +253,6 @@ class DatabaseHandler(abc.ABC):
         self,
         *,
         expire_at: typing.Optional[datetime.datetime],
-        is_public: bool,
         is_transient: bool,
         text: typing.Optional[str],
         title: typing.Optional[str],
@@ -279,11 +263,10 @@ class DatabaseHandler(abc.ABC):
     @abc.abstractmethod
     async def update_message(
         self,
-        message_id: int,
+        message_id: uuid.UUID,
         /,
         *,
         expire_at: typing.Optional[datetime.datetime] = ...,
-        is_public: bool = ...,
         is_transient: bool = ...,
         text: typing.Optional[str] = ...,
         title: typing.Optional[str] = ...,
@@ -292,15 +275,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def clear_files(self) -> FilteredClear[dao_protos.File]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_file(self, message_id: int, file_name: str, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def get_file(self, message_id: int, file_name: str, /) -> typing.Optional[dao_protos.File]:
+    async def get_file(self, message_id: uuid.UUID, file_name: str, /) -> typing.Optional[dao_protos.File]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -308,49 +283,33 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_files_for_message(self, message_id: int, /) -> DatabaseIterator[dao_protos.Message]:
+    def iter_files_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def set_file(self, *, file_name: str, message_id: int) -> dao_protos.File:
-        raise NotImplementedError
-
-    # @abc.abstractmethod
-    # async def update_file(self, file_id: int, /, *, file_name: str = ...) -> typing.Optional[dao_protos.File]:
-    #     raise NotImplementedError
-
-    @abc.abstractmethod
-    def clear_permissions(self) -> FilteredClear[dao_protos.Permission]:
+    def clear_message_links(self) -> FilteredClear[dao_protos.MessageLink]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_permission(self, message_id: int, user: int, /) -> None:
+    async def delete_message_link(self, message_id: uuid.UUID, token: str, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_permission(self, message_id: int, user: int, /) -> typing.Optional[dao_protos.Permission]:
+    async def get_message_link(self, message_id: uuid.UUID, token: str, /) -> typing.Optional[dao_protos.MessageLink]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_permissions(self) -> DatabaseIterator[dao_protos.Permission]:
+    def iter_message_links(self) -> DatabaseIterator[dao_protos.MessageLink]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_permissions_for_message(self, message_id: int, /) -> DatabaseIterator[dao_protos.Permission]:
+    def iter_message_link_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.MessageLink]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_permissions_for_user(self, user_id: int, /) -> DatabaseIterator[dao_protos.Permission]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def set_permission(self, *, message_id: int, permissions: int, user_id: int) -> dao_protos.Permission:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def update_permission(
-        self, message_id: int, user_id: int, /, *, permissions: int = ...
-    ) -> typing.Optional[dao_protos.Permission]:
+    async def set_message_link(
+        self, *, message_id: uuid.UUID, token: str, expires_at: typing.Optional[datetime.datetime]
+    ) -> dao_protos.MessageLink:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -358,11 +317,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_view(self, device_id: int, message_id: int, /) -> None:
+    async def delete_view(self, device_id: int, message_id: uuid.UUID, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_view(self, device_id: int, message_id: int, /) -> typing.Optional[dao_protos.View]:
+    async def get_view(self, device_id: int, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -374,9 +333,9 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_views_for_message(self, message_id: int, /) -> DatabaseIterator[dao_protos.View]:
+    def iter_views_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def set_view(self, *, device_id: int, message_id: int) -> dao_protos.View:
+    async def set_view(self, *, device_id: int, message_id: uuid.UUID) -> dao_protos.View:
         raise NotImplementedError

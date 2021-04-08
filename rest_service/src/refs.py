@@ -31,13 +31,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["DatabaseProto", "UserAuthProto", "HashPasswordProto"]
+__all__: list[str] = ["AuthGetterProto", "DatabaseProto", "UserAuthProto"]
 
 import typing
 
 if typing.TYPE_CHECKING:
+    from . import dto_models
     from .sql import api as sql_api
-    from .sql import dao_protos
 
 
 class DatabaseProto(typing.Protocol):
@@ -45,13 +45,20 @@ class DatabaseProto(typing.Protocol):
         raise NotImplementedError
 
 
-class UserAuthProto(typing.Protocol):
-    def __call__(self) -> dao_protos.User:
+class UserAuthProto:
+    @property
+    def user(self) -> dto_models.AuthUser:
+        raise NotImplementedError
+
+    async def create_user(self, username: str, user: dto_models.ReceivedUser) -> dto_models.AuthUser:
+        raise NotImplementedError
+
+    async def update_user(self, user: dto_models.ReceivedUserUpdate) -> dto_models.AuthUser:
         raise NotImplementedError
 
 
-class HashPasswordProto(typing.Protocol):
-    def __call__(self, password: str, /) -> str:
+class AuthGetterProto(typing.Protocol):
+    def __call__(self) -> UserAuthProto:
         raise NotImplementedError
 
 
@@ -62,6 +69,7 @@ def __new(_: type[typing.Any]) -> None:
 # `__new__` is explicitly provided with no arguments here to avoid an issue with the OAI spec doc gen where it detects
 # parameters from protocol dependencies. See https://github.com/tiangolo/fastapi/issues/2144
 # This isn't declared on the protocols themselves as to avoid it becoming a part of the interface.
+# As a note this does have the side effect of preventing us from inheriting from these protocols for the impls.
 
 
 for _name, _value in vars().copy().items():

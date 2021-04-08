@@ -32,10 +32,9 @@
 """Helper methods and consants used for validating received data."""
 from __future__ import annotations
 
-__all__: list[str] = ["MINIMUM_BIG_INT", "MINIMUM_TIMEDELTA", "MAXIMUM_BIG_INT", "ZERO"]
+__all__: list[str] = ["MINIMUM_BIG_INT", "MINIMUM_TIMEDELTA", "MAXIMUM_BIG_INT", "validate_timedelta", "ZERO"]
 
 import datetime
-import re
 import typing
 
 ZERO: typing.Final[int] = 0
@@ -45,15 +44,27 @@ MINIMUM_BIG_INT: typing.Final[int] = -1 << 63
 MAXIMUM_BIG_INT: typing.Final[int] = (1 << 63) - 1
 """The inclusive maximum size a big int field can be."""
 MINIMUM_TIMEDELTA: typing.Final[datetime.timedelta] = datetime.timedelta(seconds=60)
-# MAXIMUM_EXPIRE_AFTER: typing.Final[datetime.timedelta] = datetime.timedelta()
+_RAW_MINIMUM_TIMEDELTA: typing.Final[int] = round(MINIMUM_TIMEDELTA.total_seconds())
+MAXIMUM_TIMEDELTA: typing.Final[datetime.timedelta] = datetime.timedelta(days=3650)  # 10 years
+_RAW_MAXIMUM_TIMEDELTA: typing.Final[int] = round(MAXIMUM_TIMEDELTA.total_seconds())
 
-RAW_USERNAME_REGEX: typing.Final[str] = r"[\w\-\s]+"
-USERNAME_REGEX: typing.Final[re.Pattern[str]] = re.compile(RAW_USERNAME_REGEX)
+USERNAME_REGEX: typing.Final[str] = r"^[\w\-\s]+$"
 MINIMUM_NAME_LENGTH: typing.Final[int] = 3
 MAXIMUM_NAME_LENGTH: typing.Final[int] = 32
 
 MINIMUM_PASSWORD_LENGTH: typing.Final[int] = 8
 MAXIMUM_PASSWORD_LENGTH: typing.Final[int] = 120
+
+
+# TODO: document these limits
+def validate_timedelta(delta: datetime.timedelta, /) -> datetime.timedelta:
+    if delta < MINIMUM_TIMEDELTA:
+        raise ValueError(f"time delta must be greater than or equal to {_RAW_MINIMUM_TIMEDELTA} seconds")
+
+    elif delta > MAXIMUM_TIMEDELTA:
+        raise ValueError(f"time delta must be less than or equal to {_RAW_MAXIMUM_TIMEDELTA} seconds")
+
+    return delta
 
 
 def validate_pagination_parameters(
