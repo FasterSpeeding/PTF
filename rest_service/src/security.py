@@ -55,27 +55,15 @@ class UserAuth:
         self.base_url = base_url
         self._client: typing.Optional[aiohttp.ClientSession] = None
 
-    def _acquire_client(self) -> aiohttp.ClientSession:
-        self._client = aiohttp.ClientSession()
-        return self._client
-
-    async def __call__(  # TODO: less repeated boilerplate
-        self,
-        credentials: fastapi.security.HTTPBasicCredentials = fastapi.Depends(fastapi.security.HTTPBasic()),
-        database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-    ) -> InitiatedAuth:
-        client = self._client
-
-        if client is None:
-            client = self._acquire_client()
-
+    def _prepare(self, credentials: fastapi.security.HTTPBasicCredentials) -> typing.Tuple[aiohttp.ClientSession, str]:
         auth = base64.b64encode(credentials.username.encode() + b":" + credentials.password.encode()).decode()
-        response = await client.get(self.base_url + "/users/@me", headers={"Authorization": f"Basic {auth}"})
+        if self._client is None:
+            self._client = aiohttp.ClientSession()
 
-        if response.status == 200:
-            user = dto_models.AuthUser.parse_obj(await response.json())
-            return InitiatedAuth(self, user, credentials)
+        return self._client, auth
 
+    @staticmethod
+    async def _handle_error(response: aiohttp.client.ClientResponse) -> fastapi.exceptions.HTTPException:
         try:
             data = await response.json()
             message = data["errors"][0]["detail"]
@@ -84,7 +72,21 @@ class UserAuth:
             message = "Internal server error" if response.status >= 500 else "Unknown error"
 
         headers = {"WWW-Authenticate": "Basic"} if response.status == 401 else None
-        raise fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
+        return fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
+
+    async def __call__(
+        self,
+        credentials: fastapi.security.HTTPBasicCredentials = fastapi.Depends(fastapi.security.HTTPBasic()),
+        database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    ) -> InitiatedAuth:
+        client, auth = self._prepare(credentials)
+        response = await client.get(self.base_url + "/users/@me", headers={"Authorization": f"Basic {auth}"})
+
+        if response.status == 200:
+            user = dto_models.AuthUser.parse_obj(await response.json())
+            return InitiatedAuth(self, user, credentials)
+
+        raise await self._handle_error(response)
 
     async def close(self) -> None:
         if self._client:
@@ -93,12 +95,7 @@ class UserAuth:
     async def create_user(
         self, credentials: fastapi.security.HTTPBasicCredentials, username: str, user: dto_models.ReceivedUser
     ) -> dto_models.AuthUser:
-        client = self._client
-
-        if client is None:
-            client = self._acquire_client()
-
-        auth = base64.b64encode(credentials.username.encode() + b":" + credentials.password.encode()).decode()
+        client, auth = self._prepare(credentials)
         response = await client.put(
             self.base_url + f"/users/{username}",
             headers={"Authorization": f"Basic {auth}", "Content-Type": "application/json"},
@@ -108,30 +105,15 @@ class UserAuth:
         if response.status == 200:
             return dto_models.AuthUser.parse_obj(await response.json())
 
-        try:
-            data = await response.json()
-            message = data["errors"][0]["detail"]
-
-        except Exception:
-            message = "Internal server error" if response.status >= 500 else "Unknown error"
-
-        headers = {"WWW-Authenticate": "Basic"} if response.status == 401 else None
-        raise fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
+        raise await self._handle_error(response)
 
     async def update_user(
         self, credentials: fastapi.security.HTTPBasicCredentials, user: dto_models.ReceivedUserUpdate
     ) -> typing.Optional[dto_models.AuthUser]:
-        client = self._client
-
-        if client is None:
-            client = self._acquire_client()
-
-        auth = base64.b64encode(credentials.username.encode() + b":" + credentials.password.encode()).decode()
-        data = user.dict(exclude_unset=True)
-
-        if not data:
+        if not (data := user.dict(exclude_unset=True)):
             return None
 
+        client, auth = self._prepare(credentials)
         response = await client.patch(
             self.base_url + "/users/@me", headers={"Authorization": f"Basic {auth}"}, json=data
         )
@@ -139,15 +121,7 @@ class UserAuth:
         if response.status == 200:
             return dto_models.AuthUser.parse_obj(await response.json())
 
-        try:
-            data = await response.json()
-            message = data["errors"][0]["detail"]
-
-        except Exception:
-            message = "Internal server error" if response.status >= 500 else "Unknown error"
-
-        headers = {"WWW-Authenticate": "Basic"} if response.status == 401 else None
-        raise fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
+        raise await self._handle_error(response)
 
 
 class InitiatedAuth:

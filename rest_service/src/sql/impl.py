@@ -41,9 +41,9 @@ import urllib.parse
 import uuid
 
 # https://github.com/MagicStack/asyncpg/issues/699
-import asyncpg.exceptions  # TODO: wait for asyncpg to add python 3.10 support
-import sqlalchemy.exc
-import sqlalchemy.ext.asyncio
+import asyncpg.exceptions  # type: ignore[import]  # TODO: wait for asyncpg to add python 3.10 support
+import sqlalchemy.exc  # type: ignore[import]
+import sqlalchemy.ext.asyncio  # type: ignore[import]
 
 from . import api
 from . import dao_models
@@ -330,7 +330,9 @@ class PostgreDatabase(api.DatabaseHandler):
         )
 
     async def set_device(self, **kwargs: typing.Any) -> dao_protos.Device:
-        return await self._set(dao_protos.Device, dao_models.Devices.insert(kwargs).returning(dao_models.Devices))
+        return await self._set(
+            dao_protos.Device, dao_models.Devices.insert(kwargs).returning(dao_models.Devices)  # type: ignore[misc]
+        )
 
     async def update_device_by_id(self, device_id: int, /, **kwargs: typing.Any) -> typing.Optional[dao_protos.Device]:
         if not kwargs:
@@ -378,7 +380,9 @@ class PostgreDatabase(api.DatabaseHandler):
 
     async def set_message(self, **kwargs: typing.Any) -> dao_protos.Message:
         kwargs["id"] = uuid.uuid4()
-        return await self._set(dao_protos.Message, dao_models.Messages.insert(kwargs).returning(dao_models.Messages))
+        return await self._set(
+            dao_protos.Message, dao_models.Messages.insert(kwargs).returning(dao_models.Messages)  # type: ignore[misc]
+        )
 
     async def update_message(
         self, message_id: uuid.UUID, /, **kwargs: typing.Any
@@ -437,7 +441,8 @@ class PostgreDatabase(api.DatabaseHandler):
 
     async def set_message_link(self, **kwargs: typing.Any) -> dao_protos.MessageLink:
         return await self._set(
-            dao_protos.MessageLink, dao_models.MessageLinks.insert(kwargs).returning(dao_models.MessageLinks)
+            dao_protos.MessageLink,  # type: ignore[misc]
+            dao_models.MessageLinks.insert(kwargs).returning(dao_models.MessageLinks),
         )
 
     def clear_views(self) -> api.FilteredClear[dao_protos.View]:
@@ -471,7 +476,9 @@ class PostgreDatabase(api.DatabaseHandler):
         )
 
     async def set_view(self, **kwargs: typing.Any) -> dao_protos.View:
-        return await self._set(dao_protos.View, dao_models.Views.insert(kwargs).returning(dao_models.Views))
+        return await self._set(
+            dao_protos.View, dao_models.Views.insert(kwargs).returning(dao_models.Views)  # type: ignore[misc]
+        )
 
 
 class DatabaseManager:

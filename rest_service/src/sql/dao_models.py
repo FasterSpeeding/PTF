@@ -35,8 +35,8 @@ __all__: list[str] = ["Users", "Devices", "Messages", "MessageLinks", "Files", "
 
 import typing
 
-import sqlalchemy
-from sqlalchemy.dialects import postgresql
+import sqlalchemy  # type: ignore[import]
+from sqlalchemy.dialects import postgresql  # type: ignore[import]
 
 from .. import validation
 
