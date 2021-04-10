@@ -56,6 +56,7 @@ __all__: list[str] = [
 import datetime
 import inspect
 import typing
+import urllib.parse
 import uuid
 
 import pydantic
@@ -158,7 +159,6 @@ class AuthUser(User, pydantic.BaseModel):
 
 
 class Device(pydantic.BaseModel):
-    access: flags.DeviceAccessLevel = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
     is_required_viewer: bool
     name: str = pydantic.Field(
         ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
@@ -170,7 +170,6 @@ class Device(pydantic.BaseModel):
 if typing.TYPE_CHECKING:
 
     class ReceivedDeviceUpdate(pydantic.BaseModel):
-        access: UndefinedOr[flags.DeviceAccessLevel]
         is_required_viewer: UndefinedOr[bool]
         name: UndefinedOr[str]
 
@@ -178,9 +177,6 @@ if typing.TYPE_CHECKING:
 else:
     # We can't type this as undefinable at runtime as this breaks FastAPI's handling.
     class ReceivedDeviceUpdate(pydantic.BaseModel):
-        access: flags.DeviceAccessLevel = pydantic.Field(
-            default_factory=UndefinedType, ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT
-        )
         is_required_viewer: bool = pydantic.Field(default_factory=UndefinedType)
         name: str = pydantic.Field(
             default_factory=UndefinedType,
@@ -263,9 +259,16 @@ class File(pydantic.BaseModel):
     content_type: str
     file_name: str
     message_id: uuid.UUID
+    link: str = pydantic.Field(default="")
     set_at: datetime.datetime
 
     Config = _ModelConfig
+
+    def path(self) -> str:
+        return f"/users/@me/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
+
+    def public_path(self) -> str:
+        raise NotImplementedError
 
 
 class ReceivedView(pydantic.BaseModel):

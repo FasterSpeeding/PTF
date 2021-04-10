@@ -37,8 +37,6 @@ import typing
 
 import fastapi
 
-from . import refs
-
 if typing.TYPE_CHECKING:
     import collections.abc as collections
 
@@ -46,34 +44,22 @@ if typing.TYPE_CHECKING:
 
 
 def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.DatabaseHandler]] = None, /) -> fastapi.FastAPI:
-    import os
-
-    import dotenv
-
+    from . import refs
     from . import resources
     from . import security
     from . import utilities
     from .sql import impl as sql_impl
 
-    dotenv.load_dotenv()
-    database_url = os.getenv("database_url")
-    auth_service_url = os.getenv("auth_service_address")
-    if database_url is None:
-        raise RuntimeError("Must set database connection URL in .env")
-
-    database_url = "//" + database_url.split("//", 1)[1]  # TODO: there must be a better way to handle this
-
-    if auth_service_url is None:
-        raise RuntimeError("Must set auth service url in .env")
+    metadata = utilities.Metadata()
 
     if not sql_builder:
-        sql_builder = sql_impl.DatabaseManager(database_url)
+        sql_builder = sql_impl.DatabaseManager(metadata.database_url)
 
-    user_auth_handler = security.UserAuth(auth_service_url)
-
+    user_auth_handler = security.UserAuth(metadata.auth_service_address)
     server = fastapi.FastAPI(title="PTF API")
     server.dependency_overrides[refs.DatabaseProto] = sql_builder
     server.dependency_overrides[refs.AuthGetterProto] = user_auth_handler
+    server.dependency_overrides[utilities.Metadata] = metadata
 
     async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
         await database.close()

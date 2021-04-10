@@ -88,7 +88,7 @@ impl Auth for AuthClient {
             .map_err(|e| {
                 log::error!("Auth request failed due to {:?}", e);
                 AuthError::Error
-            })?;
+            })?; // TODO: will service unavailable ever be applicable?
 
         if response.status().is_success() {
             response.json::<shared::dto_models::User>().await.map_err(|e| {
@@ -100,7 +100,7 @@ impl Auth for AuthClient {
             let content_type = response
                 .headers()
                 .get(actix_web::http::header::CONTENT_TYPE)
-                .map(|v| v.to_str().unwrap_or("applicatio/njson").to_owned()); // TODO: what to do here?
+                .map(|v| v.to_str().unwrap_or("application/json").to_owned()); // TODO: what to do here?
             let status = response.status().as_u16();
             let body = response.bytes().await.map_err(|e| {
                 log::error!("Failed to parse auth response due to {:?}", e);
@@ -136,6 +136,7 @@ pub fn map_auth_response(error: AuthError) -> HttpResponse {
             }
 
             if status_code == 401 {
+                // TODO: auth service should decide this and we should just relay it
                 response.insert_header((actix_web::http::header::WWW_AUTHENTICATE, "Basic"));
             };
 

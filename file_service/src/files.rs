@@ -32,10 +32,8 @@ use std::error::Error;
 use std::path::Path;
 use std::sync::Arc;
 
-use actix_web::HttpResponse;
 use async_trait::async_trait;
 
-use crate::utility;
 
 #[async_trait]
 pub trait FileReader: Send + Sync {
@@ -63,7 +61,6 @@ impl LocalReader {
         }
     }
 
-    // TODO: normalise file_name
     fn build_url(&self, message_id: &uuid::Uuid, created_at: &chrono::DateTime<chrono::Utc>) -> std::path::PathBuf {
         let mut path = self.base_url.to_path_buf();
         path.push(format!("{}#{}", message_id, created_at.timestamp_millis()));
@@ -96,19 +93,5 @@ impl FileReader for LocalReader {
         tokio::fs::write(self.build_url(message_id, set_at), data)
             .await
             .map_err(Box::from) // TODO: take a stream and lazily save
-    }
-}
-
-pub const NAME_REGEX: &str = r"^([a-zA-Z_\-\t\r ]+)\.([a-zA-Z_\-\t\r ]+)$";
-
-
-pub fn validate_name(name: String) -> Result<String, HttpResponse> {
-    if regex::Regex::new(NAME_REGEX).unwrap().is_match(&name) {
-        Ok(name)
-    } else {
-        Err(utility::single_error(
-            400,
-            &format!("File name must match this regex: {}", NAME_REGEX)
-        ))
     }
 }

@@ -325,9 +325,7 @@ class PostgreDatabase(api.DatabaseHandler):
         return PostgreIterator(self._database, dao_models.Devices, dao_models.Devices.select())
 
     def iter_devices_for_user(self, user_id: int, /) -> api.DatabaseIterator[dao_protos.Device]:
-        return PostgreIterator(
-            self._database, dao_models.Devices, dao_models.Devices.select(dao_models.Devices.c["user_id"] == user_id)
-        )
+        return self.iter_devices().filter("eq", ("user_id", user_id))
 
     async def set_device(self, **kwargs: typing.Any) -> dao_protos.Device:
         return await self._set(
@@ -374,9 +372,7 @@ class PostgreDatabase(api.DatabaseHandler):
         return PostgreIterator(self._database, dao_models.Messages, dao_models.Messages.select())
 
     def iter_messages_for_user(self, user_id: int, /) -> api.DatabaseIterator[dao_protos.Message]:
-        return PostgreIterator(
-            self._database, dao_models.Messages, dao_models.Messages.select(dao_models.Messages.c["user_id"] == user_id)
-        )
+        return self.iter_messages().filter("eq", ("user_id", user_id))
 
     async def set_message(self, **kwargs: typing.Any) -> dao_protos.Message:
         kwargs["id"] = uuid.uuid4()
@@ -407,10 +403,8 @@ class PostgreDatabase(api.DatabaseHandler):
     def iter_files(self) -> api.DatabaseIterator[dao_protos.File]:
         return PostgreIterator(self._database, dao_models.Files, dao_models.Files.select())
 
-    def iter_files_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.Message]:
-        return PostgreIterator(
-            self._database, dao_models.Files, dao_models.Files.select(dao_models.Files.c["message_id"] == message_id)
-        )
+    def iter_files_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.File]:
+        return self.iter_files().filter("eq", ("message_id", message_id))
 
     def clear_message_links(self) -> api.FilteredClear[dao_protos.MessageLink]:
         return FilteredClear(self._database, dao_models.MessageLinks, dao_models.MessageLinks.delete())
@@ -433,11 +427,7 @@ class PostgreDatabase(api.DatabaseHandler):
         return PostgreIterator(self._database, dao_models.MessageLinks, dao_models.MessageLinks.select())
 
     def iter_message_link_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.MessageLink]:
-        return PostgreIterator(
-            self._database,
-            dao_models.MessageLinks,
-            dao_models.MessageLinks.select(dao_models.MessageLinks.c["message_id"] == message_id),
-        )
+        return self.iter_message_links().filter("eq", ("message_id", message_id))
 
     async def set_message_link(self, **kwargs: typing.Any) -> dao_protos.MessageLink:
         return await self._set(
@@ -466,14 +456,10 @@ class PostgreDatabase(api.DatabaseHandler):
         return PostgreIterator(self._database, dao_models.Views, dao_models.Views.select())
 
     def iter_views_for_device(self, device_id: int, /) -> api.DatabaseIterator[dao_protos.View]:
-        return PostgreIterator(
-            self._database, dao_models.Views, dao_models.Views.select(dao_models.Views.c["device_id"] == device_id)
-        )
+        return self.iter_views().filter("eq", ("device_id", device_id))
 
     def iter_views_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.View]:
-        return PostgreIterator(
-            self._database, dao_models.Views, dao_models.Views.select(dao_models.Views.c["message_id"] == message_id)
-        )
+        return self.iter_views().filter("eq", ("message_id", message_id))
 
     async def set_view(self, **kwargs: typing.Any) -> dao_protos.View:
         return await self._set(

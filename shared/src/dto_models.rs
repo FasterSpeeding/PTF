@@ -40,7 +40,7 @@ pub struct User {
 
 // TODO: find a better (possibly automatic) way to handle this
 impl User {
-    pub fn from_dao(user: crate::dao_models::User) -> Self {
+    pub fn from_auth(user: crate::dao_models::AuthUser) -> Self {
         Self {
             id:         user.id,
             created_at: user.created_at,
@@ -125,12 +125,18 @@ impl Error {
     }
 
     pub fn parameter(mut self, source: &str) -> Self {
-        self.source = Some(Source::parameter(source));
+        self.source = Some(Source {
+            pointer:   None,
+            parameter: Some(Box::from(source))
+        });
         self
     }
 
     pub fn pointer(mut self, source: &str) -> Self {
-        self.source = Some(Source::pointer(source));
+        self.source = Some(Source {
+            pointer:   Some(Box::from(source)),
+            parameter: None
+        });
         self
     }
 
@@ -155,20 +161,4 @@ pub struct Source {
     pub pointer:   Option<Box<str>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parameter: Option<Box<str>>
-}
-
-impl Source {
-    fn pointer(pointer: &str) -> Self {
-        Self {
-            pointer:   Some(Box::from(pointer)),
-            parameter: None
-        }
-    }
-
-    fn parameter(parameter: &str) -> Self {
-        Self {
-            pointer:   None,
-            parameter: Some(Box::from(parameter))
-        }
-    }
 }

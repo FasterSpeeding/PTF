@@ -31,10 +31,12 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["as_endpoint", "EndpointDescriptor", "MethodT"]
+__all__: list[str] = ["as_endpoint", "EndpointDescriptor", "Metadata", "MethodT"]
 
+import os
 import typing
 
+import dotenv
 from fastapi import datastructures
 from fastapi import responses as responses_
 from fastapi import types as fastapi_types
@@ -170,3 +172,27 @@ else:
             return EndpointDescriptor(**kwargs, methods=args[0], path=args[1], endpoint=endpoint)
 
         return decorator
+
+
+class Metadata:
+    __slots__: tuple[str, ...] = ("auth_service_address", "database_url", "file_service_hostname", "log_level")
+
+    def __init__(self) -> None:
+        dotenv.load_dotenv()
+
+        if not (auth_service_address := os.getenv("auth_service_address")):
+            raise RuntimeError("Must set auth service address in .env")
+
+        if not (database_url := os.getenv("database_url")):
+            raise RuntimeError("Must set database connection URL in .env")
+
+        if not (file_service_hostname := os.getenv("file_service_hostname")):
+            raise RuntimeError("Must set file service hostname in .env")
+
+        self.auth_service_address = auth_service_address
+        self.database_url = "//" + database_url.split("//", 1)[1]  # TODO: there must be a better way to handle this
+        self.file_service_hostname = file_service_hostname
+        self.log_level = (os.getenv("log_level") or "info").lower()
+
+    def __call__(self) -> Metadata:
+        return self

@@ -46,7 +46,6 @@ async fn delete_my_message_file(
     db: web::Data<Arc<dyn Database>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
-    let file_name = files::validate_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -61,7 +60,7 @@ async fn delete_my_message_file(
 
     // TODO: the actual file should be deleted by a CRON job at a later date
     match db.delete_file_by_name(&message_id, &file_name).await {
-        // TODO: normalised file name
+        // TODO: normalised file name?
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "File not found")),
         Err(error) => {
@@ -81,7 +80,6 @@ async fn get_my_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
-    let file_name = files::validate_name(file_name)?;
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -118,7 +116,13 @@ async fn put_my_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
-    let file_name = files::validate_name(file_name)?;
+
+    if file_name.len() > 120 {
+        return Err(utility::single_error(
+            400,
+            "File name cannot be over 120 characters long"
+        ));
+    };
 
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
@@ -126,10 +130,10 @@ async fn put_my_message_file(
         .map_err(auth::map_auth_response)?;
 
     let content_type = req.content_type();
-    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
 
     if user.id != message.user_id {
-        return Err(utility::single_error(404, "File not found"));
+        return Err(utility::single_error(404, "Message not found"));
     };
 
     let date = chrono::Utc::now();

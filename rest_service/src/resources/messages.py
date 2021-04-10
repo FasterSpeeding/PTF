@@ -146,9 +146,14 @@ async def put_message_view(
 async def get_message(
     message: dao_protos.Message = fastapi.Depends(retrieve_message),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     result = dto_models.Message.from_orm(message)
-    result.files.extend(await database.iter_files_for_message(message.id).map(dto_models.File.from_orm))
+
+    for file in await database.iter_files_for_message(message.id).map(dto_models.File.from_orm):
+        file.link = metadata.file_service_hostname + file.path()
+        result.files.append(file)
+
     return result
 
 
@@ -162,6 +167,7 @@ async def get_message(
 async def get_messages(
     auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> list[dto_models.Message]:
     messages = {m.id: m for m in await database.iter_messages_for_user(auth.user.id).map(dto_models.Message.from_orm)}
     files = (
@@ -171,6 +177,7 @@ async def get_messages(
     )
 
     for file in files:
+        file.link = metadata.file_service_hostname + file.path()
         messages[file.message_id].files.append(file)
 
     return list(messages.values())
@@ -190,9 +197,10 @@ async def get_messages(
 )
 async def patch_message(
     message_update: dto_models.ReceivedMessageUpdate,
-    stored_message: dao_protos.Message = fastapi.Depends(retrieve_message),
     auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
+    stored_message: dao_protos.Message = fastapi.Depends(retrieve_message),
 ) -> dto_models.Message:
     if stored_message.user_id != auth.user.id:
         raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
@@ -214,7 +222,11 @@ async def patch_message(
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     result = dto_models.Message.from_orm(new_message)
-    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+
+    for file in await database.iter_files_for_message(result.id).map(dto_models.File.from_orm):
+        file.link = metadata.file_service_hostname + file.path()
+        result.files.append(file)
+
     return result
 
 

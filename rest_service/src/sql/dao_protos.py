@@ -59,7 +59,6 @@ class Device(typing.Protocol):
     __slots__: tuple[str, ...] = ()
 
     id: int
-    access: int
     is_required_viewer: bool
     name: str
     user_id: int

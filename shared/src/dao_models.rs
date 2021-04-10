@@ -31,7 +31,7 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
-pub struct User {
+pub struct AuthUser {
     pub id:            i64,
     pub created_at:    chrono::DateTime<chrono::Utc>,
     pub flags:         i64, // TODO: flags?
@@ -43,7 +43,6 @@ pub struct User {
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct Device {
     pub id:                 i64,
-    pub access:             i16, // What is int in sql?
     pub is_required_viewer: bool,
     pub name:               String,
     pub user_id:            i64
@@ -77,7 +76,8 @@ pub struct View {
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct MessageLink {
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub message_id: uuid::Uuid,
-    pub token:      String,
-    pub expires_at: Option<chrono::DateTime<chrono::Utc>>
+    pub scopes:     String,
+    pub token:      String
 }

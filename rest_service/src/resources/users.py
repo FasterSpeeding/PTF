@@ -198,7 +198,7 @@ async def post_user_devices(
 ) -> dto_models.Device:
     try:
         result = await database.set_device(
-            access=device.access, is_required_viewer=device.is_required_viewer, user_id=auth.user.id, name=device.name
+            is_required_viewer=device.is_required_viewer, user_id=auth.user.id, name=device.name
         )
         return dto_models.Device.from_orm(result)
 

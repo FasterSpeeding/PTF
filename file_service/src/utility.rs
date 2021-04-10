@@ -53,6 +53,7 @@ pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str)
         Err(error) => {
             log::error!("Failed to get entry from SQL database due to {}", error);
 
+            // TODO: will service unavailable ever be applicable?
             Err(single_error(500, "Database lookup failed"))
         }
     }

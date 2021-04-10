@@ -58,14 +58,17 @@ pub fn get_env_variable(key: &str) -> Result<String, MissingEnvVariable<'_>> {
 }
 
 pub fn setup_logging() {
-    let level = get_env_variable("LOG_LEVEL").unwrap();
+    let level = get_env_variable("LOG_LEVEL").unwrap_or_else(|_| "INFO".to_owned());
     let level = match level.to_uppercase().as_str() {
         "TRACE" => log::LevelFilter::Trace,
         "DEBUG" => log::LevelFilter::Debug,
         "INFO" => log::LevelFilter::Info,
         "WARN" => log::LevelFilter::Warn,
         "ERROR" => log::LevelFilter::Error,
-        _ => panic!("Invalid log level provided, expected TRACE, DEBUG, INFO, WARN or ERROR")
+        other => panic!(
+            "Invalid log level provided, expected TRACE, DEBUG, INFO, WARN or ERROR but found '{}'",
+            other
+        )
     };
 
     simple_logger::SimpleLogger::new().with_level(level).init().unwrap();

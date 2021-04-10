@@ -63,7 +63,7 @@ async fn resolve_user(
     req: &HttpRequest,
     db: &web::Data<Arc<dyn Database>>,
     hasher: &web::Data<Arc<dyn Hasher>>
-) -> Result<shared::dao_models::User, HttpResponse> {
+) -> Result<shared::dao_models::AuthUser, HttpResponse> {
     let value = req
         .headers()
         .get(http::header::AUTHORIZATION)
@@ -107,7 +107,7 @@ async fn resolve_user(
         Ok(None) => Err(single_error(401, "Incorrect username or password")),
         Err(error) => {
             log::error!("Failed to get user from database due to {}", error);
-            Err(single_error(400, "Internal server error"))
+            Err(single_error(500, "Internal server error"))
         }
     }
 }
@@ -121,7 +121,7 @@ async fn get_current_user(
 ) -> Result<HttpResponse, HttpResponse> {
     resolve_user(&req, &db, &hasher)
         .await
-        .map(shared::dto_models::User::from_dao)
+        .map(shared::dto_models::User::from_auth)
         .map(|v| HttpResponse::Ok().json(v))
 }
 
@@ -144,7 +144,7 @@ async fn put_user(
     let result = db.set_user(&user.flags, &password_hash, &username).await;
 
     match result {
-        Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_dao(user))),
+        Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(user))),
         Err(SetError::Conflict) => Err(single_error(409, "User already exists")),
         Err(SetError::Unknown(error)) => {
             log::error!("Failed to set user due to {:?}", error);
@@ -164,7 +164,7 @@ async fn patch_user(
     let user = resolve_user(&req, &db, &hasher).await?;
 
     let password_hash = match &user_update.password {
-        Some(password) => hasher.hash(&password).await.map(Some).map_err(|e| {
+        Some(password) => hasher.hash(password).await.map(Some).map_err(|e| {
             log::error!("Failed to hash password due to {:?}", e);
             single_error(500, "Internal server error")
         })?,
@@ -185,7 +185,7 @@ async fn patch_user(
         })?;
 
     match result {
-        Some(result) => Ok(HttpResponse::Ok().json(dto_models::User::from_dao(result))),
+        Some(result) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(result))),
         // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
         None => Err(single_error(404, "Couldn't find user"))
     }

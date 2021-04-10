@@ -52,6 +52,7 @@ impl Pool {
 fn process_insert_error(result: sqlx::Error) -> sql::SetError {
     match result {
         // TODO: this only works with postgres
+        // TODO: better differentiate between conflicts and missing relationships
         sqlx::Error::Database(error) if error.constraint().is_some() => sql::SetError::Conflict,
         other => sql::SetError::Unknown(Box::from(other))
     }
@@ -143,15 +144,15 @@ impl sql::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn get_user_by_id(&self, user_id: &i64) -> sql::DatabaseResult<dao_models::User> {
-        sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
+    async fn get_user_by_id(&self, user_id: &i64) -> sql::DatabaseResult<dao_models::AuthUser> {
+        sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)
     }
 
-    async fn get_user_by_username(&self, username: &str) -> sql::DatabaseResult<dao_models::User> {
-        sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE username=$1;", username)
+    async fn get_user_by_username(&self, username: &str) -> sql::DatabaseResult<dao_models::AuthUser> {
+        sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE username=$1;", username)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)
@@ -178,9 +179,9 @@ impl sql::Database for Pool {
         .map_err(process_insert_error)
     }
 
-    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> sql::SetResult<dao_models::User> {
+    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> sql::SetResult<dao_models::AuthUser> {
         sqlx::query_as!(
-            dao_models::User,
+            dao_models::AuthUser,
             "INSERT INTO users (flags, password_hash, username) VALUES ($1, $2, $3) RETURNING *;",
             flags,
             password_hash,
@@ -198,7 +199,7 @@ impl sql::Database for Pool {
         flags: &Option<i64>,
         password_hash: &Option<&str>,
         username: &Option<&str>
-    ) -> sql::DatabaseResult<dao_models::User> {
+    ) -> sql::DatabaseResult<dao_models::AuthUser> {
         let mut query = String::new();
         let mut values = sqlx::postgres::PgArguments::default();
         values.add(user_id);

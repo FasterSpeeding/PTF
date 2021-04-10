@@ -64,7 +64,6 @@ Devices = sqlalchemy.Table(
     "devices",
     metadata,
     sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
-    sqlalchemy.Column("access", sqlalchemy.INTEGER, nullable=False),
     sqlalchemy.Column("is_required_viewer", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("name", sqlalchemy.VARCHAR(validation.MAXIMUM_NAME_LENGTH), nullable=False),
     sqlalchemy.Column("user_id", sqlalchemy.BIGINT, nullable=False),
@@ -109,7 +108,7 @@ Files = sqlalchemy.Table(
     "files",
     metadata,
     sqlalchemy.Column("content_type", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column("file_name", sqlalchemy.VARCHAR, nullable=False),
+    sqlalchemy.Column("file_name", sqlalchemy.VARCHAR(120), nullable=False),
     sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
     sqlalchemy.Column("set_at", sqlalchemy.DateTime(timezone=True), nullable=False),
     # Constraints

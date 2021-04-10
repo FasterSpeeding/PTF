@@ -82,8 +82,8 @@ pub trait Database: Send + Sync {
         message_id: &uuid::Uuid,
         link_token: &str
     ) -> DatabaseResult<dao_models::MessageLink>;
-    async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::User>;
-    async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::User>;
+    async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::AuthUser>;
+    async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::AuthUser>;
     async fn set_or_update_file(
         &self,
         message_id: &uuid::Uuid,
@@ -91,7 +91,7 @@ pub trait Database: Send + Sync {
         content_type: &str,
         set_at: &chrono::DateTime<chrono::Utc>
     ) -> SetResult<dao_models::File>;
-    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::User>;
+    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::AuthUser>;
     // TODO: this is bad
     async fn update_user(
         &self,
@@ -99,5 +99,5 @@ pub trait Database: Send + Sync {
         flags: &Option<i64>,
         password_hash: &Option<&str>,
         username: &Option<&str>
-    ) -> DatabaseResult<dao_models::User>;
+    ) -> DatabaseResult<dao_models::AuthUser>;
 }

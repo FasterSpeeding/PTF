@@ -200,7 +200,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def set_device(self, *, access: int, is_required_viewer: bool, user_id: int, name: str) -> dao_protos.Device:
+    async def set_device(self, *, is_required_viewer: bool, user_id: int, name: str) -> dao_protos.Device:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -209,7 +209,6 @@ class DatabaseHandler(abc.ABC):
         device_id: int,
         /,
         *,
-        access: int = ...,
         is_required_viewer: bool = ...,
         name: str = ...,
     ) -> typing.Optional[dao_protos.Device]:
@@ -222,7 +221,6 @@ class DatabaseHandler(abc.ABC):
         device_name: str,
         /,
         *,
-        access: int = ...,
         is_required_viewer: bool = ...,
         name: str = ...,
     ) -> typing.Optional[dao_protos.Device]:
@@ -283,7 +281,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_files_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.Message]:
+    def iter_files_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.File]:
         raise NotImplementedError
 
     @abc.abstractmethod
