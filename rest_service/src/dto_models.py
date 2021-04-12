@@ -65,6 +65,8 @@ from . import validation
 if typing.TYPE_CHECKING:
     import collections.abc as collections
 
+    from . import utilities
+
 
 class UndefinedType:
     __instance: typing.Optional[UndefinedType] = None
@@ -232,11 +234,26 @@ class Message(pydantic.BaseModel):
     created_at: datetime.datetime
     expire_at: typing.Union[datetime.datetime, None]
     is_transient: bool
+    link: str = pydantic.Field(default="")
+    public_link: str = pydantic.Field(default="")
     text: typing.Optional[str]
     title: typing.Optional[str]
     files: list[File] = pydantic.Field(default_factory=list)
 
     Config = _ModelConfig
+
+    def path(self) -> str:
+        return f"/users/@me/messages/{self.id}"
+
+    def public_path(self) -> str:
+        return f"/messages/{self.id}"
+
+    def with_paths(self, metadata: utilities.Metadata, *, recursive: bool = True) -> None:
+        self.link = metadata.file_service_hostname + self.path()
+        self.public_link = metadata.file_service_hostname + self.public_path()
+
+        for file in self.files:
+            file.with_paths(metadata)
 
 
 class File(pydantic.BaseModel):
@@ -244,6 +261,7 @@ class File(pydantic.BaseModel):
     file_name: str
     message_id: uuid.UUID
     link: str = pydantic.Field(default="")
+    public_link: str = pydantic.Field(default="")
     set_at: datetime.datetime
 
     Config = _ModelConfig
@@ -252,7 +270,11 @@ class File(pydantic.BaseModel):
         return f"/users/@me/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
 
     def public_path(self) -> str:
-        raise NotImplementedError
+        return f"/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
+
+    def with_paths(self, metadata: utilities.Metadata) -> None:
+        self.link = metadata.file_service_hostname + self.path()
+        self.public_link = metadata.file_service_hostname + self.public_path()
 
 
 class ReceivedView(pydantic.BaseModel):

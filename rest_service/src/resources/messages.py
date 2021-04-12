@@ -145,11 +145,8 @@ async def get_message(
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     result = dto_models.Message.from_orm(message)
-
-    for file in await database.iter_files_for_message(message.id).map(dto_models.File.from_orm):
-        file.link = metadata.file_service_hostname + file.path()
-        result.files.append(file)
-
+    result.files.extend(await database.iter_files_for_message(message.id).map(dto_models.File.from_orm))
+    result.with_paths(metadata)
     return result
 
 
@@ -173,8 +170,11 @@ async def get_messages(
     )
 
     for file in files:
-        file.link = metadata.file_service_hostname + file.path()
+        file.with_paths(metadata)
         messages[file.message_id].files.append(file)
+
+    for message in messages.values():
+        message.with_paths(metadata, recursive=False)
 
     return list(messages.values())
 
@@ -218,11 +218,8 @@ async def patch_message(
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     result = dto_models.Message.from_orm(new_message)
-
-    for file in await database.iter_files_for_message(result.id).map(dto_models.File.from_orm):
-        file.link = metadata.file_service_hostname + file.path()
-        result.files.append(file)
-
+    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    result.with_paths(metadata)
     return result
 
 
@@ -237,6 +234,7 @@ async def post_messages(
     message: dto_models.ReceivedMessage,
     auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     try:
         expire_at: typing.Optional[datetime.datetime] = None
@@ -250,8 +248,9 @@ async def post_messages(
             title=message.title,
             user_id=auth.user.id,
         )
+        response = dto_models.Message.from_orm(result)
+        response.with_paths(metadata)
+        return response
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
-
-    return dto_models.Message.from_orm(result)
