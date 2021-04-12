@@ -95,10 +95,10 @@ pub trait Database: Send + Sync {
     ) -> SetResult<dao_models::File>;
     async fn set_message_link(
         &self,
+        message_id: &uuid::Uuid,
         link_token: &str,
         access: &i16,
         expires_at: &Option<chrono::DateTime<chrono::Utc>>,
-        message_id: &uuid::Uuid, // TODO: first arg
         resource: &Option<String>
     ) -> SetResult<dao_models::MessageLink>;
     async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::AuthUser>;

@@ -191,10 +191,10 @@ async fn post_my_message_link(
 
     let result = db
         .set_message_link(
+            &message_id,
             &crypto::gen_link_key(),
             &message_link.access,
             &message_link.expires_at,
-            &message_id,
             &message_link.resource
         )
         .await;

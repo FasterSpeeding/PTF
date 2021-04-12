@@ -201,10 +201,10 @@ impl sql::Database for Pool {
 
     async fn set_message_link(
         &self,
+        message_id: &uuid::Uuid,
         link_token: &str,
         access: &i16,
         expires_at: &Option<chrono::DateTime<chrono::Utc>>,
-        message_id: &uuid::Uuid,
         resource: &Option<String>
     ) -> sql::SetResult<dao_models::MessageLink> {
         sqlx::query_as!(
