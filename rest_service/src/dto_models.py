@@ -40,6 +40,7 @@ __all__: list[str] = [
     "ReceivedUserUpdate",
     "User",
     "AuthUser",
+    "LinkAuth",
     "Device",
     "ReceivedMessage",
     "ReceivedMessageUpdate",
@@ -48,7 +49,8 @@ __all__: list[str] = [
     "ReceivedView",
     "View",
     "BASIC_ERROR",
-    "AUTH_RESPONSE",
+    "LINK_AUTH_RESPONSE",
+    "USER_AUTH_RESPONSE",
 ]
 
 import datetime
@@ -156,6 +158,14 @@ class User(pydantic.BaseModel):
 
 class AuthUser(User, pydantic.BaseModel):
     id: int
+
+
+class LinkAuth(pydantic.BaseModel):
+    access: int  # TODO: flags?
+    expires_at: typing.Optional[datetime.datetime]
+    message_id: uuid.UUID
+    resource: typing.Optional[str]
+    token: str
 
 
 class Device(pydantic.BaseModel):
@@ -290,7 +300,10 @@ class View(ReceivedView, pydantic.BaseModel):
 
 # TODO: switch to func which accepts description
 BASIC_ERROR: typing.Final[dict[str, typing.Any]] = {"model": BasicError}
-AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
+LINK_AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
+    401: {**BASIC_ERROR, "description": "Returned when an invalid link token was provided."}
+}
+USER_AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
     401: {**BASIC_ERROR, "description": "Returned when invalid user authorization was provided."}
 }
 

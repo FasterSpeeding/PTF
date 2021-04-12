@@ -92,12 +92,18 @@ pub struct UserUpdate {
 
 #[derive(Deserialize, Serialize)]
 pub struct LinkQuery {
-    pub token: String
+    pub link: String
+}
+
+
+fn zero_default() -> i16 {
+    0
 }
 
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct ReceivedMessageLink {
+    #[serde(default = "zero_default")]
     pub access:     i16,
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub resource:   Option<String>

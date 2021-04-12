@@ -160,7 +160,7 @@ async fn get_message_link(
     let message_id = message_id.into_inner();
     let link = link.into_inner();
 
-    db.get_message_link(&message_id, &link.token)
+    db.get_message_link(&message_id, &link.link)
         .await
         .map_err(|e| {
             log::error!("Failed to get message link from db due to {:?}", e);
@@ -170,41 +170,6 @@ async fn get_message_link(
             Some(link) if link.message_id == message_id => HttpResponse::Ok().json(link),
             _ => utility::single_error(404, "Link not found")
         })
-}
-
-
-#[post("/users/@me/messages/{message_id}/links")]
-async fn post_my_message_link(
-    req: HttpRequest,
-    message_id: web::Path<uuid::Uuid>,
-    message_link: web::Json<dto_models::ReceivedMessageLink>,
-    db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
-) -> Result<HttpResponse, HttpResponse> {
-    let message_id = message_id.into_inner();
-    let user = utility::resolve_user(&req, &db, &hasher).await?;
-    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
-
-    if message.user_id != user.id {
-        return Err(utility::single_error(404, "Message not found"));
-    };
-
-    let result = db
-        .set_message_link(
-            &message_id,
-            &crypto::gen_link_key(),
-            &message_link.access,
-            &message_link.expires_at,
-            &message_link.resource
-        )
-        .await;
-    match result {
-        Ok(link) => Ok(HttpResponse::Ok().json(link)),
-        Err(error) => {
-            log::error!("Failed to set message link due to {:?}", error);
-            Err(utility::single_error(500, "Internal server error"))
-        }
-    }
 }
 
 
@@ -225,12 +190,73 @@ async fn delete_my_message_link(
         return Err(utility::single_error(404, "Message not found"));
     };
 
-    match db.delete_message_link(&message_id, &link.token).await {
+    match db.delete_message_link(&message_id, &link.link).await {
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "Message link not found")),
         Err(error) => {
             log::error!("Failed to delete link entry due to {:?}", error);
             Err(utility::single_error(500, "Failed to delete link"))
+        }
+    }
+}
+
+
+#[get("/users/@me/messages/{message_id}/links")]
+async fn get_my_message_links(
+    req: HttpRequest,
+    message_id: web::Path<uuid::Uuid>,
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>
+) -> Result<HttpResponse, HttpResponse> {
+    let message_id = message_id.into_inner();
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
+
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
+
+    if message.user_id != user.id {
+        return Err(utility::single_error(404, "Message not found"));
+    };
+
+    db.get_message_links(&message_id)
+        .await
+        .map_err(|e| {
+            log::error!("Failed to get message links from database due to {:?}", e);
+            utility::single_error(500, "Failed to delete link")
+        })
+        .map(|v| HttpResponse::Ok().json(v))
+}
+
+
+#[post("/users/@me/messages/{message_id}/links")]
+async fn post_my_message_link(
+    req: HttpRequest,
+    message_id: web::Path<uuid::Uuid>,
+    received_link: web::Json<dto_models::ReceivedMessageLink>,
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>
+) -> Result<HttpResponse, HttpResponse> {
+    let message_id = message_id.into_inner();
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
+
+    if message.user_id != user.id {
+        return Err(utility::single_error(404, "Message not found"));
+    };
+
+    let result = db
+        .set_message_link(
+            &message_id,
+            &crypto::gen_link_key(),
+            &received_link.access,
+            &received_link.expires_at,
+            &received_link.resource
+        )
+        .await;
+    match result {
+        Ok(link) => Ok(HttpResponse::Ok().json(link)),
+        Err(error) => {
+            log::error!("Failed to set message link due to {:?}", error);
+            Err(utility::single_error(500, "Internal server error"))
         }
     }
 }
@@ -252,6 +278,7 @@ async fn actix_main() -> std::io::Result<()> {
             .service(delete_current_user)
             .service(delete_my_message_link)
             .service(get_current_user)
+            .service(get_my_message_links)
             .service(get_message_link)
             .service(patch_current_user)
             .service(post_my_message_link)

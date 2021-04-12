@@ -164,6 +164,17 @@ impl sql::Database for Pool {
         .map_err(Box::from)
     }
 
+    async fn get_message_links(&self, message_id: &uuid::Uuid) -> sql::ManyResult<dao_models::MessageLink> {
+        sqlx::query_as!(
+            dao_models::MessageLink,
+            "SELECT * FROM message_links WHERE message_id=$1",
+            message_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Box::from)
+    }
+
     async fn get_user_by_id(&self, user_id: &i64) -> sql::DatabaseResult<dao_models::AuthUser> {
         sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)

@@ -38,6 +38,7 @@ use crate::dao_models;
 pub type DeleteResult = Result<bool, Box<dyn Error>>;
 pub type DatabaseResult<Model> = Result<Option<Model>, Box<dyn Error>>; // TODO: merge
 pub type SetResult<Model> = Result<Model, SetError>; // TODO: merge
+pub type ManyResult<Model> = Result<Vec<Model>, Box<dyn Error>>;
 
 
 #[derive(Debug)]
@@ -79,11 +80,11 @@ pub trait Database: Send + Sync {
     ) -> DatabaseResult<dao_models::File>;
     async fn get_message(&self, message_id: &uuid::Uuid) -> DatabaseResult<dao_models::Message>;
     async fn get_message_link(
-        // TODO: gonna need mutating and deleting methods
         &self,
         message_id: &uuid::Uuid,
         link_token: &str
     ) -> DatabaseResult<dao_models::MessageLink>;
+    async fn get_message_links(&self, message_id: &uuid::Uuid) -> ManyResult<dao_models::MessageLink>;
     async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::AuthUser>;
     async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::AuthUser>;
     async fn set_or_update_file(

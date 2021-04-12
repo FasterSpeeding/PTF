@@ -40,6 +40,7 @@ __all__: list[str] = [
     # messages.py
     "messages",
     "delete_messages",
+    "get_linked_message",
     "get_message",
     "get_messages",
     "patch_message",
