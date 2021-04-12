@@ -89,6 +89,26 @@ impl sql::Database for Pool {
         .map(|result| result.rows_affected() > 0)
     }
 
+    async fn delete_message_link(&self, message_id: &uuid::Uuid, link_token: &str) -> sql::DeleteResult {
+        sqlx::query!(
+            "DELETE FROM message_links WHERE message_id=$1 AND token=$2",
+            message_id,
+            link_token
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(Box::from)
+        .map(|result| result.rows_affected() > 0)
+    }
+
+    async fn delete_user(&self, user_id: &i64) -> sql::DeleteResult {
+        sqlx::query!("DELETE FROM users WHERE id=$1", user_id)
+            .execute(&self.pool)
+            .await
+            .map_err(Box::from)
+            .map(|result| result.rows_affected() > 0)
+    }
+
     async fn get_file_by_name(
         &self,
         message_id: &uuid::Uuid,
@@ -173,6 +193,29 @@ impl sql::Database for Pool {
             file_name,
             content_type,
             set_at
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(process_insert_error)
+    }
+
+    async fn set_message_link(
+        &self,
+        link_token: &str,
+        access: &i16,
+        expires_at: &Option<chrono::DateTime<chrono::Utc>>,
+        message_id: &uuid::Uuid,
+        resource: &Option<String>
+    ) -> sql::SetResult<dao_models::MessageLink> {
+        sqlx::query_as!(
+            dao_models::MessageLink,
+            "INSERT INTO message_links (token, access, expires_at, message_id, resource) VALUES ($1, $2, $3, $4, $5) \
+             RETURNING *;",
+            link_token,
+            access,
+            expires_at.as_ref(),
+            message_id,
+            resource.as_ref(),
         )
         .fetch_one(&self.pool)
         .await

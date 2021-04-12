@@ -71,7 +71,8 @@ class UserAuth:
         except Exception:
             message = "Internal server error" if response.status >= 500 else "Unknown error"
 
-        headers = {"WWW-Authenticate": "Basic"} if response.status == 401 else None
+        authenticate = response.headers.get("WWW-Authenticate")
+        headers = {"WWW-Authenticate": authenticate} if authenticate else None
         return fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
 
     async def __call__(
@@ -92,37 +93,6 @@ class UserAuth:
         if self._client:
             await self._client.close()
 
-    async def create_user(
-        self, credentials: fastapi.security.HTTPBasicCredentials, username: str, user: dto_models.ReceivedUser
-    ) -> dto_models.AuthUser:
-        client, auth = self._prepare(credentials)
-        response = await client.put(
-            self.base_url + f"/users/{username}",
-            headers={"Authorization": f"Basic {auth}", "Content-Type": "application/json"},
-            data=user.json(),
-        )
-
-        if response.status == 200:
-            return dto_models.AuthUser.parse_obj(await response.json())
-
-        raise await self._handle_error(response)
-
-    async def update_user(
-        self, credentials: fastapi.security.HTTPBasicCredentials, user: dto_models.ReceivedUserUpdate
-    ) -> typing.Optional[dto_models.AuthUser]:
-        if not (data := user.dict(exclude_unset=True)):
-            return None
-
-        client, auth = self._prepare(credentials)
-        response = await client.patch(
-            self.base_url + "/users/@me", headers={"Authorization": f"Basic {auth}"}, json=data
-        )
-
-        if response.status == 200:
-            return dto_models.AuthUser.parse_obj(await response.json())
-
-        raise await self._handle_error(response)
-
 
 class InitiatedAuth:
     __slots__: typing.Sequence[str] = ("_auth_handler", "_credentials", "_user")
@@ -137,12 +107,6 @@ class InitiatedAuth:
     @property
     def user(self) -> dto_models.AuthUser:
         return self._user
-
-    async def create_user(self, username: str, user: dto_models.ReceivedUser) -> dto_models.AuthUser:
-        return await self._auth_handler.create_user(self._credentials, username, user)
-
-    async def update_user(self, user: dto_models.ReceivedUserUpdate) -> dto_models.AuthUser:
-        return (await self._auth_handler.update_user(self._credentials, user)) or self._user
 
 
 class RequireFlags:

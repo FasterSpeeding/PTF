@@ -60,7 +60,6 @@ async fn delete_my_message_file(
 
     // TODO: the actual file should be deleted by a CRON job at a later date
     match db.delete_file_by_name(&message_id, &file_name).await {
-        // TODO: normalised file name?
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "File not found")),
         Err(error) => {

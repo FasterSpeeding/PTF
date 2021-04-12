@@ -28,7 +28,22 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+
+const RAW_USERNAME_REGEX: &str = r"^[\w\-\s]+$";
+const MINIMUM_NAME_LENGTH: usize = 3;
+const MAXIMUM_NAME_LENGTH: usize = 32;
+
+const MINIMUM_PASSWORD_LENGTH: usize = 8;
+const MAXIMUM_PASSWORD_LENGTH: usize = 120;
+
+lazy_static! {
+    static ref USERNAME_REGEX: regex::Regex = regex::Regex::new(RAW_USERNAME_REGEX).unwrap();
+}
+
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct User {
@@ -51,18 +66,41 @@ impl User {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Validate)]
 pub struct ReceivedUser {
+    #[validate(range(min = 0))]
     pub flags:    i64, // TODO: flags?
-    pub password: String
+    #[validate(length(min = "MINIMUM_PASSWORD_LENGTH", max = "MAXIMUM_PASSWORD_LENGTH"))]
+    pub password: String,
+    #[validate(length(min = "MINIMUM_NAME_LENGTH", max = "MAXIMUM_NAME_LENGTH"))]
+    #[validate(regex = "USERNAME_REGEX")]
+    pub username: String
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, Validate)]
 pub struct UserUpdate {
+    #[validate(range(min = 0))]
     pub flags:    Option<i64>,
-    pub username: Option<String>,
-    pub password: Option<String>
+    #[validate(length(min = "MINIMUM_PASSWORD_LENGTH", max = "MAXIMUM_PASSWORD_LENGTH"))]
+    pub password: Option<String>,
+    #[validate(length(min = "MINIMUM_NAME_LENGTH", max = "MAXIMUM_NAME_LENGTH"))]
+    #[validate(regex = "USERNAME_REGEX")]
+    pub username: Option<String>
+}
+
+
+#[derive(Deserialize, Serialize)]
+pub struct LinkQuery {
+    pub token: String
+}
+
+
+#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+pub struct ReceivedMessageLink {
+    pub access:     i16,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub resource:   Option<String>
 }
 
 
@@ -70,6 +108,7 @@ pub struct UserUpdate {
 pub struct ErrorsResponse {
     pub errors: Vec<Error>
 }
+
 
 impl ErrorsResponse {
     pub fn with_error(mut self, error: Error) -> Self {
@@ -153,7 +192,26 @@ impl Error {
         };
         self
     }
+
+    pub fn from_validation_errors(errors: &validator::ValidationErrors) -> Self {
+        let result = Self::default();
+
+        // errors.errors().iter().
+        // TODO: implement this
+
+        result
+    }
 }
+
+fn path_validator_errors(error: &validator::ValidationErrorsKind) {
+    // TODO: implement this
+    match error {
+        validator::ValidationErrorsKind::Struct(errors) => {}
+        validator::ValidationErrorsKind::List(errors) => {}
+        validator::ValidationErrorsKind::Field(errors) => {}
+    }
+}
+
 
 #[derive(Deserialize, Serialize)]
 pub struct Source {

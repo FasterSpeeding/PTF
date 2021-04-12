@@ -285,32 +285,6 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def clear_message_links(self) -> FilteredClear[dao_protos.MessageLink]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_message_link(self, message_id: uuid.UUID, token: str, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def get_message_link(self, message_id: uuid.UUID, token: str, /) -> typing.Optional[dao_protos.MessageLink]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_message_links(self) -> DatabaseIterator[dao_protos.MessageLink]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_message_link_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.MessageLink]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def set_message_link(
-        self, *, message_id: uuid.UUID, token: str, expires_at: typing.Optional[datetime.datetime]
-    ) -> dao_protos.MessageLink:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def clear_views(self) -> FilteredClear[dao_protos.View]:
         raise NotImplementedError
 

@@ -50,12 +50,6 @@ class UserAuthProto:
     def user(self) -> dto_models.AuthUser:
         raise NotImplementedError
 
-    async def create_user(self, username: str, user: dto_models.ReceivedUser) -> dto_models.AuthUser:
-        raise NotImplementedError
-
-    async def update_user(self, user: dto_models.ReceivedUserUpdate) -> dto_models.AuthUser:
-        raise NotImplementedError
-
 
 class AuthGetterProto(typing.Protocol):
     def __call__(self) -> UserAuthProto:

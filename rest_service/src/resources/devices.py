@@ -33,86 +33,18 @@ from __future__ import annotations
 
 __all__: list[str] = [
     "delete_user_devices",
-    "delete_my_user",
     "get_user_devices",
-    "get_my_user",
-    "patch_my_user",
     "patch_user_device",
     "post_user_devices",
-    "put_user",
 ]
 
 import fastapi
 
 from .. import dto_models
-from .. import flags
 from .. import refs
-from .. import security
 from .. import utilities
 from .. import validation
 from ..sql import api as sql_api
-
-
-@utilities.as_endpoint(
-    "DELETE",
-    "/users/@me",
-    status_code=202,
-    response_class=fastapi.Response,
-    responses=dto_models.AUTH_RESPONSE,
-    tags=["Users"],
-)
-async def delete_my_user(
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> fastapi.Response:
-    await database.delete_user(auth.user.id)
-    return fastapi.Response(status_code=202)
-
-
-@utilities.as_endpoint(
-    "GET", "/users/@me", response_model=dto_models.User, responses=dto_models.AUTH_RESPONSE, tags=["Users"]
-)
-async def get_my_user(
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-) -> dto_models.User:
-    return dto_models.User.from_orm(auth.user)
-
-
-@utilities.as_endpoint(
-    "PATCH",
-    "/users/@me",
-    response_model=dto_models.User,
-    responses={**dto_models.AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
-    tags=["Users"],
-)
-async def patch_my_user(
-    user_update: dto_models.ReceivedUserUpdate,
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-) -> dto_models.User:
-    new_user = await auth.update_user(user_update)
-    return dto_models.User.from_orm(new_user)
-
-
-@utilities.as_endpoint(
-    "PUT",
-    "/users/{username}",
-    response_model=dto_models.User,
-    responses={400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR},
-    tags=["Users"],
-)
-async def put_user(
-    user: dto_models.ReceivedUser,
-    username: str = fastapi.Path(
-        ...,
-        min_length=validation.MINIMUM_NAME_LENGTH,
-        max_length=validation.MAXIMUM_NAME_LENGTH,
-        regex=validation.USERNAME_REGEX,
-    ),
-    # TODO: flags should be handled in the auth server
-    auth: refs.UserAuthProto = fastapi.Depends(security.RequireFlags(flags.UserFlags.CREATE_USER)),
-) -> dto_models.User:
-    result = await auth.create_user(username, user)
-    return dto_models.User.from_orm(result)
 
 
 @utilities.as_endpoint(

@@ -114,3 +114,10 @@ impl Hasher for Argon {
             .map_err(|e| Box::from(HashError::from_string(format!("Failed to parse password due to {}", e))))
     }
 }
+
+
+pub fn gen_link_key() -> String {
+    let mut buffer: [u8; 24] = [0; 24]; // desired length (32) * 3 / 4 == 24
+    sodiumoxide::randombytes::randombytes_into(&mut buffer);
+    sodiumoxide::base64::encode(buffer, sodiumoxide::base64::Variant::UrlSafe)
+}

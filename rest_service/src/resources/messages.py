@@ -33,18 +33,14 @@ from __future__ import annotations
 
 __all__: list[str] = [
     "delete_messages",
-    "delete_message_link",
     "get_message",
     "get_messages",
-    "get_message_links",
     "patch_message",
     "post_messages",
-    "post_message_links",
     "put_message_view",
 ]
 
 import datetime
-import secrets
 import typing
 import uuid
 
@@ -259,73 +255,3 @@ async def post_messages(
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     return dto_models.Message.from_orm(result)
-
-
-@utilities.as_endpoint(
-    "DELETE",
-    "/users/@me/messages/{message_id}/links/{link_token}",
-    response_class=fastapi.Response,
-    status_code=204,
-    responses={403: dto_models.BASIC_ERROR, 404: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
-    tags=["Messages"],
-)
-async def delete_message_link(
-    link_token: str,
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> fastapi.Response:
-    if message.user_id != auth.user.id:
-        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
-
-    await database.delete_message_link(message.id, link_token)
-    return fastapi.Response(status_code=204)
-
-
-@utilities.as_endpoint(
-    "GET",
-    "/users/@me/messages/{message_id}/links",
-    response_model=list[dto_models.MessageLink],
-    responses={**dto_models.AUTH_RESPONSE, 403: dto_models.BASIC_ERROR, 404: dto_models.BASIC_ERROR},
-    tags=["Messages"],
-)
-async def get_message_links(
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> list[dto_models.MessageLink]:
-    if message.user_id != auth.user.id:
-        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
-
-    return list(await database.iter_message_link_for_message(message.id).map(dto_models.MessageLink.from_orm))
-
-
-@utilities.as_endpoint(
-    "POST",
-    "/users/@me/messages/{message_id}/links",
-    response_model=dto_models.MessageLink,
-    responses={
-        **dto_models.AUTH_RESPONSE,
-        400: dto_models.BASIC_ERROR,
-        403: dto_models.BASIC_ERROR,
-        404: dto_models.BASIC_ERROR,
-    },
-    tags=["Messages"],
-)
-async def post_message_links(
-    link: dto_models.ReceivedMessageLink,
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> dto_models.MessageLink:
-    if auth.user.id != message.user_id:
-        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
-
-    expires_at: typing.Optional[datetime.datetime] = None
-    if link.expires_after is not None:
-        expires_at = datetime.datetime.now(tz=datetime.timezone.utc) + link.expires_after
-
-    result = await database.set_message_link(
-        message_id=message.id, token=secrets.token_urlsafe(32), expires_at=expires_at
-    )
-    return dto_models.MessageLink.from_orm(result)

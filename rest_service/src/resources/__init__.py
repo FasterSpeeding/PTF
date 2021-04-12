@@ -32,28 +32,20 @@
 from __future__ import annotations
 
 __all__: list[str] = [
+    # devices.py
+    "delete_user_devices",
+    "get_user_devices",
+    "patch_user_device",
+    "post_user_devices",
     # messages.py
     "messages",
     "delete_messages",
-    "delete_message_link",
     "get_message",
     "get_messages",
-    "get_message_links",
     "patch_message",
     "post_messages",
-    "post_message_links",
     "put_message_view",
-    # users.py
-    "users",
-    "delete_user_devices",
-    "delete_my_user",
-    "get_user_devices",
-    "get_my_user",
-    "patch_my_user",
-    "patch_user_device",
-    "post_user_devices",
-    "put_user",
 ]
 
+from .devices import *
 from .messages import *
-from .users import *

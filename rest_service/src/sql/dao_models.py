@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["Users", "Devices", "Messages", "MessageLinks", "Files", "Views"]
+__all__: list[str] = ["Users", "Devices", "Messages", "Files", "Views"]
 
 import typing
 
@@ -88,19 +88,6 @@ Messages = sqlalchemy.Table(
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("id", name="message_pk"),
     sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="message_user_id_fk"),
-)
-
-
-MessageLinks = sqlalchemy.Table(
-    "message_links",
-    metadata,
-    sqlalchemy.Column("token", sqlalchemy.VARCHAR, nullable=False),
-    sqlalchemy.Column("message_id", postgresql.UUID(as_uuid=True), nullable=False),
-    sqlalchemy.Column("expires_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False),
-    # Constraints
-    sqlalchemy.PrimaryKeyConstraint("message_id", "token", name="message_link_pk"),
-    sqlalchemy.ForeignKeyConstraint(["message_id"], ["messages.id"], ondelete=CASCADE, name="message_link_fk"),
-    sqlalchemy.UniqueConstraint("token", name="message_link_token_uc"),
 )
 
 

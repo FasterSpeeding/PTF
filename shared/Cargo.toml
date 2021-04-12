@@ -8,8 +8,11 @@ edition = "2018"
 
 [dependencies]
     async-trait     = "0.1.42"
+    # bitflags        = "1.2.1"
     dotenv          = "0.15.0"
+    lazy_static     = "1.4.0"
 	log	            = "0.4.14"
+    regex           = "1.4.5"
     simple_logger   = "1.11.0"
 
 [dependencies.chrono]
@@ -27,6 +30,10 @@ edition = "2018"
 [dependencies.uuid]
     version     = "0.8.2"
     features    = ["serde"]
+
+[dependencies.validator]
+    version     = "0.13.0"
+    features    = ["derive"]
 
 [features]
     postgres    = ["sqlx/postgres"]

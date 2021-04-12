@@ -42,10 +42,8 @@ __all__: list[str] = [
     "AuthUser",
     "Device",
     "ReceivedMessage",
-    "ReceivedMessageLink",
     "ReceivedMessageUpdate",
     "Message",
-    "MessageLink",
     "File",
     "ReceivedView",
     "View",
@@ -239,20 +237,6 @@ class Message(pydantic.BaseModel):
     files: list[File] = pydantic.Field(default_factory=list)
 
     Config = _ModelConfig
-
-
-class ReceivedMessageLink(pydantic.BaseModel):
-    expires_after: typing.Optional[datetime.timedelta] = pydantic.Field(default=None)
-
-    @pydantic.validator("expires_after")
-    def validate_expire_after(cls, expire_after_: datetime.timedelta) -> typing.Optional[datetime.timedelta]:
-        return validation.validate_timedelta(expire_after_) if expire_after_ is not None else None
-
-
-class MessageLink(ReceivedMessageLink, pydantic.BaseModel):
-    token: str
-    message_id: uuid.UUID
-    expires_at: typing.Optional[datetime.datetime] = pydantic.Field()
 
 
 class File(pydantic.BaseModel):

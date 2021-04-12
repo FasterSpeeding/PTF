@@ -8,11 +8,12 @@ edition = "2018"
 
 
 [dependencies]
-    actix-web       = "4.0.0-beta.4"
+    actix-web   = "4.0.0-beta.4"
     # actix-web-httpauth = "0.5.1"  # TODO: when actix web 4.0.0 releases
-    async-trait     = "0.1.42"
-    log             = "0.4.14"
-    sodiumoxide     = "0.2.6"  # Requires libsodium as a linked dependency
+    async-trait = "0.1.42"
+    log         = "0.4.14"
+    sodiumoxide = "0.2.6"  # Requires libsodium as a linked dependency
+    validator   = "0.13.0"
 
 [dependencies.shared]
     path        = "../shared"
@@ -21,3 +22,7 @@ edition = "2018"
 [dependencies.tokio]
     version     = "1.4.0"
     features    = ["macros", "rt"]  # "io-util", "stream"
+
+[dependencies.uuid]
+    version     = "0.8.2"
+    features    = ["serde"]

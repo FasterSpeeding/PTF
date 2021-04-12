@@ -69,6 +69,8 @@ pub trait Database: Send + Sync {
         message_id: &uuid::Uuid,
         set_at: chrono::DateTime<chrono::Utc>
     ) -> DeleteResult;
+    async fn delete_message_link(&self, message_id: &uuid::Uuid, link_token: &str) -> DeleteResult;
+    async fn delete_user(&self, user_id: &i64) -> DeleteResult;
     async fn get_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
     async fn get_file_by_set_at(
         &self,
@@ -91,6 +93,14 @@ pub trait Database: Send + Sync {
         content_type: &str,
         set_at: &chrono::DateTime<chrono::Utc>
     ) -> SetResult<dao_models::File>;
+    async fn set_message_link(
+        &self,
+        link_token: &str,
+        access: &i16,
+        expires_at: &Option<chrono::DateTime<chrono::Utc>>,
+        message_id: &uuid::Uuid, // TODO: first arg
+        resource: &Option<String>
+    ) -> SetResult<dao_models::MessageLink>;
     async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::AuthUser>;
     // TODO: this is bad
     async fn update_user(
