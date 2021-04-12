@@ -30,12 +30,16 @@
 // POSSIBILITY OF SUCH DAMAGE.
 use actix_web::{http, HttpRequest, HttpResponse};
 use async_trait::async_trait;
+use dto_models::{Error, ErrorsResponse};
+use shared::{dao_models, dto_models};
 
 use crate::utility;
 
+#[derive(Debug)]
 pub enum AuthError {
     Error,
     Response {
+        authenticate: Option<Box<str>>,
         body:         Box<[u8]>,
         content_type: Option<Box<str>>,
         status_code:  u16
@@ -45,9 +49,27 @@ pub enum AuthError {
 impl AuthError {
     pub fn response(body: &[u8], content_type: Option<&str>, status_code: u16) -> Self {
         Self::Response {
+            authenticate: None,
             body: Box::from(body),
             content_type: content_type.map(Box::from),
             status_code
+        }
+    }
+
+    pub fn authenticate(self, value: &str) -> Self {
+        match self {
+            Self::Response {
+                body,
+                content_type,
+                status_code,
+                ..
+            } => Self::Response {
+                authenticate: Some(Box::from(value)),
+                body,
+                content_type,
+                status_code
+            },
+            other => panic!("Cannot set authenticate on {:?} error type", other)
         }
     }
 }
@@ -55,7 +77,12 @@ impl AuthError {
 
 #[async_trait]
 pub trait Auth: Send + Sync {
-    async fn resolve_user(&self, authorization: &str) -> Result<shared::dto_models::User, AuthError>;
+    async fn resolve_link(
+        &self,
+        message_id: &uuid::Uuid,
+        link: &dto_models::LinkQuery
+    ) -> Result<dao_models::MessageLink, AuthError>;
+    async fn resolve_user(&self, authorization: &str) -> Result<dto_models::User, AuthError>;
 }
 
 
@@ -76,9 +103,38 @@ impl AuthClient {
 }
 
 
+async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> AuthError {
+    // We don't expect the header to_str to ever fail here
+    let content_type = response
+        .headers()
+        .get(actix_web::http::header::CONTENT_TYPE)
+        .map(|v| v.to_str().unwrap_or("application/json").to_owned()); // TODO: what to do here?
+    let status = response.status().as_u16();
+    let result = response
+        .bytes()
+        .await
+        .map_err(|e| {
+            log::error!("Failed to parse user auth response due to {:?}", e);
+            AuthError::Error
+        })
+        .map(|body| {
+            let response = AuthError::response(&body, content_type.as_deref(), status);
+            match auth_header {
+                Some(value) => response.authenticate(value),
+                None => response
+            }
+        });
+
+    match result {
+        Ok(v) => v,
+        Err(v) => v
+    }
+}
+
+
 #[async_trait]
 impl Auth for AuthClient {
-    async fn resolve_user(&self, authorization: &str) -> Result<shared::dto_models::User, AuthError> {
+    async fn resolve_user(&self, authorization: &str) -> Result<dto_models::User, AuthError> {
         let response = self
             .client
             .get(self.base_url.to_string() + "/users/@me")
@@ -86,59 +142,90 @@ impl Auth for AuthClient {
             .send()
             .await
             .map_err(|e| {
-                log::error!("Auth request failed due to {:?}", e);
+                log::error!("User auth request failed due to {:?}", e);
                 AuthError::Error
             })?; // TODO: will service unavailable ever be applicable?
 
         if response.status().is_success() {
-            response.json::<shared::dto_models::User>().await.map_err(|e| {
-                log::error!("Failed to parse auth response due to {:?}", e);
+            response.json::<dto_models::User>().await.map_err(|e| {
+                log::error!("Failed to parse user auth response due to {:?}", e);
                 AuthError::Error
             })
         } else {
-            // We don't expect the header to_str to ever fail here
-            let content_type = response
-                .headers()
-                .get(actix_web::http::header::CONTENT_TYPE)
-                .map(|v| v.to_str().unwrap_or("application/json").to_owned()); // TODO: what to do here?
-            let status = response.status().as_u16();
-            let body = response.bytes().await.map_err(|e| {
-                log::error!("Failed to parse auth response due to {:?}", e);
+            Err(relay_error(response, Some("Basic")).await)
+        }
+    }
+
+    async fn resolve_link(
+        &self,
+        message_id: &uuid::Uuid,
+        link: &dto_models::LinkQuery
+    ) -> Result<dao_models::MessageLink, AuthError> {
+        let response = self
+            .client
+            .get(format!("{}/messages/{}/links", self.base_url, message_id))
+            .query(&[("link", &link.link)])
+            .send()
+            .await
+            .map_err(|e| {
+                log::error!("Auth request failed due to {:?}", e);
                 AuthError::Error
             })?;
-            Err(AuthError::response(&body, content_type.as_deref(), status))
+
+        match response.status() {
+            reqwest::StatusCode::OK => response.json::<dao_models::MessageLink>().await.map_err(|e| {
+                log::error!("Failed to parse link auth response due to {:?}", e);
+                AuthError::Error
+            }),
+            reqwest::StatusCode::NOT_FOUND => {
+                print!("A");
+                let response =
+                    ErrorsResponse::default().with_error(Error::default().status(401).detail("Message link not found"));
+                Err(AuthError::response(
+                    serde_json::to_string(&response).unwrap().as_bytes(),
+                    Some("application/json"),
+                    401
+                ))
+            }
+            _ => Err(relay_error(response, None).await)
         }
     }
 }
 
 
 pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
-    req.headers()
-        .get(http::header::AUTHORIZATION)
-        .ok_or_else(|| utility::single_error(401, "Missing authorization header"))?
-        .to_str()
-        .map_err(|_| utility::single_error(400, "Invalid authorization header"))
-}
+    let result = match req.headers().get(http::header::AUTHORIZATION).map(|v| v.to_str()) {
+        Some(Ok(value)) => Ok(value),
+        Some(Err(_)) => Err("Invalid authorization header"),
+        None => Err("Invalid authorization header")
+    };
 
+    result.map_err(|message| {
+        let response = ErrorsResponse::default().with_error(Error::default().status(401).detail(message));
+        HttpResponse::Unauthorized()
+            .insert_header((actix_web::http::header::WWW_AUTHENTICATE, "Basic"))
+            .json(response)
+    })
+}
 
 pub fn map_auth_response(error: AuthError) -> HttpResponse {
     match error {
         AuthError::Error => utility::single_error(500, "Internal server error"),
         AuthError::Response {
+            authenticate,
             body,
             content_type,
             status_code
         } => {
             let mut response = HttpResponse::build(actix_web::http::StatusCode::from_u16(status_code).unwrap());
 
+            if let Some(authenticate) = authenticate.as_deref() {
+                response.insert_header((actix_web::http::header::WWW_AUTHENTICATE, authenticate));
+            }
+
             if let Some(content_type) = content_type.as_deref() {
                 response.insert_header((actix_web::http::header::CONTENT_TYPE, content_type));
             }
-
-            if status_code == 401 {
-                // TODO: auth service should decide this and we should just relay it
-                response.insert_header((actix_web::http::header::WWW_AUTHENTICATE, "Basic"));
-            };
 
             response.body(actix_web::body::Body::from_slice(&body))
         }

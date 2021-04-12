@@ -36,6 +36,7 @@ use shared::sql::Database;
 mod auth;
 mod files;
 mod utility;
+use shared::dto_models;
 
 
 #[delete("/users/@me/messages/{message_id}/files/{file_name}")]
@@ -91,6 +92,35 @@ async fn get_my_message_file(
     if user.id != message.user_id {
         return Err(utility::single_error(404, "File not found"));
     };
+
+    match file_reader.read_file(&file).await {
+        Ok(file_contents) => Ok(HttpResponse::Ok()
+            .insert_header((http::header::CONTENT_TYPE, file.content_type))
+            .body(file_contents)),
+        Err(error) => {
+            log::error!("Failed to read file due to {:?}", error);
+            Err(utility::single_error(500, "Failed to load file's contents"))
+        }
+    }
+}
+
+
+#[get("/messages/{message_id}/files/{file_name}")]
+async fn get_shared_message_file(
+    path: web::Path<(uuid::Uuid, String)>,
+    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    auth_handler: web::Data<Arc<dyn auth::Auth>>,
+    db: web::Data<Arc<dyn Database>>,
+    file_reader: web::Data<Arc<dyn files::FileReader>>
+) -> Result<HttpResponse, HttpResponse> {
+    let (message_id, file_name) = path.into_inner();
+
+    auth_handler
+        .resolve_link(&message_id, &link)
+        .await
+        .map_err(auth::map_auth_response)?;
+
+    let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
 
     match file_reader.read_file(&file).await {
         Ok(file_contents) => Ok(HttpResponse::Ok()

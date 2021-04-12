@@ -588,6 +588,7 @@ dependencies = [
  "chrono",
  "log",
  "reqwest",
+ "serde_json",
  "shared",
  "tokio",
  "uuid",
