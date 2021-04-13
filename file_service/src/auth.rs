@@ -110,24 +110,19 @@ async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> 
         .get(actix_web::http::header::CONTENT_TYPE)
         .map(|v| v.to_str().unwrap_or("application/json").to_owned()); // TODO: what to do here?
     let status = response.status().as_u16();
-    let result = response
-        .bytes()
-        .await
-        .map_err(|e| {
-            log::error!("Failed to parse user auth response due to {:?}", e);
-            AuthError::Error
-        })
-        .map(|body| {
+
+    match response.bytes().await {
+        Ok(body) => {
             let response = AuthError::response(&body, content_type.as_deref(), status);
             match auth_header {
                 Some(value) => response.authenticate(value),
                 None => response
             }
-        });
-
-    match result {
-        Ok(v) => v,
-        Err(v) => v
+        }
+        Err(error) => {
+            log::error!("Failed to parse user auth response due to {:?}", error);
+            AuthError::Error
+        }
     }
 }
 
@@ -178,7 +173,6 @@ impl Auth for AuthClient {
                 AuthError::Error
             }),
             reqwest::StatusCode::NOT_FOUND => {
-                print!("A");
                 let response =
                     ErrorsResponse::default().with_error(Error::default().status(401).detail("Message link not found"));
                 Err(AuthError::response(
@@ -197,7 +191,7 @@ pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
     let result = match req.headers().get(http::header::AUTHORIZATION).map(|v| v.to_str()) {
         Some(Ok(value)) => Ok(value),
         Some(Err(_)) => Err("Invalid authorization header"),
-        None => Err("Invalid authorization header")
+        None => Err("Missing authorization header")
     };
 
     result.map_err(|message| {

@@ -93,15 +93,18 @@ async fn get_my_message_file(
         return Err(utility::single_error(404, "File not found"));
     };
 
-    match file_reader.read_file(&file).await {
-        Ok(file_contents) => Ok(HttpResponse::Ok()
-            .insert_header((http::header::CONTENT_TYPE, file.content_type))
-            .body(file_contents)),
-        Err(error) => {
-            log::error!("Failed to read file due to {:?}", error);
-            Err(utility::single_error(500, "Failed to load file's contents"))
-        }
-    }
+    file_reader
+        .read_file(&file)
+        .await
+        .map(|v| {
+            HttpResponse::Ok()
+                .insert_header((http::header::CONTENT_TYPE, file.content_type))
+                .body(v)
+        })
+        .map_err(|e| {
+            log::error!("Failed to read file due to {:?}", e);
+            utility::single_error(500, "Failed to load file's contents")
+        })
 }
 
 
@@ -122,15 +125,18 @@ async fn get_shared_message_file(
 
     let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
 
-    match file_reader.read_file(&file).await {
-        Ok(file_contents) => Ok(HttpResponse::Ok()
-            .insert_header((http::header::CONTENT_TYPE, file.content_type))
-            .body(file_contents)),
-        Err(error) => {
-            log::error!("Failed to read file due to {:?}", error);
-            Err(utility::single_error(500, "Failed to load file's contents"))
-        }
-    }
+    file_reader
+        .read_file(&file)
+        .await
+        .map(|v| {
+            HttpResponse::Ok()
+                .insert_header((http::header::CONTENT_TYPE, file.content_type))
+                .body(v)
+        })
+        .map_err(|e| {
+            log::error!("Failed to read file due to {:?}", e);
+            utility::single_error(500, "Failed to load file's contents")
+        })
 }
 
 
@@ -178,16 +184,14 @@ async fn put_my_message_file(
             utility::single_error(500, "Internal server error")
         })?;
 
-    let result = db
-        .set_or_update_file(&message.id, &file_name, &content_type, &date)
+    db.set_or_update_file(&message.id, &file_name, &content_type, &date)
         .await
+        .map(|v| HttpResponse::Ok().json(v))
         // TODO: should some cases of this actually be handled as the message not existing
         .map_err(|e| {
             log::error!("Failed to set file database entry due to {:?}", e);
             utility::single_error(500, "Internal server error")
-        })?;
-
-    Ok(HttpResponse::Ok().json(result))
+        })
 }
 
 

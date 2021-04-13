@@ -40,7 +40,7 @@ pub struct Pool {
 
 impl Pool {
     pub fn new(pool: sqlx::Pool<sqlx::Postgres>) -> Self {
-        Self { pool }
+        Self { pool } // TODO: can we use sqlx::any here for some independence?
     }
 
     pub async fn connect(url: &str) -> Result<Self, sqlx::Error> {
@@ -59,6 +59,11 @@ fn process_insert_error(result: sqlx::Error) -> sql::SetError {
 }
 
 
+fn process_delete(result: sqlx::postgres::PgQueryResult) -> bool {
+    result.rows_affected() > 0
+}
+
+
 #[async_trait]
 impl sql::Database for Pool {
     async fn delete_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DeleteResult {
@@ -69,8 +74,8 @@ impl sql::Database for Pool {
         )
         .execute(&self.pool)
         .await
+        .map(process_delete)
         .map_err(Box::from)
-        .map(|result| result.rows_affected() > 0)
     }
 
     async fn delete_file_by_set_at(
@@ -85,8 +90,8 @@ impl sql::Database for Pool {
         )
         .execute(&self.pool)
         .await
+        .map(process_delete)
         .map_err(Box::from)
-        .map(|result| result.rows_affected() > 0)
     }
 
     async fn delete_message_link(&self, message_id: &uuid::Uuid, link_token: &str) -> sql::DeleteResult {
@@ -97,16 +102,16 @@ impl sql::Database for Pool {
         )
         .execute(&self.pool)
         .await
+        .map(process_delete)
         .map_err(Box::from)
-        .map(|result| result.rows_affected() > 0)
     }
 
     async fn delete_user(&self, user_id: &i64) -> sql::DeleteResult {
         sqlx::query!("DELETE FROM users WHERE id=$1", user_id)
             .execute(&self.pool)
             .await
+            .map(process_delete)
             .map_err(Box::from)
-            .map(|result| result.rows_affected() > 0)
     }
 
     async fn get_file_by_name(

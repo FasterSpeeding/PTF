@@ -36,8 +36,6 @@ __all__: list[str] = [
     "UNDEFINED",
     "UndefinedOr",
     "BasicError",
-    "ReceivedUser",
-    "ReceivedUserUpdate",
     "User",
     "AuthUser",
     "LinkAuth",
@@ -111,41 +109,6 @@ class BasicError(pydantic.BaseModel):
     detail: str
 
     Config = _ModelConfig
-
-
-class ReceivedUser(pydantic.BaseModel):
-    flags: flags.UserFlags = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-    password: str = pydantic.Field(
-        min_length=validation.MINIMUM_PASSWORD_LENGTH, max_length=validation.MAXIMUM_PASSWORD_LENGTH
-    )
-
-    Config = _ModelConfig
-
-
-if typing.TYPE_CHECKING:
-
-    class ReceivedUserUpdate(pydantic.BaseModel):
-        username: UndefinedOr[str]
-        password: UndefinedOr[str]
-
-
-else:
-
-    # We can't type this as undefinable at runtime as this breaks FastAPI's handling.
-    class ReceivedUserUpdate(pydantic.BaseModel):
-        username: str = pydantic.Field(
-            default_factory=UndefinedType,
-            min_length=validation.MINIMUM_NAME_LENGTH,
-            max_length=validation.MAXIMUM_NAME_LENGTH,
-            regex=validation.USERNAME_REGEX,
-        )
-        password: str = pydantic.Field(
-            default_factory=UndefinedType,
-            min_length=validation.MINIMUM_PASSWORD_LENGTH,
-            max_length=validation.MAXIMUM_PASSWORD_LENGTH,
-        )
-
-        Config = _ModelConfig
 
 
 class User(pydantic.BaseModel):
@@ -262,8 +225,9 @@ class Message(pydantic.BaseModel):
         self.link = metadata.file_service_hostname + self.path()
         self.public_link = metadata.file_service_hostname + self.public_path()
 
-        for file in self.files:
-            file.with_paths(metadata)
+        if recursive:
+            for file in self.files:
+                file.with_paths(metadata)
 
 
 class File(pydantic.BaseModel):

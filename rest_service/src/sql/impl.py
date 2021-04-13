@@ -279,12 +279,6 @@ class PostgreDatabase(api.DatabaseHandler):
             assert result is None or isinstance(result, expected_type)
             return result
 
-    def clear_users(self) -> api.FilteredClear[dao_protos.User]:
-        return FilteredClear(self._database, dao_models.Users, dao_models.Users.delete())
-
-    async def delete_user(self, user_id: int, /) -> None:
-        await self._execute(dao_models.Users.delete(dao_models.Users.c["id"] == user_id))
-
     async def get_user_by_id(self, user_id: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(dao_protos.User, dao_models.Users.select(dao_models.Users.c["id"] == user_id))
 

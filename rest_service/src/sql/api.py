@@ -152,14 +152,6 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def clear_users(self) -> FilteredClear[dao_protos.User]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_user(self, user_id: int, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     async def get_user_by_id(self, user_id: int, /) -> typing.Optional[dao_protos.User]:
         raise NotImplementedError
 

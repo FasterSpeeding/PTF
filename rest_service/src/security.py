@@ -117,7 +117,7 @@ class RequireFlags:
     def __init__(self, flag_option: flags.UserFlags, /, *flags_options: flags.UserFlags) -> None:
         self.options = (flag_option, *flags_options)
 
-    async def __call__(self, auth: dto_models.User = fastapi.Depends(refs.UserAuthProto)) -> dto_models.User:
+    async def __call__(self, auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto)) -> dto_models.AuthUser:
         # ADMIN access should allow all other permissions.
         if flags.UserFlags.ADMIN & auth.flags or any((flags_ & auth.flags) == flags_ for flags_ in self.options):
             return auth
