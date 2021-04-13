@@ -248,7 +248,7 @@ async fn post_my_message_link(
             &message_id,
             &crypto::gen_link_key(),
             &received_link.access,
-            &received_link.expires_at,
+            &received_link.expires_after.map(|v| chrono::Utc::now() + v),
             &received_link.resource
         )
         .await;
