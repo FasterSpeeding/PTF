@@ -36,7 +36,6 @@ __all__: list[str] = [
     "UNDEFINED",
     "UndefinedOr",
     "BasicError",
-    "User",
     "AuthUser",
     "LinkAuth",
     "Device",
@@ -111,16 +110,13 @@ class BasicError(pydantic.BaseModel):
     Config = _ModelConfig
 
 
-class User(pydantic.BaseModel):
+class AuthUser(pydantic.BaseModel):
     created_at: datetime.datetime
     flags: flags.UserFlags
+    id: int
     username: str
 
     Config = _ModelConfig
-
-
-class AuthUser(User, pydantic.BaseModel):
-    id: int
 
 
 class LinkAuth(pydantic.BaseModel):

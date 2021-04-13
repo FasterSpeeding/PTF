@@ -46,6 +46,19 @@ pub fn single_error(status: u16, detail: &str) -> HttpResponse {
 }
 
 
+pub fn unauthorized_error(detail: &str) -> HttpResponse {
+    let response = dto_models::ErrorsResponse::default().with_error(
+        dto_models::Error::default()
+            .status(http::StatusCode::UNAUTHORIZED.as_u16())
+            .detail(detail)
+    );
+
+    HttpResponse::Unauthorized()
+        .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
+        .json(response)
+}
+
+
 pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str) -> Result<T, HttpResponse> {
     match result {
         Ok(Some(entry)) => Ok(entry),
@@ -67,54 +80,44 @@ pub async fn resolve_user(
     let value = req
         .headers()
         .get(http::header::AUTHORIZATION)
-        .ok_or_else(|| {
-            let response = dto_models::ErrorsResponse::default().with_error(
-                dto_models::Error::default()
-                    .status(http::StatusCode::UNAUTHORIZED.as_u16())
-                    .detail("Missing authorization header")
-            );
-
-            HttpResponse::build(http::StatusCode::UNAUTHORIZED)
-                .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
-                .json(response)
-        })?
+        .ok_or_else(|| unauthorized_error("Missing authorization header"))?
         .to_str()
-        .map_err(|_| single_error(400, "Invalid authorization header"))?
+        .map_err(|_| unauthorized_error("Invalid authorization header"))?
         .to_owned();
 
     if value.len() < 7 {
-        return Err(single_error(400, "Invalid authorization header"));
+        return Err(unauthorized_error("Invalid authorization header"));
     }
 
     let (token_type, token) = value.split_at(6);
 
     if !"Basic ".eq_ignore_ascii_case(token_type) {
-        return Err(single_error(401, "Expected a Basic authorization token"));
+        return Err(unauthorized_error("Expected a Basic authorization token"));
     }
 
     let token = sodiumoxide::base64::decode(token, sodiumoxide::base64::Variant::Original)
-        .map_err(|_| single_error(400, "Invalid authorization header"))?;
+        .map_err(|_| unauthorized_error("Invalid authorization header"))?;
 
     let (username, password) = std::str::from_utf8(&token)
-        .map_err(|_| single_error(400, "Invalid authorization header"))
+        .map_err(|_| unauthorized_error("Invalid authorization header"))
         .and_then(|value| {
             let mut iterator = value.splitn(2, ':');
             match (iterator.next(), iterator.next()) {
                 (Some(username), Some(password)) if !password.is_empty() => Ok((username, password)),
-                _ => Err(single_error(400, "Invalid authorization header"))
+                _ => Err(unauthorized_error("Invalid authorization header"))
             }
         })?;
 
     match db.get_user_by_username(username).await {
         Ok(Some(user)) => match hasher.verify(&user.password_hash, &password).await {
             Ok(true) => Ok(user),
-            Ok(false) => Err(single_error(401, "Incorrect username or password")),
+            Ok(false) => Err(unauthorized_error("Incorrect username or password")),
             other => {
                 log::error!("Failed to check password due to {:?}", other);
                 Err(single_error(500, "Internal server error"))
             }
         },
-        Ok(None) => Err(single_error(401, "Incorrect username or password")),
+        Ok(None) => Err(unauthorized_error("Incorrect username or password")),
         Err(error) => {
             log::error!("Failed to get user from database due to {}", error);
             Err(single_error(500, "Internal server error"))
@@ -135,6 +138,6 @@ pub async fn resolve_flags(
     if user.flags & flags == flags || user.flags & 1 << 1 == 1 << 1 {
         Ok(user)
     } else {
-        Err(single_error(403, "You cannor perform this action"))
+        Err(single_error(403, "You cannot perform this action"))
     }
 }
