@@ -28,8 +28,8 @@
 -- OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 -- OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 CREATE TABLE IF NOT EXISTS users (
-    id              BIGINT                      GENERATED ALWAYS AS IDENTITY,
-    created_at      TIMESTAMP WITH TIME ZONE    NOT NULL                        DEFAULT CURRENT_TIMESTAMP,
+    id              UUID                        NOT NULL,
+    created_at      TIMESTAMP WITH TIME ZONE    NOT NULL    DEFAULT CURRENT_TIMESTAMP,
     flags           BIGINT                      NOT NULL,
     password_hash   VARCHAR                     NOT NULL,                       -- argon2  -- TODO: binary?
     username        VARCHAR(32)                 NOT NULL,                       -- TODO: case insensitivity?
@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- TODO: replace id as primary key with (name, user_id)
 CREATE TABLE IF NOT EXISTS devices (
-    id                  BIGINT      GENERATED ALWAYS AS IDENTITY,   -- TODO: replace with (name, user_id)
-    is_required_viewer  BOOLEAN     NOT NULL,                       -- TODO: This might be backwards
+    id                  BIGINT      NOT NULL    GENERATED ALWAYS AS IDENTITY,   -- TODO: replace with (name, user_id)
+    is_required_viewer  BOOLEAN     NOT NULL,                                   -- TODO: This might be backwards
     name                VARCHAR(32) NOT NULL,
-    user_id             BIGINT      NOT NULL,
+    user_id             UUID        NOT NULL,
 
     CONSTRAINT device_pk
         PRIMARY KEY (id),
@@ -64,13 +64,13 @@ CREATE TABLE IF NOT EXISTS devices (
 
  -- TODO: Find a better name for if this should delete after being viewed than "is_transient"
 CREATE TABLE IF NOT EXISTS messages (
-    id              UUID,
+    id              UUID                        NOT NULL,
     created_at      TIMESTAMP WITH TIME ZONE    NOT NULL                        DEFAULT CURRENT_TIMESTAMP,
     expire_at       TIMESTAMP WITH TIME ZONE,
     is_transient    BOOLEAN                     NOT NULL,
     text            VARCHAR,                    -- TODO: not nullable?
     title           VARCHAR,                    -- TODO: not nullable?
-    user_id         BIGINT                      NOT NULL,
+    user_id         UUID                        NOT NULL,
 
     CONSTRAINT message_pk
         PRIMARY KEY (id),

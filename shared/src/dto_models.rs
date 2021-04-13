@@ -99,7 +99,7 @@ fn deserialize_duration<'de, D: serde::Deserializer<'de>>(d: D) -> Result<chrono
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct User {
-    pub id:         i64,
+    pub id:         uuid::Uuid,
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub flags:      i64, // TODO: flags?
     pub username:   String

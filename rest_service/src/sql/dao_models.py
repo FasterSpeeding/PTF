@@ -48,7 +48,7 @@ metadata = sqlalchemy.MetaData()
 Users = sqlalchemy.Table(
     "users",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
+    sqlalchemy.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
     sqlalchemy.Column(
         "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
@@ -63,10 +63,10 @@ Users = sqlalchemy.Table(
 Devices = sqlalchemy.Table(
     "devices",
     metadata,
-    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS)),
+    sqlalchemy.Column("id", sqlalchemy.BIGINT, sqlalchemy.Computed(ALWAYS), nullable=False),
     sqlalchemy.Column("is_required_viewer", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("name", sqlalchemy.VARCHAR(validation.MAXIMUM_NAME_LENGTH), nullable=False),
-    sqlalchemy.Column("user_id", sqlalchemy.BIGINT, nullable=False),
+    sqlalchemy.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("id", name="device_pk"),
     sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="device_user_id_fk"),
@@ -76,7 +76,7 @@ Devices = sqlalchemy.Table(
 Messages = sqlalchemy.Table(
     "messages",
     metadata,
-    sqlalchemy.Column("id", postgresql.UUID(as_uuid=True)),
+    sqlalchemy.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
     sqlalchemy.Column(
         "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
@@ -84,7 +84,7 @@ Messages = sqlalchemy.Table(
     sqlalchemy.Column("is_transient", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("text", sqlalchemy.VARCHAR, nullable=True),
     sqlalchemy.Column("title", sqlalchemy.VARCHAR, nullable=True),
-    sqlalchemy.Column("user_id", sqlalchemy.BIGINT, nullable=False),
+    sqlalchemy.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
     # Constraints
     sqlalchemy.PrimaryKeyConstraint("id", name="message_pk"),
     sqlalchemy.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete=CASCADE, name="message_user_id_fk"),

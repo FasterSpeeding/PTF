@@ -279,7 +279,7 @@ class PostgreDatabase(api.DatabaseHandler):
             assert result is None or isinstance(result, expected_type)
             return result
 
-    async def get_user_by_id(self, user_id: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_id(self, user_id: uuid.UUID, /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(dao_protos.User, dao_models.Users.select(dao_models.Users.c["id"] == user_id))
 
     async def get_user_by_username(self, username: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
@@ -296,7 +296,7 @@ class PostgreDatabase(api.DatabaseHandler):
     async def delete_device_by_id(self, device_id: int, /) -> None:
         await self._execute(dao_models.Devices.delete(dao_models.Devices.columns["id"] == device_id))
 
-    async def delete_device_by_name(self, user_id: int, device_name: str, /) -> None:
+    async def delete_device_by_name(self, user_id: uuid.UUID, device_name: str, /) -> None:
         columns = dao_models.Devices.columns
         query = dao_models.Devices.delete(
             sqlalchemy.and_(columns["user_id"] == user_id, columns["name"] == device_name)
@@ -308,7 +308,7 @@ class PostgreDatabase(api.DatabaseHandler):
             dao_protos.Device, dao_models.Devices.select(dao_models.Devices.columns["id"] == device_id)
         )
 
-    async def get_device_by_name(self, user_id: int, device_name: str, /) -> typing.Optional[dao_protos.Device]:
+    async def get_device_by_name(self, user_id: uuid.UUID, device_name: str, /) -> typing.Optional[dao_protos.Device]:
         columns = dao_models.Devices.columns
         query = dao_models.Devices.select(
             sqlalchemy.and_(columns["user_id"] == user_id, columns["name"] == device_name)
@@ -318,7 +318,7 @@ class PostgreDatabase(api.DatabaseHandler):
     def iter_devices(self) -> api.DatabaseIterator[dao_protos.Device]:
         return PostgreIterator(self._database, dao_models.Devices, dao_models.Devices.select())
 
-    def iter_devices_for_user(self, user_id: int, /) -> api.DatabaseIterator[dao_protos.Device]:
+    def iter_devices_for_user(self, user_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.Device]:
         return self.iter_devices().filter("eq", ("user_id", user_id))
 
     async def set_device(self, **kwargs: typing.Any) -> dao_protos.Device:
@@ -338,7 +338,7 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._update(dao_protos.Device, query)
 
     async def update_device_by_name(
-        self, user_id: int, device_name: str, /, **kwargs: typing.Any
+        self, user_id: uuid.UUID, device_name: str, /, **kwargs: typing.Any
     ) -> typing.Optional[dao_protos.Device]:
         if not kwargs:
             return await self.get_device_by_name(user_id, device_name)
@@ -365,7 +365,7 @@ class PostgreDatabase(api.DatabaseHandler):
     def iter_messages(self) -> api.DatabaseIterator[dao_protos.Message]:
         return PostgreIterator(self._database, dao_models.Messages, dao_models.Messages.select())
 
-    def iter_messages_for_user(self, user_id: int, /) -> api.DatabaseIterator[dao_protos.Message]:
+    def iter_messages_for_user(self, user_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.Message]:
         return self.iter_messages().filter("eq", ("user_id", user_id))
 
     async def set_message(self, **kwargs: typing.Any) -> dao_protos.Message:

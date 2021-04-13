@@ -71,7 +71,7 @@ pub trait Database: Send + Sync {
         set_at: chrono::DateTime<chrono::Utc>
     ) -> DeleteResult;
     async fn delete_message_link(&self, message_id: &uuid::Uuid, link_token: &str) -> DeleteResult;
-    async fn delete_user(&self, user_id: &i64) -> DeleteResult;
+    async fn delete_user(&self, user_id: &uuid::Uuid) -> DeleteResult;
     async fn get_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> DatabaseResult<dao_models::File>;
     async fn get_file_by_set_at(
         &self,
@@ -85,7 +85,7 @@ pub trait Database: Send + Sync {
         link_token: &str
     ) -> DatabaseResult<dao_models::MessageLink>;
     async fn get_message_links(&self, message_id: &uuid::Uuid) -> ManyResult<dao_models::MessageLink>;
-    async fn get_user_by_id(&self, user_id: &i64) -> DatabaseResult<dao_models::AuthUser>;
+    async fn get_user_by_id(&self, user_id: &uuid::Uuid) -> DatabaseResult<dao_models::AuthUser>;
     async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::AuthUser>;
     async fn set_or_update_file(
         &self,
@@ -102,11 +102,17 @@ pub trait Database: Send + Sync {
         expires_at: &Option<chrono::DateTime<chrono::Utc>>,
         resource: &Option<String>
     ) -> SetResult<dao_models::MessageLink>;
-    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> SetResult<dao_models::AuthUser>;
+    async fn set_user(
+        &self,
+        user_id: &uuid::Uuid,
+        flags: &i64,
+        password_hash: &str,
+        username: &str
+    ) -> SetResult<dao_models::AuthUser>;
     // TODO: this is bad
     async fn update_user(
         &self,
-        user_id: &i64,
+        user_id: &uuid::Uuid,
         flags: &Option<i64>,
         password_hash: &Option<&str>,
         username: &Option<&str>

@@ -94,7 +94,9 @@ async fn post_user(
         utility::single_error(500, "Internal server error")
     })?;
 
-    let result = db.set_user(&user.flags, &password_hash, &user.username).await;
+    let result = db
+        .set_user(&uuid::Uuid::new_v4(), &user.flags, &password_hash, &user.username)
+        .await;
 
     match result {
         Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(user))),

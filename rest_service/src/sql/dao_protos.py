@@ -46,7 +46,7 @@ class User(typing.Protocol):
 
     __slots__: tuple[str, ...] = ()
 
-    id: int
+    id: uuid.UUID
     created_at: datetime.datetime
     flags: int
     username: str
@@ -61,7 +61,7 @@ class Device(typing.Protocol):
     id: int
     is_required_viewer: bool
     name: str
-    user_id: int
+    user_id: uuid.UUID
 
 
 @typing.runtime_checkable
@@ -76,7 +76,7 @@ class Message(typing.Protocol):
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]
-    user_id: int
+    user_id: uuid.UUID
 
 
 @typing.runtime_checkable

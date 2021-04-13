@@ -113,7 +113,7 @@ class BasicError(pydantic.BaseModel):
 class AuthUser(pydantic.BaseModel):
     created_at: datetime.datetime
     flags: flags.UserFlags
-    id: int
+    id: uuid.UUID
     username: str
 
     Config = _ModelConfig

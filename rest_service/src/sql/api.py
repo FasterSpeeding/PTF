@@ -152,7 +152,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_user_by_id(self, user_id: int, /) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_id(self, user_id: uuid.UUID, /) -> typing.Optional[dao_protos.User]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -172,7 +172,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_device_by_name(self, user_id: int, device_name: str, /) -> None:
+    async def delete_device_by_name(self, user_id: uuid.UUID, device_name: str, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -180,7 +180,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_device_by_name(self, user_id: int, device_name: str, /) -> typing.Optional[dao_protos.Device]:
+    async def get_device_by_name(self, user_id: uuid.UUID, device_name: str, /) -> typing.Optional[dao_protos.Device]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -188,11 +188,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_devices_for_user(self, user_id: int, /) -> DatabaseIterator[dao_protos.Device]:
+    def iter_devices_for_user(self, user_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.Device]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def set_device(self, *, is_required_viewer: bool, user_id: int, name: str) -> dao_protos.Device:
+    async def set_device(self, *, is_required_viewer: bool, user_id: uuid.UUID, name: str) -> dao_protos.Device:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -209,7 +209,7 @@ class DatabaseHandler(abc.ABC):
     @abc.abstractmethod
     async def update_device_by_name(
         self,
-        user_id: int,
+        user_id: uuid.UUID,
         device_name: str,
         /,
         *,
@@ -235,7 +235,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_messages_for_user(self, user_id: int, /) -> DatabaseIterator[dao_protos.Message]:
+    def iter_messages_for_user(self, user_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -246,7 +246,7 @@ class DatabaseHandler(abc.ABC):
         is_transient: bool,
         text: typing.Optional[str],
         title: typing.Optional[str],
-        user_id: int,
+        user_id: uuid.UUID,
     ) -> dao_protos.Message:
         raise NotImplementedError
 
@@ -260,7 +260,7 @@ class DatabaseHandler(abc.ABC):
         is_transient: bool = ...,
         text: typing.Optional[str] = ...,
         title: typing.Optional[str] = ...,
-        user_id: int = ...,
+        user_id: uuid.UUID = ...,
     ) -> typing.Optional[dao_protos.Message]:
         raise NotImplementedError
 

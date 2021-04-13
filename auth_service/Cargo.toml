@@ -26,4 +26,4 @@ edition = "2018"
 
 [dependencies.uuid]
     version     = "0.8.2"
-    features    = ["serde"]
+    features    = ["v4"]

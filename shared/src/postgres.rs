@@ -106,7 +106,7 @@ impl sql::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn delete_user(&self, user_id: &i64) -> sql::DeleteResult {
+    async fn delete_user(&self, user_id: &uuid::Uuid) -> sql::DeleteResult {
         sqlx::query!("DELETE FROM users WHERE id=$1", user_id)
             .execute(&self.pool)
             .await
@@ -180,7 +180,7 @@ impl sql::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn get_user_by_id(&self, user_id: &i64) -> sql::DatabaseResult<dao_models::AuthUser> {
+    async fn get_user_by_id(&self, user_id: &uuid::Uuid) -> sql::DatabaseResult<dao_models::AuthUser> {
         sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)
             .await
@@ -238,10 +238,17 @@ impl sql::Database for Pool {
         .map_err(process_insert_error)
     }
 
-    async fn set_user(&self, flags: &i64, password_hash: &str, username: &str) -> sql::SetResult<dao_models::AuthUser> {
+    async fn set_user(
+        &self,
+        user_id: &uuid::Uuid,
+        flags: &i64,
+        password_hash: &str,
+        username: &str
+    ) -> sql::SetResult<dao_models::AuthUser> {
         sqlx::query_as!(
             dao_models::AuthUser,
-            "INSERT INTO users (flags, password_hash, username) VALUES ($1, $2, $3) RETURNING *;",
+            "INSERT INTO users (id, flags, password_hash, username) VALUES ($1, $2, $3, $4) RETURNING *;",
+            user_id,
             flags,
             password_hash,
             username
@@ -254,7 +261,7 @@ impl sql::Database for Pool {
     // TODO: this doesn't feel rusty and how would setting fields to null work here?
     async fn update_user(
         &self,
-        user_id: &i64,
+        user_id: &uuid::Uuid,
         flags: &Option<i64>,
         password_hash: &Option<&str>,
         username: &Option<&str>
