@@ -223,11 +223,13 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def delete_message(self, message_id: uuid.UUID, /) -> None:
+    async def delete_message(self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_message(self, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.Message]:
+    async def get_message(
+        self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /
+    ) -> typing.Optional[dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -254,13 +256,13 @@ class DatabaseHandler(abc.ABC):
     async def update_message(
         self,
         message_id: uuid.UUID,
+        user_id: typing.Optional[uuid.UUID] = None,
         /,
         *,
         expire_at: typing.Optional[datetime.datetime] = ...,
         is_transient: bool = ...,
         text: typing.Optional[str] = ...,
         title: typing.Optional[str] = ...,
-        user_id: uuid.UUID = ...,
     ) -> typing.Optional[dao_protos.Message]:
         raise NotImplementedError
 

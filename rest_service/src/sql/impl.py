@@ -354,13 +354,25 @@ class PostgreDatabase(api.DatabaseHandler):
     def clear_messages(self) -> api.FilteredClear[dao_protos.Message]:
         return FilteredClear(self._database, dao_models.Messages, dao_models.Messages.delete())
 
-    async def delete_message(self, message_id: uuid.UUID, /) -> None:
-        await self._execute(dao_models.Messages.delete(dao_models.Messages.c["id"] == message_id))
+    async def delete_message(self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /) -> None:
+        columns = dao_models.Messages.columns
+        query = dao_models.Messages.delete(["id"] == message_id)
 
-    async def get_message(self, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.Message]:
-        return await self._fetch_one(
-            dao_protos.Message, dao_models.Messages.select(dao_models.Messages.c["id"] == message_id)
-        )
+        if user_id:
+            query = query.where(columns["user_id"] == user_id)
+
+        await self._execute(query)
+
+    async def get_message(
+        self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /
+    ) -> typing.Optional[dao_protos.Message]:
+        columns = dao_models.Messages.columns
+        query = dao_models.Messages.select(columns["id"] == message_id)
+
+        if user_id:
+            query = query.where(columns["user_id"] == user_id)
+
+        return await self._fetch_one(dao_protos.Message, query)
 
     def iter_messages(self) -> api.DatabaseIterator[dao_protos.Message]:
         return PostgreIterator(self._database, dao_models.Messages, dao_models.Messages.select())
@@ -375,16 +387,17 @@ class PostgreDatabase(api.DatabaseHandler):
         )
 
     async def update_message(
-        self, message_id: uuid.UUID, /, **kwargs: typing.Any
+        self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /, **kwargs: typing.Any
     ) -> typing.Optional[dao_protos.Message]:
         if not kwargs:
-            return await self.get_message(message_id)
+            return await self.get_message(message_id, user_id)
 
-        query = (
-            dao_models.Messages.update(dao_models.Messages.c["id"] == message_id)
-            .values(kwargs)
-            .returning(dao_models.Messages)
-        )
+        columns = dao_models.Messages.columns
+        query = dao_models.Messages.update(columns["id"] == message_id).values(kwargs).returning(dao_models.Messages)
+
+        if user_id:
+            query = query.where(columns["user_id"] == user_id)
+
         return await self._update(dao_protos.Message, query)
 
     async def get_file(self, message_id: uuid.UUID, file_name: str, /) -> typing.Optional[dao_protos.File]:

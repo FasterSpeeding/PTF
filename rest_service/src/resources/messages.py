@@ -60,10 +60,7 @@ async def user_auth_message(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dao_protos.Message:
-    if stored_message := await database.get_message(message_id):
-        if stored_message.user_id != auth.id:
-            raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message.") from None
-
+    if stored_message := await database.get_message(message_id, auth.id):
         return stored_message
 
     raise fastapi.exceptions.HTTPException(404, detail="Message not found.") from None
@@ -107,7 +104,12 @@ async def viewer_device(
     "/users/@me/messages/{message_id}/views/{device_name}",
     response_class=fastapi.Response,
     status_code=204,
-    responses={400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR, **dto_models.USER_AUTH_RESPONSE},
+    responses={
+        400: dto_models.BASIC_ERROR,
+        404: dto_models.BASIC_ERROR,
+        409: dto_models.BASIC_ERROR,
+        **dto_models.USER_AUTH_RESPONSE,
+    },
     tags=["Messages"],
 )
 async def put_message_view(
@@ -124,7 +126,7 @@ async def put_message_view(
     try:
         await database.set_view(device_id=device.id, message_id=message.id)
 
-    except sql_api.AlreadyExistsError:
+    except sql_api.AlreadyExistsError:  # TODO: is this necessary
         raise fastapi.exceptions.HTTPException(409, detail="View already exists.") from None
 
     except sql_api.DataError as exc:
@@ -209,41 +211,39 @@ async def get_messages(
     responses={
         **dto_models.USER_AUTH_RESPONSE,
         404: dto_models.BASIC_ERROR,
-        403: dto_models.BASIC_ERROR,
         400: dto_models.BASIC_ERROR,
     },
     tags=["Messages"],
 )
 async def patch_message(
     message_update: dto_models.ReceivedMessageUpdate,
+    message_id: uuid.UUID = fastapi.Path(...),
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
-    stored_message: dao_protos.Message = fastapi.Depends(user_auth_message),
 ) -> dto_models.Message:
-    if stored_message.user_id != auth.id:
-        raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
+    fields: dict[str, typing.Any] = message_update.dict(exclude_unset=True)
+    if (expire_after := fields.pop("expire_after", ...)) is not ...:
+        assert expire_after is None or isinstance(expire_after, datetime.timedelta)
+        if expire_after:
+            fields["expire_at"] = datetime.datetime.now(tz=datetime.timezone.utc) + expire_after
 
-    try:
-        fields: dict[str, typing.Any] = message_update.dict(exclude_unset=True)
-        if (expire_after := fields.pop("expire_after", ...)) is not ...:
-            assert expire_after is None or isinstance(expire_after, datetime.timedelta)
-            if expire_after:
-                fields["expire_at"] = datetime.datetime.now(tz=datetime.timezone.utc) + expire_after
+        else:
+            fields["expire_at"] = None
 
-            else:
-                fields["expire_at"] = None
+    if new_message := await database.update_message(message_id, auth.id, **fields):
+        result = dto_models.Message.from_orm(new_message)
 
-        new_message = await database.update_message(stored_message.id, **fields)
-        assert new_message is not None, "existence should've been verified by retrieve_message"
+        try:
+            result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
 
-    except sql_api.DataError as exc:
-        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
+        except sql_api.DataError as exc:
+            raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
-    result = dto_models.Message.from_orm(new_message)
-    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
-    result.with_paths(metadata)
-    return result
+        result.with_paths(metadata)
+        return result
+
+    raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
 
 
 @utilities.as_endpoint(
