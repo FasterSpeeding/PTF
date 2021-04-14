@@ -216,6 +216,7 @@ async fn actix_main() -> std::io::Result<()> {
             ))
             .service(delete_my_message_file)
             .service(get_my_message_file)
+            .service(get_shared_message_file)
             .service(put_my_message_file)
     })
     .bind(url)?
