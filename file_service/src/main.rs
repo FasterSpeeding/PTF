@@ -39,6 +39,17 @@ mod utility;
 use shared::dto_models;
 
 
+lazy_static::lazy_static! {
+    static ref URL: String = shared::get_env_variable("FILE_SERVICE_ADDRESS")
+        .map(shared::remove_protocol)
+        .unwrap();
+    static ref AUTH_URL: String = shared::get_env_variable("AUTH_SERVICE_ADDRESS").unwrap();
+    static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
+    static ref FILE_BASE_URL: String = shared::get_env_variable("FILE_BASE_URL").unwrap();
+    static ref HOSTNAME: String = shared::get_env_variable("FILE_SERVICE_HOSTNAME").unwrap();
+}
+
+
 #[delete("/users/@me/messages/{message_id}/files/{file_name}")]
 async fn delete_my_message_file(
     req: HttpRequest,
@@ -186,7 +197,7 @@ async fn put_my_message_file(
 
     db.set_or_update_file(&message.id, &file_name, &content_type, &date)
         .await
-        .map(|v| HttpResponse::Ok().json(v))
+        .map(|v| HttpResponse::Ok().json(dto_models::File::from_dao(v, &HOSTNAME)))
         // TODO: should some cases of this actually be handled as the message not existing
         .map_err(|e| {
             log::error!("Failed to set file database entry due to {:?}", e);
@@ -197,15 +208,9 @@ async fn put_my_message_file(
 
 // #[actix_web::main]
 async fn actix_main() -> std::io::Result<()> {
-    let url = shared::get_env_variable("FILE_SERVICE_ADDRESS")
-        .map(shared::remove_protocol)
-        .unwrap();
-    let auth_url = shared::get_env_variable("AUTH_SERVICE_ADDRESS").unwrap();
-    let database_url = shared::get_env_variable("DATABASE_URL").unwrap();
-    let file_base_url = shared::get_env_variable("FILE_BASE_URL").unwrap();
-    let auth_handler = auth::AuthClient::new(&auth_url);
-    let file_reader = files::LocalReader::new(&file_base_url);
-    let pool = shared::postgres::Pool::connect(&database_url).await.unwrap();
+    let auth_handler = auth::AuthClient::new(&AUTH_URL);
+    let file_reader = files::LocalReader::new(&FILE_BASE_URL);
+    let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
 
     HttpServer::new(move || {
         App::new()
@@ -219,7 +224,8 @@ async fn actix_main() -> std::io::Result<()> {
             .service(get_shared_message_file)
             .service(put_my_message_file)
     })
-    .bind(url)?
+    .server_hostname(&*HOSTNAME)
+    .bind(&*URL)?
     .run()
     .await
 }

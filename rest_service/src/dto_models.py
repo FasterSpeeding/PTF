@@ -203,23 +203,23 @@ class Message(pydantic.BaseModel):
     created_at: datetime.datetime
     expire_at: typing.Union[datetime.datetime, None]
     is_transient: bool
-    link: str = pydantic.Field(default="")
-    public_link: str = pydantic.Field(default="")
+    private_link: str = pydantic.Field(default="")
+    shareable_link: str = pydantic.Field(default="")
     text: typing.Optional[str]
     title: typing.Optional[str]
     files: list[File] = pydantic.Field(default_factory=list)
 
     Config = _ModelConfig
 
-    def path(self) -> str:
+    def private_path(self) -> str:
         return f"/users/@me/messages/{self.id}"
 
-    def public_path(self) -> str:
+    def shareable_path(self) -> str:
         return f"/messages/{self.id}"
 
     def with_paths(self, metadata: utilities.Metadata, *, recursive: bool = True) -> None:
-        self.link = metadata.file_service_hostname + self.path()
-        self.public_link = metadata.file_service_hostname + self.public_path()
+        self.private_link = metadata.file_service_hostname + self.private_path()
+        self.shareable_link = metadata.file_service_hostname + self.shareable_path()
 
         if recursive:
             for file in self.files:
@@ -230,21 +230,21 @@ class File(pydantic.BaseModel):
     content_type: str
     file_name: str
     message_id: uuid.UUID
-    link: str = pydantic.Field(default="")
-    public_link: str = pydantic.Field(default="")
+    private_link: str = pydantic.Field(default="")
+    shareable_link: str = pydantic.Field(default="")
     set_at: datetime.datetime
 
     Config = _ModelConfig
 
-    def path(self) -> str:
+    def private_path(self) -> str:
         return f"/users/@me/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
 
-    def public_path(self) -> str:
+    def shareable_path(self) -> str:
         return f"/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
 
     def with_paths(self, metadata: utilities.Metadata) -> None:
-        self.link = metadata.file_service_hostname + self.path()
-        self.public_link = metadata.file_service_hostname + self.public_path()
+        self.private_link = metadata.file_service_hostname + self.private_path()
+        self.shareable_link = metadata.file_service_hostname + self.shareable_path()
 
 
 class ReceivedView(pydantic.BaseModel):

@@ -41,6 +41,14 @@ use crypto::Hasher;
 mod utility;
 
 
+lazy_static::lazy_static! {
+    static ref URL: String = shared::get_env_variable("AUTH_SERVICE_ADDRESS")
+        .map(shared::remove_protocol)
+        .unwrap();
+    static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
+}
+
+
 #[delete("/users/@me")]
 async fn delete_current_user(
     req: HttpRequest,
@@ -259,11 +267,7 @@ async fn post_my_message_link(
 
 // #[actix_web::main]
 async fn actix_main() -> std::io::Result<()> {
-    let url = shared::get_env_variable("AUTH_SERVICE_ADDRESS")
-        .map(shared::remove_protocol)
-        .unwrap();
-    let database_url = shared::get_env_variable("DATABASE_URL").unwrap();
-    let pool = shared::postgres::Pool::connect(&database_url).await.unwrap();
+    let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
     let hasher = crypto::Argon::new();
 
     HttpServer::new(move || {
@@ -279,7 +283,7 @@ async fn actix_main() -> std::io::Result<()> {
             .service(post_my_message_link)
             .service(post_user)
     })
-    .bind(url)?
+    .bind(&*URL)?
     .run()
     .await
 }

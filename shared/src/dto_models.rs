@@ -97,6 +97,35 @@ fn deserialize_duration<'de, D: serde::Deserializer<'de>>(d: D) -> Result<chrono
 }
 
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct File {
+    pub content_type:   String,
+    pub file_name:      String,
+    pub message_id:     uuid::Uuid,
+    pub private_link:   String,
+    pub shareable_link: String,
+    pub set_at:         chrono::DateTime<chrono::Utc>
+}
+
+impl File {
+    pub fn from_dao(model: crate::dao_models::File, base_url: &str) -> Self {
+        let private_link = format!(
+            "{}/users/@me/messages/{}/files/{}",
+            base_url, &model.message_id, &model.file_name
+        );
+        let shareable_link = format!("{}/messages/{}/files/{}", base_url, &model.message_id, &model.file_name);
+        Self {
+            content_type: model.content_type,
+            file_name: model.file_name,
+            message_id: model.message_id,
+            private_link,
+            shareable_link,
+            set_at: model.set_at
+        }
+    }
+}
+
+
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct User {
     pub id:         uuid::Uuid,
