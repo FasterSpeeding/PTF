@@ -83,22 +83,6 @@ async def delete_messages(
     return fastapi.Response(status_code=202)
 
 
-async def viewer_device(
-    device_name: typing.Optional[str] = fastapi.Header(
-        default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
-    ),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
-) -> typing.Optional[dao_protos.Device]:
-    if device_name is None:
-        return None
-
-    if device := await database.get_device_by_name(auth.id, device_name):
-        return device
-
-    raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
-
-
 @utilities.as_endpoint(
     "PUT",
     "/users/@me/messages/{message_id}/views/{device_name}",
