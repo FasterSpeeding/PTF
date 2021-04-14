@@ -240,6 +240,7 @@ async fn actix_main() -> std::io::Result<()> {
             .app_data(web::Data::new(
                 Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
             ))
+            .app_data(actix_web::web::PayloadConfig::new(209_715_200)) // TODO: decide on size
             .service(delete_my_message_file)
             .service(get_my_message_file)
             .service(get_shared_message_file)
