@@ -31,6 +31,7 @@
 #![allow(dead_code)]
 use std::sync::Arc;
 
+use actix_web::http::header;
 use actix_web::{delete, get, http, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
 use shared::sql::Database;
 mod auth;
@@ -47,6 +48,20 @@ lazy_static::lazy_static! {
     static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
     static ref FILE_BASE_URL: String = shared::get_env_variable("FILE_BASE_URL").unwrap();
     static ref HOSTNAME: String = shared::get_env_variable("FILE_SERVICE_HOSTNAME").unwrap();
+}
+
+
+#[inline]
+fn content_disposition(filename: &str) -> (http::HeaderName, header::ContentDisposition) {
+    let disposition = header::ContentDisposition {
+        disposition: header::DispositionType::Inline, // TODO: inline or attachment?
+        parameters:  vec![header::DispositionParam::FilenameExt(header::ExtendedValue {
+            charset:      header::Charset::Ext("UTF-8".to_owned()),
+            language_tag: None,
+            value:        filename.as_bytes().to_owned()
+        })]
+    };
+    (header::CONTENT_DISPOSITION, disposition)
 }
 
 
@@ -109,7 +124,8 @@ async fn get_my_message_file(
         .await
         .map(|v| {
             HttpResponse::Ok()
-                .insert_header((http::header::CONTENT_TYPE, file.content_type))
+                .insert_header((header::CONTENT_TYPE, file.content_type))
+                .insert_header(content_disposition(&file_name))
                 .body(v)
         })
         .map_err(|e| {
@@ -141,7 +157,8 @@ async fn get_shared_message_file(
         .await
         .map(|v| {
             HttpResponse::Ok()
-                .insert_header((http::header::CONTENT_TYPE, file.content_type))
+                .insert_header((header::CONTENT_TYPE, file.content_type))
+                .insert_header(content_disposition(&file_name))
                 .body(v)
         })
         .map_err(|e| {
@@ -162,6 +179,7 @@ async fn put_my_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
+    let content_type = req.content_type();
 
     if file_name.len() > 120 {
         return Err(utility::single_error(
@@ -170,12 +188,15 @@ async fn put_my_message_file(
         ));
     };
 
+    if content_type.is_empty() {
+        return Err(utility::single_error(400, "Missing content type header"));
+    };
+
     let user = auth_handler
         .resolve_user(auth::get_auth_header(&req)?)
         .await
         .map_err(auth::map_auth_response)?;
 
-    let content_type = req.content_type();
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
 
     if user.id != message.user_id {
