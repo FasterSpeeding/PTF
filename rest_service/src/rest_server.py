@@ -58,7 +58,8 @@ def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.Database
     user_auth_handler = security.UserAuth(metadata.auth_service_address)
     server = fastapi.FastAPI(title="PTF API")
     server.dependency_overrides[refs.DatabaseProto] = sql_builder
-    server.dependency_overrides[refs.AuthGetterProto] = user_auth_handler
+    server.dependency_overrides[refs.LinkAuthProto] = user_auth_handler.link_auth
+    server.dependency_overrides[refs.UserAuthProto] = user_auth_handler.user_auth
     server.dependency_overrides[utilities.Metadata] = metadata
 
     async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:

@@ -76,8 +76,9 @@ pub struct View {
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
 pub struct MessageLink {
+    pub access:     i16,
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
     pub message_id: uuid::Uuid,
-    pub scopes:     String,
+    pub resource:   Option<String>,
     pub token:      String
 }

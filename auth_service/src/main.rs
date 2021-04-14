@@ -31,83 +31,30 @@
 #![allow(dead_code)]
 use std::sync::Arc;
 
-use actix_web::{get, http, patch, put, web, App, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{delete, get, patch, post, web, App, HttpRequest, HttpResponse, HttpServer};
 use shared::dto_models;
-use shared::sql::{Database, DatabaseResult, SetError};
+use shared::sql::{Database, SetError};
+use validator::Validate;
 
 mod crypto;
 use crypto::Hasher;
-
-pub fn single_error(status: u16, detail: &str) -> HttpResponse {
-    let response =
-        dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(status).detail(detail));
-
-    HttpResponse::build(http::StatusCode::from_u16(status).unwrap()).json(response)
-}
+mod utility;
 
 
-pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str) -> Result<T, HttpResponse> {
-    match result {
-        Ok(Some(entry)) => Ok(entry),
-        Ok(None) => Err(single_error(404, &format!("{} not found", resource_name))),
+#[delete("/users/@me")]
+async fn delete_current_user(
+    req: HttpRequest,
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>
+) -> Result<HttpResponse, HttpResponse> {
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
+
+    match db.delete_user(&user.id).await {
+        Ok(true) => Ok(HttpResponse::NoContent().finish()),
+        Ok(false) => Err(utility::single_error(404, "User not found")),
         Err(error) => {
-            log::error!("Failed to get entry from SQL database due to {}", error);
-
-            Err(single_error(500, "Database lookup failed"))
-        }
-    }
-}
-
-
-async fn resolve_user(
-    req: &HttpRequest,
-    db: &web::Data<Arc<dyn Database>>,
-    hasher: &web::Data<Arc<dyn Hasher>>
-) -> Result<shared::dao_models::AuthUser, HttpResponse> {
-    let value = req
-        .headers()
-        .get(http::header::AUTHORIZATION)
-        .ok_or_else(|| single_error(401, "Missing authorization header"))?
-        .to_str()
-        .map_err(|_| single_error(400, "Invalid authorization header"))?
-        .to_owned();
-
-    if value.len() < 7 {
-        return Err(single_error(400, "Invalid authorization header"));
-    }
-
-    let (token_type, token) = value.split_at(6);
-
-    if !"Basic ".eq_ignore_ascii_case(token_type) {
-        return Err(single_error(401, "Expected a Basic authorization token"));
-    }
-
-    let token = sodiumoxide::base64::decode(token, sodiumoxide::base64::Variant::Original)
-        .map_err(|_| single_error(400, "Invalid authorization header"))?;
-    let (username, password) = std::str::from_utf8(&token)
-        .map_err(|_| single_error(400, "Invalid authorization header"))
-        .and_then(|value| {
-            let mut iterator = value.splitn(2, ':');
-            match (iterator.next(), iterator.next()) {
-                (Some(username), Some(password)) if !password.is_empty() => Ok((username, password)),
-                _ => Err(single_error(400, "Invalid authorization header"))
-            }
-        })?;
-
-
-    match db.get_user_by_username(username).await {
-        Ok(Some(user)) => match hasher.verify(&user.password_hash, &password).await {
-            Ok(true) => Ok(user),
-            Ok(false) => Err(single_error(401, "Incorrect username or password")),
-            other => {
-                log::error!("Failed to check password due to {:?}", other);
-                Err(single_error(500, "Internal server error"))
-            }
-        },
-        Ok(None) => Err(single_error(401, "Incorrect username or password")),
-        Err(error) => {
-            log::error!("Failed to get user from database due to {}", error);
-            Err(single_error(500, "Internal server error"))
+            log::error!("Failed to delete user entry due to {:?}", error);
+            Err(utility::single_error(500, "Failed to delete user"))
         }
     }
 }
@@ -119,76 +66,192 @@ async fn get_current_user(
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>
 ) -> Result<HttpResponse, HttpResponse> {
-    resolve_user(&req, &db, &hasher)
+    utility::resolve_user(&req, &db, &hasher)
         .await
         .map(shared::dto_models::User::from_auth)
         .map(|v| HttpResponse::Ok().json(v))
 }
 
-#[put("/users/{username}")]
-async fn put_user(
+
+#[post("/users")]
+async fn post_user(
+    // TODO: refactor this so it's less internal info leaky
     req: HttpRequest,
-    username: web::Path<String>,
+    user: web::Json<dto_models::ReceivedUser>,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>,
-    user: web::Json<dto_models::ReceivedUser>
+    hasher: web::Data<Arc<dyn Hasher>>
 ) -> Result<HttpResponse, HttpResponse> {
-    let username = username.into_inner();
-    resolve_user(&req, &db, &hasher).await?; // TODO: check flags
+    // TODO: remove "id" from some responses
+    if let Err(error) = user.validate() {
+        let response = dto_models::Error::from_validation_errors(&error);
+        return Err(HttpResponse::BadRequest().json(response));
+    };
+
+    utility::resolve_flags(&req, &db, &hasher, 1 << 2).await?;
 
     let password_hash = hasher.hash(&user.password).await.map_err(|e| {
         log::error!("Failed to hash password due to {:?}", e);
-        single_error(500, "Internal server error")
+        utility::single_error(500, "Internal server error")
     })?;
 
-    let result = db.set_user(&user.flags, &password_hash, &username).await;
+    let result = db.set_user(&user.flags, &password_hash, &user.username).await;
 
     match result {
         Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(user))),
-        Err(SetError::Conflict) => Err(single_error(409, "User already exists")),
+        Err(SetError::Conflict) => Err(utility::single_error(409, "User already exists")),
         Err(SetError::Unknown(error)) => {
             log::error!("Failed to set user due to {:?}", error);
-            Err(single_error(500, "Internal server error"))
+            Err(utility::single_error(500, "Internal server error"))
         }
     }
 }
 
 
 #[patch("/users/@me")]
-async fn patch_user(
+async fn patch_current_user(
     req: HttpRequest,
+    user_update: web::Json<dto_models::UserUpdate>,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>,
-    user_update: web::Json<dto_models::UserUpdate>
+    hasher: web::Data<Arc<dyn Hasher>>
 ) -> Result<HttpResponse, HttpResponse> {
-    let user = resolve_user(&req, &db, &hasher).await?;
+    // TODO: remove "id" from some responses
+    if let Err(error) = user_update.validate() {
+        let response = dto_models::Error::from_validation_errors(&error);
+        return Err(HttpResponse::BadRequest().json(response));
+    };
+
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
 
     let password_hash = match &user_update.password {
         Some(password) => hasher.hash(password).await.map(Some).map_err(|e| {
             log::error!("Failed to hash password due to {:?}", e);
-            single_error(500, "Internal server error")
+            utility::single_error(500, "Internal server error")
         })?,
         None => None
     };
 
-    let result = db
-        .update_user(
-            &user.id,
-            &user_update.flags,
-            &password_hash.as_deref(),
-            &user_update.username.as_deref()
-        )
-        .await
-        .map_err(|e| {
-            log::error!("Failed to update user due to {:?}", e);
-            single_error(500, "Internal server error")
-        })?;
+    db.update_user(
+        &user.id,
+        &user_update.flags,
+        &password_hash.as_deref(),
+        &user_update.username.as_deref()
+    )
+    .await
+    .map_err(|e| {
+        log::error!("Failed to update user due to {:?}", e);
+        utility::single_error(500, "Internal server error")
+    })?
+    .map(|v| HttpResponse::Ok().json(dto_models::User::from_auth(v)))
+    // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
+    .ok_or_else(|| utility::single_error(404, "Couldn't find user"))
+}
 
-    match result {
-        Some(result) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(result))),
-        // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
-        None => Err(single_error(404, "Couldn't find user"))
+
+#[get("/messages/{message_id}/links")]
+async fn get_message_link(
+    message_id: web::Path<uuid::Uuid>,
+    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    db: web::Data<Arc<dyn Database>>
+) -> Result<HttpResponse, HttpResponse> {
+    let message_id = message_id.into_inner();
+    let link = link.into_inner();
+
+    db.get_message_link(&message_id, &link.link)
+        .await
+        .map(|v| match v {
+            Some(link) if link.message_id == message_id => HttpResponse::Ok().json(link),
+            _ => utility::single_error(404, "Link not found")
+        })
+        .map_err(|e| {
+            log::error!("Failed to get message link from db due to {:?}", e);
+            utility::single_error(500, "Internal server error")
+        })
+}
+
+
+#[delete("/users/@me/messages/{message_id}/links")]
+async fn delete_my_message_link(
+    req: HttpRequest,
+    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    message_id: web::Path<uuid::Uuid>,
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>
+) -> Result<HttpResponse, HttpResponse> {
+    let link = link.into_inner();
+    let message_id = message_id.into_inner();
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
+
+    if message.user_id != user.id {
+        return Err(utility::single_error(404, "Message not found"));
+    };
+
+    match db.delete_message_link(&message_id, &link.link).await {
+        Ok(true) => Ok(HttpResponse::NoContent().finish()),
+        Ok(false) => Err(utility::single_error(404, "Message link not found")),
+        Err(error) => {
+            log::error!("Failed to delete link entry due to {:?}", error);
+            Err(utility::single_error(500, "Failed to delete link"))
+        }
     }
+}
+
+
+#[get("/users/@me/messages/{message_id}/links")]
+async fn get_my_message_links(
+    req: HttpRequest,
+    message_id: web::Path<uuid::Uuid>,
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>
+) -> Result<HttpResponse, HttpResponse> {
+    let message_id = message_id.into_inner();
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
+
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
+
+    if message.user_id != user.id {
+        return Err(utility::single_error(404, "Message not found"));
+    };
+
+    db.get_message_links(&message_id)
+        .await
+        .map(|v| HttpResponse::Ok().json(v))
+        .map_err(|e| {
+            log::error!("Failed to get message links from database due to {:?}", e);
+            utility::single_error(500, "Failed to delete link")
+        })
+}
+
+
+#[post("/users/@me/messages/{message_id}/links")]
+async fn post_my_message_link(
+    req: HttpRequest,
+    message_id: web::Path<uuid::Uuid>,
+    received_link: web::Json<dto_models::ReceivedMessageLink>,
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>
+) -> Result<HttpResponse, HttpResponse> {
+    let message_id = message_id.into_inner();
+    let user = utility::resolve_user(&req, &db, &hasher).await?;
+    let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
+
+    if message.user_id != user.id {
+        return Err(utility::single_error(404, "Message not found"));
+    };
+
+    db.set_message_link(
+        &message_id,
+        &crypto::gen_link_key(),
+        &received_link.access,
+        &received_link.expires_after.map(|v| chrono::Utc::now() + v),
+        &received_link.resource
+    )
+    .await
+    .map(|v| HttpResponse::Ok().json(v))
+    .map_err(|e| {
+        log::error!("Failed to set message link due to {:?}", e);
+        utility::single_error(500, "Internal server error")
+    })
 }
 
 
@@ -205,9 +268,14 @@ async fn actix_main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
             .app_data(web::Data::new(Arc::from(hasher.clone()) as Arc<dyn Hasher>))
+            .service(delete_current_user)
+            .service(delete_my_message_link)
             .service(get_current_user)
-            .service(patch_user)
-            .service(put_user)
+            .service(get_my_message_links)
+            .service(get_message_link)
+            .service(patch_current_user)
+            .service(post_my_message_link)
+            .service(post_user)
     })
     .bind(url)?
     .run()

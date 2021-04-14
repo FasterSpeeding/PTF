@@ -36,21 +36,18 @@ __all__: list[str] = [
     "UNDEFINED",
     "UndefinedOr",
     "BasicError",
-    "ReceivedUser",
-    "ReceivedUserUpdate",
-    "User",
     "AuthUser",
+    "LinkAuth",
     "Device",
     "ReceivedMessage",
-    "ReceivedMessageLink",
     "ReceivedMessageUpdate",
     "Message",
-    "MessageLink",
     "File",
     "ReceivedView",
     "View",
     "BASIC_ERROR",
-    "AUTH_RESPONSE",
+    "LINK_AUTH_RESPONSE",
+    "USER_AUTH_RESPONSE",
 ]
 
 import datetime
@@ -66,6 +63,8 @@ from . import validation
 
 if typing.TYPE_CHECKING:
     import collections.abc as collections
+
+    from . import utilities
 
 
 class UndefinedType:
@@ -111,51 +110,21 @@ class BasicError(pydantic.BaseModel):
     Config = _ModelConfig
 
 
-class ReceivedUser(pydantic.BaseModel):
-    flags: flags.UserFlags = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
-    password: str = pydantic.Field(
-        min_length=validation.MINIMUM_PASSWORD_LENGTH, max_length=validation.MAXIMUM_PASSWORD_LENGTH
-    )
-
-    Config = _ModelConfig
-
-
-if typing.TYPE_CHECKING:
-
-    class ReceivedUserUpdate(pydantic.BaseModel):
-        username: UndefinedOr[str]
-        password: UndefinedOr[str]
-
-
-else:
-
-    # We can't type this as undefinable at runtime as this breaks FastAPI's handling.
-    class ReceivedUserUpdate(pydantic.BaseModel):
-        username: str = pydantic.Field(
-            default_factory=UndefinedType,
-            min_length=validation.MINIMUM_NAME_LENGTH,
-            max_length=validation.MAXIMUM_NAME_LENGTH,
-            regex=validation.USERNAME_REGEX,
-        )
-        password: str = pydantic.Field(
-            default_factory=UndefinedType,
-            min_length=validation.MINIMUM_PASSWORD_LENGTH,
-            max_length=validation.MAXIMUM_PASSWORD_LENGTH,
-        )
-
-        Config = _ModelConfig
-
-
-class User(pydantic.BaseModel):
+class AuthUser(pydantic.BaseModel):
     created_at: datetime.datetime
     flags: flags.UserFlags
+    id: int
     username: str
 
     Config = _ModelConfig
 
 
-class AuthUser(User, pydantic.BaseModel):
-    id: int
+class LinkAuth(pydantic.BaseModel):
+    access: int  # TODO: flags?
+    expires_at: typing.Optional[datetime.datetime]
+    message_id: uuid.UUID
+    resource: typing.Optional[str]
+    token: str
 
 
 class Device(pydantic.BaseModel):
@@ -234,25 +203,27 @@ class Message(pydantic.BaseModel):
     created_at: datetime.datetime
     expire_at: typing.Union[datetime.datetime, None]
     is_transient: bool
+    link: str = pydantic.Field(default="")
+    public_link: str = pydantic.Field(default="")
     text: typing.Optional[str]
     title: typing.Optional[str]
     files: list[File] = pydantic.Field(default_factory=list)
 
     Config = _ModelConfig
 
+    def path(self) -> str:
+        return f"/users/@me/messages/{self.id}"
 
-class ReceivedMessageLink(pydantic.BaseModel):
-    expires_after: typing.Optional[datetime.timedelta] = pydantic.Field(default=None)
+    def public_path(self) -> str:
+        return f"/messages/{self.id}"
 
-    @pydantic.validator("expires_after")
-    def validate_expire_after(cls, expire_after_: datetime.timedelta) -> typing.Optional[datetime.timedelta]:
-        return validation.validate_timedelta(expire_after_) if expire_after_ is not None else None
+    def with_paths(self, metadata: utilities.Metadata, *, recursive: bool = True) -> None:
+        self.link = metadata.file_service_hostname + self.path()
+        self.public_link = metadata.file_service_hostname + self.public_path()
 
-
-class MessageLink(ReceivedMessageLink, pydantic.BaseModel):
-    token: str
-    message_id: uuid.UUID
-    expires_at: typing.Optional[datetime.datetime] = pydantic.Field()
+        if recursive:
+            for file in self.files:
+                file.with_paths(metadata)
 
 
 class File(pydantic.BaseModel):
@@ -260,6 +231,7 @@ class File(pydantic.BaseModel):
     file_name: str
     message_id: uuid.UUID
     link: str = pydantic.Field(default="")
+    public_link: str = pydantic.Field(default="")
     set_at: datetime.datetime
 
     Config = _ModelConfig
@@ -268,7 +240,11 @@ class File(pydantic.BaseModel):
         return f"/users/@me/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
 
     def public_path(self) -> str:
-        raise NotImplementedError
+        return f"/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
+
+    def with_paths(self, metadata: utilities.Metadata) -> None:
+        self.link = metadata.file_service_hostname + self.path()
+        self.public_link = metadata.file_service_hostname + self.public_path()
 
 
 class ReceivedView(pydantic.BaseModel):
@@ -284,7 +260,10 @@ class View(ReceivedView, pydantic.BaseModel):
 
 # TODO: switch to func which accepts description
 BASIC_ERROR: typing.Final[dict[str, typing.Any]] = {"model": BasicError}
-AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
+LINK_AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
+    401: {**BASIC_ERROR, "description": "Returned when an invalid link token was provided."}
+}
+USER_AUTH_RESPONSE: typing.Final[dict[typing.Union[int, str], typing.Any]] = {
     401: {**BASIC_ERROR, "description": "Returned when invalid user authorization was provided."}
 }
 

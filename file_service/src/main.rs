@@ -36,6 +36,7 @@ use shared::sql::Database;
 mod auth;
 mod files;
 mod utility;
+use shared::dto_models;
 
 
 #[delete("/users/@me/messages/{message_id}/files/{file_name}")]
@@ -60,7 +61,6 @@ async fn delete_my_message_file(
 
     // TODO: the actual file should be deleted by a CRON job at a later date
     match db.delete_file_by_name(&message_id, &file_name).await {
-        // TODO: normalised file name?
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "File not found")),
         Err(error) => {
@@ -93,15 +93,50 @@ async fn get_my_message_file(
         return Err(utility::single_error(404, "File not found"));
     };
 
-    match file_reader.read_file(&file).await {
-        Ok(file_contents) => Ok(HttpResponse::Ok()
-            .insert_header((http::header::CONTENT_TYPE, file.content_type))
-            .body(file_contents)),
-        Err(error) => {
-            log::error!("Failed to read file due to {:?}", error);
-            Err(utility::single_error(500, "Failed to load file's contents"))
-        }
-    }
+    file_reader
+        .read_file(&file)
+        .await
+        .map(|v| {
+            HttpResponse::Ok()
+                .insert_header((http::header::CONTENT_TYPE, file.content_type))
+                .body(v)
+        })
+        .map_err(|e| {
+            log::error!("Failed to read file due to {:?}", e);
+            utility::single_error(500, "Failed to load file's contents")
+        })
+}
+
+
+#[get("/messages/{message_id}/files/{file_name}")]
+async fn get_shared_message_file(
+    path: web::Path<(uuid::Uuid, String)>,
+    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    auth_handler: web::Data<Arc<dyn auth::Auth>>,
+    db: web::Data<Arc<dyn Database>>,
+    file_reader: web::Data<Arc<dyn files::FileReader>>
+) -> Result<HttpResponse, HttpResponse> {
+    let (message_id, file_name) = path.into_inner();
+
+    auth_handler
+        .resolve_link(&message_id, &link)
+        .await
+        .map_err(auth::map_auth_response)?;
+
+    let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
+
+    file_reader
+        .read_file(&file)
+        .await
+        .map(|v| {
+            HttpResponse::Ok()
+                .insert_header((http::header::CONTENT_TYPE, file.content_type))
+                .body(v)
+        })
+        .map_err(|e| {
+            log::error!("Failed to read file due to {:?}", e);
+            utility::single_error(500, "Failed to load file's contents")
+        })
 }
 
 
@@ -149,16 +184,14 @@ async fn put_my_message_file(
             utility::single_error(500, "Internal server error")
         })?;
 
-    let result = db
-        .set_or_update_file(&message.id, &file_name, &content_type, &date)
+    db.set_or_update_file(&message.id, &file_name, &content_type, &date)
         .await
+        .map(|v| HttpResponse::Ok().json(v))
         // TODO: should some cases of this actually be handled as the message not existing
         .map_err(|e| {
             log::error!("Failed to set file database entry due to {:?}", e);
             utility::single_error(500, "Internal server error")
-        })?;
-
-    Ok(HttpResponse::Ok().json(result))
+        })
 }
 
 

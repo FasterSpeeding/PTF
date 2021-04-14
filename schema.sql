@@ -84,16 +84,14 @@ CREATE TABLE IF NOT EXISTS messages (
 
 -- TODO: is_unlisted?
 CREATE TABLE IF NOT EXISTS message_links (
+    access      SMALLINT                    NOT NULL,
     expires_at  TIMESTAMP WITH TIME ZONE,
     message_id  UUID                        NOT NULL,
-    scopes      VARCHAR                     NOT NULL,
+    resource    VARCHAR,
     token       CHAR(32)                    NOT NULL,
 
     CONSTRAINT message_link_pk
-        PRIMARY KEY (message_id, token),
-
-    CONSTRAINT message_link_token_uc
-        UNIQUE (token),
+        PRIMARY KEY (token),
 
     CONSTRAINT message_link_fk
         FOREIGN KEY (message_id)

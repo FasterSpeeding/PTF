@@ -40,7 +40,7 @@ pub struct Pool {
 
 impl Pool {
     pub fn new(pool: sqlx::Pool<sqlx::Postgres>) -> Self {
-        Self { pool }
+        Self { pool } // TODO: can we use sqlx::any here for some independence?
     }
 
     pub async fn connect(url: &str) -> Result<Self, sqlx::Error> {
@@ -59,6 +59,11 @@ fn process_insert_error(result: sqlx::Error) -> sql::SetError {
 }
 
 
+fn process_delete(result: sqlx::postgres::PgQueryResult) -> bool {
+    result.rows_affected() > 0
+}
+
+
 #[async_trait]
 impl sql::Database for Pool {
     async fn delete_file_by_name(&self, message_id: &uuid::Uuid, file_name: &str) -> sql::DeleteResult {
@@ -69,8 +74,8 @@ impl sql::Database for Pool {
         )
         .execute(&self.pool)
         .await
+        .map(process_delete)
         .map_err(Box::from)
-        .map(|result| result.rows_affected() > 0)
     }
 
     async fn delete_file_by_set_at(
@@ -85,8 +90,28 @@ impl sql::Database for Pool {
         )
         .execute(&self.pool)
         .await
+        .map(process_delete)
         .map_err(Box::from)
-        .map(|result| result.rows_affected() > 0)
+    }
+
+    async fn delete_message_link(&self, message_id: &uuid::Uuid, link_token: &str) -> sql::DeleteResult {
+        sqlx::query!(
+            "DELETE FROM message_links WHERE message_id=$1 AND token=$2",
+            message_id,
+            link_token
+        )
+        .execute(&self.pool)
+        .await
+        .map(process_delete)
+        .map_err(Box::from)
+    }
+
+    async fn delete_user(&self, user_id: &i64) -> sql::DeleteResult {
+        sqlx::query!("DELETE FROM users WHERE id=$1", user_id)
+            .execute(&self.pool)
+            .await
+            .map(process_delete)
+            .map_err(Box::from)
     }
 
     async fn get_file_by_name(
@@ -144,6 +169,17 @@ impl sql::Database for Pool {
         .map_err(Box::from)
     }
 
+    async fn get_message_links(&self, message_id: &uuid::Uuid) -> sql::ManyResult<dao_models::MessageLink> {
+        sqlx::query_as!(
+            dao_models::MessageLink,
+            "SELECT * FROM message_links WHERE message_id=$1",
+            message_id
+        )
+        .fetch_all(&self.pool)
+        .await
+        .map_err(Box::from)
+    }
+
     async fn get_user_by_id(&self, user_id: &i64) -> sql::DatabaseResult<dao_models::AuthUser> {
         sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)
@@ -173,6 +209,29 @@ impl sql::Database for Pool {
             file_name,
             content_type,
             set_at
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(process_insert_error)
+    }
+
+    async fn set_message_link(
+        &self,
+        message_id: &uuid::Uuid,
+        link_token: &str,
+        access: &i16,
+        expires_at: &Option<chrono::DateTime<chrono::Utc>>,
+        resource: &Option<String>
+    ) -> sql::SetResult<dao_models::MessageLink> {
+        sqlx::query_as!(
+            dao_models::MessageLink,
+            "INSERT INTO message_links (token, access, expires_at, message_id, resource) VALUES ($1, $2, $3, $4, $5) \
+             RETURNING *;",
+            link_token,
+            access,
+            expires_at.as_ref(),
+            message_id,
+            resource.as_ref(),
         )
         .fetch_one(&self.pool)
         .await

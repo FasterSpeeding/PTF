@@ -279,12 +279,6 @@ class PostgreDatabase(api.DatabaseHandler):
             assert result is None or isinstance(result, expected_type)
             return result
 
-    def clear_users(self) -> api.FilteredClear[dao_protos.User]:
-        return FilteredClear(self._database, dao_models.Users, dao_models.Users.delete())
-
-    async def delete_user(self, user_id: int, /) -> None:
-        await self._execute(dao_models.Users.delete(dao_models.Users.c["id"] == user_id))
-
     async def get_user_by_id(self, user_id: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(dao_protos.User, dao_models.Users.select(dao_models.Users.c["id"] == user_id))
 
@@ -405,35 +399,6 @@ class PostgreDatabase(api.DatabaseHandler):
 
     def iter_files_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.File]:
         return self.iter_files().filter("eq", ("message_id", message_id))
-
-    def clear_message_links(self) -> api.FilteredClear[dao_protos.MessageLink]:
-        return FilteredClear(self._database, dao_models.MessageLinks, dao_models.MessageLinks.delete())
-
-    async def delete_message_link(self, message_id: uuid.UUID, token: str, /) -> None:
-        columns = dao_models.MessageLinks.columns
-        query = dao_models.MessageLinks.delete(
-            sqlalchemy.and_(columns["message_id"] == message_id, columns["token"] == token)
-        )
-        await self._execute(query)
-
-    async def get_message_link(self, message_id: uuid.UUID, token: str, /) -> typing.Optional[dao_protos.MessageLink]:
-        columns = dao_models.MessageLinks.columns
-        query = dao_models.MessageLinks.select(
-            sqlalchemy.and_(columns["message_id"] == message_id, columns["token"] == token)
-        )
-        return await self._fetch_one(dao_protos.MessageLink, query)
-
-    def iter_message_links(self) -> api.DatabaseIterator[dao_protos.MessageLink]:
-        return PostgreIterator(self._database, dao_models.MessageLinks, dao_models.MessageLinks.select())
-
-    def iter_message_link_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.MessageLink]:
-        return self.iter_message_links().filter("eq", ("message_id", message_id))
-
-    async def set_message_link(self, **kwargs: typing.Any) -> dao_protos.MessageLink:
-        return await self._set(
-            dao_protos.MessageLink,  # type: ignore[misc]
-            dao_models.MessageLinks.insert(kwargs).returning(dao_models.MessageLinks),
-        )
 
     def clear_views(self) -> api.FilteredClear[dao_protos.View]:
         return FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())

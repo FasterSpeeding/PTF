@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["AuthGetterProto", "DatabaseProto", "UserAuthProto"]
+__all__: list[str] = ["DatabaseProto", "LinkAuthProto", "UserAuthProto"]
 
 import typing
 
@@ -45,20 +45,13 @@ class DatabaseProto(typing.Protocol):
         raise NotImplementedError
 
 
-class UserAuthProto:
-    @property
-    def user(self) -> dto_models.AuthUser:
-        raise NotImplementedError
-
-    async def create_user(self, username: str, user: dto_models.ReceivedUser) -> dto_models.AuthUser:
-        raise NotImplementedError
-
-    async def update_user(self, user: dto_models.ReceivedUserUpdate) -> dto_models.AuthUser:
+class LinkAuthProto(typing.Protocol):
+    def __call__(self) -> dto_models.LinkAuth:
         raise NotImplementedError
 
 
-class AuthGetterProto(typing.Protocol):
-    def __call__(self) -> UserAuthProto:
+class UserAuthProto(typing.Protocol):
+    def __call__(self) -> dto_models.AuthUser:
         raise NotImplementedError
 
 

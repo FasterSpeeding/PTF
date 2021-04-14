@@ -33,18 +33,15 @@ from __future__ import annotations
 
 __all__: list[str] = [
     "delete_messages",
-    "delete_message_link",
+    "get_linked_message",
     "get_message",
     "get_messages",
-    "get_message_links",
     "patch_message",
     "post_messages",
-    "post_message_links",
     "put_message_view",
 ]
 
 import datetime
-import secrets
 import typing
 import uuid
 
@@ -58,13 +55,13 @@ from ..sql import api as sql_api
 from ..sql import dao_protos
 
 
-async def retrieve_message(
+async def user_auth_message(
     message_id: uuid.UUID = fastapi.Path(...),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> dao_protos.Message:
     if stored_message := await database.get_message(message_id):
-        if stored_message.user_id != auth.user.id:
+        if stored_message.user_id != auth.id:
             raise fastapi.exceptions.HTTPException(403, detail="You cannot access this message.") from None
 
         return stored_message
@@ -77,15 +74,15 @@ async def retrieve_message(
     "/users/@me/messages",
     status_code=202,
     response_class=fastapi.Response,
-    responses=dto_models.AUTH_RESPONSE,
+    responses=dto_models.USER_AUTH_RESPONSE,
     tags=["Messages"],
 )
 async def delete_messages(
     message_ids: set[uuid.UUID] = fastapi.Body(...),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", auth.user.id)).start()
+    database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", auth.id)).start()
     return fastapi.Response(status_code=202)
 
 
@@ -94,12 +91,12 @@ async def viewer_device(
         default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
 ) -> typing.Optional[dao_protos.Device]:
     if device_name is None:
         return None
 
-    if device := await database.get_device_by_name(auth.user.id, device_name):
+    if device := await database.get_device_by_name(auth.id, device_name):
         return device
 
     raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
@@ -110,18 +107,18 @@ async def viewer_device(
     "/users/@me/messages/{message_id}/views/{device_name}",
     response_class=fastapi.Response,
     status_code=204,
-    responses={400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
+    responses={400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR, **dto_models.USER_AUTH_RESPONSE},
     tags=["Messages"],
 )
 async def put_message_view(
     device_name: str = fastapi.Path(
         default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    message: dao_protos.Message = fastapi.Depends(user_auth_message),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    if not (device := await database.get_device_by_name(auth.user.id, device_name)):
+    if not (device := await database.get_device_by_name(auth.id, device_name)):
         raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
 
     try:
@@ -138,22 +135,41 @@ async def put_message_view(
 
 @utilities.as_endpoint(
     "GET",
+    "/messages/{message_id}",
+    response_model=dto_models.Message,
+    responses={**dto_models.LINK_AUTH_RESPONSE},
+    tags=["Linked Messages"],
+)
+async def get_linked_message(
+    _: dto_models.LinkAuth = fastapi.Depends(refs.LinkAuthProto),
+    message_id: uuid.UUID = fastapi.Path(...),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
+) -> dto_models.Message:
+    message = await database.get_message(message_id)
+    assert message is not None  # TODO: what if they manage to delete the message before we could get it?
+
+    result = dto_models.Message.from_orm(message)
+    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    result.with_paths(metadata)
+    return result
+
+
+@utilities.as_endpoint(
+    "GET",
     "/users/@me/messages/{message_id}",
     response_model=dto_models.Message,
-    responses={404: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
+    responses={404: dto_models.BASIC_ERROR, **dto_models.USER_AUTH_RESPONSE},
     tags=["Messages"],
 )
 async def get_message(
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
+    message: dao_protos.Message = fastapi.Depends(user_auth_message),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     result = dto_models.Message.from_orm(message)
-
-    for file in await database.iter_files_for_message(message.id).map(dto_models.File.from_orm):
-        file.link = metadata.file_service_hostname + file.path()
-        result.files.append(file)
-
+    result.files.extend(await database.iter_files_for_message(message.id).map(dto_models.File.from_orm))
+    result.with_paths(metadata)
     return result
 
 
@@ -161,15 +177,15 @@ async def get_message(
     "GET",
     "/users/@me/messages",
     response_model=list[dto_models.Message],
-    responses={400: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
+    responses={400: dto_models.BASIC_ERROR, **dto_models.USER_AUTH_RESPONSE},
     tags=["Messages"],
 )
 async def get_messages(
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> list[dto_models.Message]:
-    messages = {m.id: m for m in await database.iter_messages_for_user(auth.user.id).map(dto_models.Message.from_orm)}
+    messages = {m.id: m for m in await database.iter_messages_for_user(auth.id).map(dto_models.Message.from_orm)}
     files = (
         await database.iter_files()
         .filter("contains", ("message_id", set(messages.keys())))
@@ -177,8 +193,11 @@ async def get_messages(
     )
 
     for file in files:
-        file.link = metadata.file_service_hostname + file.path()
+        file.with_paths(metadata)
         messages[file.message_id].files.append(file)
+
+    for message in messages.values():
+        message.with_paths(metadata, recursive=False)
 
     return list(messages.values())
 
@@ -188,7 +207,7 @@ async def get_messages(
     "/users/@me/messages/{message_id}",
     response_model=dto_models.Message,
     responses={
-        **dto_models.AUTH_RESPONSE,
+        **dto_models.USER_AUTH_RESPONSE,
         404: dto_models.BASIC_ERROR,
         403: dto_models.BASIC_ERROR,
         400: dto_models.BASIC_ERROR,
@@ -197,12 +216,12 @@ async def get_messages(
 )
 async def patch_message(
     message_update: dto_models.ReceivedMessageUpdate,
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
-    stored_message: dao_protos.Message = fastapi.Depends(retrieve_message),
+    stored_message: dao_protos.Message = fastapi.Depends(user_auth_message),
 ) -> dto_models.Message:
-    if stored_message.user_id != auth.user.id:
+    if stored_message.user_id != auth.id:
         raise fastapi.exceptions.HTTPException(403, detail="You cannot edit this message.") from None
 
     try:
@@ -222,11 +241,8 @@ async def patch_message(
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     result = dto_models.Message.from_orm(new_message)
-
-    for file in await database.iter_files_for_message(result.id).map(dto_models.File.from_orm):
-        file.link = metadata.file_service_hostname + file.path()
-        result.files.append(file)
-
+    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    result.with_paths(metadata)
     return result
 
 
@@ -234,13 +250,14 @@ async def patch_message(
     "POST",
     "/users/@me/messages",
     response_model=dto_models.Message,
-    responses={**dto_models.AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
+    responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
     tags=["Messages"],
 )
 async def post_messages(
     message: dto_models.ReceivedMessage,
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+    metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     try:
         expire_at: typing.Optional[datetime.datetime] = None
@@ -252,80 +269,11 @@ async def post_messages(
             is_transient=message.is_transient,
             text=message.text,
             title=message.title,
-            user_id=auth.user.id,
+            user_id=auth.id,
         )
+        response = dto_models.Message.from_orm(result)
+        response.with_paths(metadata)
+        return response
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
-
-    return dto_models.Message.from_orm(result)
-
-
-@utilities.as_endpoint(
-    "DELETE",
-    "/users/@me/messages/{message_id}/links/{link_token}",
-    response_class=fastapi.Response,
-    status_code=204,
-    responses={403: dto_models.BASIC_ERROR, 404: dto_models.BASIC_ERROR, **dto_models.AUTH_RESPONSE},
-    tags=["Messages"],
-)
-async def delete_message_link(
-    link_token: str,
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> fastapi.Response:
-    if message.user_id != auth.user.id:
-        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
-
-    await database.delete_message_link(message.id, link_token)
-    return fastapi.Response(status_code=204)
-
-
-@utilities.as_endpoint(
-    "GET",
-    "/users/@me/messages/{message_id}/links",
-    response_model=list[dto_models.MessageLink],
-    responses={**dto_models.AUTH_RESPONSE, 403: dto_models.BASIC_ERROR, 404: dto_models.BASIC_ERROR},
-    tags=["Messages"],
-)
-async def get_message_links(
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> list[dto_models.MessageLink]:
-    if message.user_id != auth.user.id:
-        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
-
-    return list(await database.iter_message_link_for_message(message.id).map(dto_models.MessageLink.from_orm))
-
-
-@utilities.as_endpoint(
-    "POST",
-    "/users/@me/messages/{message_id}/links",
-    response_model=dto_models.MessageLink,
-    responses={
-        **dto_models.AUTH_RESPONSE,
-        400: dto_models.BASIC_ERROR,
-        403: dto_models.BASIC_ERROR,
-        404: dto_models.BASIC_ERROR,
-    },
-    tags=["Messages"],
-)
-async def post_message_links(
-    link: dto_models.ReceivedMessageLink,
-    message: dao_protos.Message = fastapi.Depends(retrieve_message),
-    auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto),
-    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> dto_models.MessageLink:
-    if auth.user.id != message.user_id:
-        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
-
-    expires_at: typing.Optional[datetime.datetime] = None
-    if link.expires_after is not None:
-        expires_at = datetime.datetime.now(tz=datetime.timezone.utc) + link.expires_after
-
-    result = await database.set_message_link(
-        message_id=message.id, token=secrets.token_urlsafe(32), expires_at=expires_at
-    )
-    return dto_models.MessageLink.from_orm(result)

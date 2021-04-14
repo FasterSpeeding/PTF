@@ -31,10 +31,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["RequireFlags", "UserAuth", "InitiatedAuth"]
+__all__: list[str] = ["RequireFlags", "UserAuth"]
 
 import base64
 import typing
+import uuid
 
 import aiohttp
 import fastapi.security
@@ -55,12 +56,11 @@ class UserAuth:
         self.base_url = base_url
         self._client: typing.Optional[aiohttp.ClientSession] = None
 
-    def _prepare(self, credentials: fastapi.security.HTTPBasicCredentials) -> typing.Tuple[aiohttp.ClientSession, str]:
-        auth = base64.b64encode(credentials.username.encode() + b":" + credentials.password.encode()).decode()
+    def _get_client(self) -> aiohttp.ClientSession:
         if self._client is None:
             self._client = aiohttp.ClientSession()
 
-        return self._client, auth
+        return self._client
 
     @staticmethod
     async def _handle_error(response: aiohttp.client.ClientResponse) -> fastapi.exceptions.HTTPException:
@@ -71,78 +71,42 @@ class UserAuth:
         except Exception:
             message = "Internal server error" if response.status >= 500 else "Unknown error"
 
-        headers = {"WWW-Authenticate": "Basic"} if response.status == 401 else None
+        authenticate = response.headers.get("WWW-Authenticate")
+        headers = {"WWW-Authenticate": authenticate} if authenticate else None
         return fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
 
-    async def __call__(
+    async def link_auth(
+        self, message_id: uuid.UUID = fastapi.Path(...), link: str = fastapi.Query(...)
+    ) -> dto_models.LinkAuth:
+        client = self._get_client()
+        response = await client.get(f"{self.base_url}/messages/{message_id}/links", params=(("link", link),))
+
+        if response.status == 200:
+            found_link = dto_models.LinkAuth.parse_obj(await response.json())
+            return found_link
+
+        if response.status == 404:
+            raise fastapi.exceptions.HTTPException(401, detail="Unknown message link")
+
+        raise await self._handle_error(response)
+
+    async def user_auth(
         self,
         credentials: fastapi.security.HTTPBasicCredentials = fastapi.Depends(fastapi.security.HTTPBasic()),
-        database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-    ) -> InitiatedAuth:
-        client, auth = self._prepare(credentials)
-        response = await client.get(self.base_url + "/users/@me", headers={"Authorization": f"Basic {auth}"})
+    ) -> dto_models.AuthUser:
+        auth = base64.b64encode(credentials.username.encode() + b":" + credentials.password.encode()).decode()
+        client = self._get_client()
+        response = await client.get(f"{self.base_url}/users/@me", headers={"Authorization": f"Basic {auth}"})
 
         if response.status == 200:
             user = dto_models.AuthUser.parse_obj(await response.json())
-            return InitiatedAuth(self, user, credentials)
+            return user
 
         raise await self._handle_error(response)
 
     async def close(self) -> None:
         if self._client:
             await self._client.close()
-
-    async def create_user(
-        self, credentials: fastapi.security.HTTPBasicCredentials, username: str, user: dto_models.ReceivedUser
-    ) -> dto_models.AuthUser:
-        client, auth = self._prepare(credentials)
-        response = await client.put(
-            self.base_url + f"/users/{username}",
-            headers={"Authorization": f"Basic {auth}", "Content-Type": "application/json"},
-            data=user.json(),
-        )
-
-        if response.status == 200:
-            return dto_models.AuthUser.parse_obj(await response.json())
-
-        raise await self._handle_error(response)
-
-    async def update_user(
-        self, credentials: fastapi.security.HTTPBasicCredentials, user: dto_models.ReceivedUserUpdate
-    ) -> typing.Optional[dto_models.AuthUser]:
-        if not (data := user.dict(exclude_unset=True)):
-            return None
-
-        client, auth = self._prepare(credentials)
-        response = await client.patch(
-            self.base_url + "/users/@me", headers={"Authorization": f"Basic {auth}"}, json=data
-        )
-
-        if response.status == 200:
-            return dto_models.AuthUser.parse_obj(await response.json())
-
-        raise await self._handle_error(response)
-
-
-class InitiatedAuth:
-    __slots__: typing.Sequence[str] = ("_auth_handler", "_credentials", "_user")
-
-    def __init__(
-        self, auth_handler: UserAuth, user: dto_models.AuthUser, credentials: fastapi.security.HTTPBasicCredentials
-    ) -> None:
-        self._auth_handler = auth_handler
-        self._credentials = credentials
-        self._user = user
-
-    @property
-    def user(self) -> dto_models.AuthUser:
-        return self._user
-
-    async def create_user(self, username: str, user: dto_models.ReceivedUser) -> dto_models.AuthUser:
-        return await self._auth_handler.create_user(self._credentials, username, user)
-
-    async def update_user(self, user: dto_models.ReceivedUserUpdate) -> dto_models.AuthUser:
-        return (await self._auth_handler.update_user(self._credentials, user)) or self._user
 
 
 class RequireFlags:
@@ -153,10 +117,9 @@ class RequireFlags:
     def __init__(self, flag_option: flags.UserFlags, /, *flags_options: flags.UserFlags) -> None:
         self.options = (flag_option, *flags_options)
 
-    async def __call__(self, auth: refs.UserAuthProto = fastapi.Depends(refs.AuthGetterProto)) -> refs.UserAuthProto:
+    async def __call__(self, auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto)) -> dto_models.AuthUser:
         # ADMIN access should allow all other permissions.
-        user = auth.user
-        if flags.UserFlags.ADMIN & user.flags or any((flags_ & user.flags) == flags_ for flags_ in self.options):
+        if flags.UserFlags.ADMIN & auth.flags or any((flags_ & auth.flags) == flags_ for flags_ in self.options):
             return auth
 
         raise fastapi.exceptions.HTTPException(403, detail="Missing permission(s) required to perform this action")
