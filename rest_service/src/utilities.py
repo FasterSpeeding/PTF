@@ -67,56 +67,17 @@ MethodT = typing.Union[
 class EndpointDescriptor(typing.Generic[fastapi_types.DecoratedCallable]):
     __slots__: tuple[str, ...] = ("_endpoint", "_kwargs")
 
-    _endpoint: collections.Callable[..., typing.Any]
-    _kwargs: dict[str, typing.Any]
-
-    if typing.TYPE_CHECKING:
-
-        def __init__(
-            self,
-            *,
-            methods: typing.Union[MethodT, set[MethodT]],
-            path: str,
-            endpoint: fastapi_types.DecoratedCallable,
-            response_model: typing.Optional[type[typing.Any]] = None,
-            status_code: int = 200,
-            tags: typing.Optional[list[str]] = None,
-            dependencies: typing.Optional[collections.Sequence[params.Depends]] = None,
-            summary: typing.Optional[str] = None,
-            description: typing.Optional[str] = None,
-            response_description: str = "Successful Response",
-            responses: typing.Optional[dict[typing.Union[int, str], dict[str, typing.Any]]] = None,
-            deprecated: typing.Optional[bool] = None,
-            operation_id: typing.Optional[str] = None,
-            response_model_include: typing.Optional[typing.Union[encoders.SetIntStr, encoders.DictIntStrAny]] = None,
-            response_model_exclude: typing.Optional[typing.Union[encoders.SetIntStr, encoders.DictIntStrAny]] = None,
-            response_model_by_alias: bool = True,
-            response_model_exclude_unset: bool = False,
-            response_model_exclude_defaults: bool = False,
-            response_model_exclude_none: bool = False,
-            include_in_schema: bool = True,
-            response_class: typing.Union[
-                type[fastapi.Response], datastructures.DefaultPlaceholder
-            ] = datastructures.Default(responses_.JSONResponse),
-            name: typing.Optional[str] = None,
-            route_class_override: typing.Optional[type[routing.APIRoute]] = None,
-            callbacks: typing.Optional[list[starlette_routing.BaseRoute]] = None,
-        ) -> None:
-            raise NotImplementedError
-
-    else:
-
-        def __init__(
-            self,
-            *,
-            endpoint: fastapi_types.DecoratedCallable,
-            methods: typing.Union[MethodT, set[MethodT]],
-            **kwargs: typing.Any,
-        ) -> None:
-            self._endpoint = endpoint
-            kwargs["endpoint"] = endpoint
-            kwargs["methods"] = [methods] if isinstance(methods, str) else set(methods)
-            self._kwargs = kwargs
+    def __init__(
+        self,
+        *,
+        endpoint: fastapi_types.DecoratedCallable,
+        methods: typing.Union[MethodT, set[MethodT]],
+        **kwargs: typing.Any,
+    ) -> None:
+        self._endpoint = endpoint
+        kwargs["endpoint"] = endpoint
+        kwargs["methods"] = {methods} if isinstance(methods, str) else set(methods)
+        self._kwargs = kwargs
 
     def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         return self._endpoint(*args, **kwargs)

@@ -65,22 +65,3 @@ def validate_timedelta(delta: datetime.timedelta, /) -> datetime.timedelta:
         raise ValueError(f"time delta must be less than or equal to {_RAW_MAXIMUM_TIMEDELTA} seconds")
 
     return delta
-
-
-def validate_pagination_parameters(
-    after: typing.Optional[int], before: typing.Optional[int], /
-) -> tuple[typing.Optional[int], typing.Optional[int]]:
-    if before is None and after is None:
-        before = MAXIMUM_BIG_INT
-
-    if after is not None and not MINIMUM_BIG_INT <= after <= MAXIMUM_BIG_INT:
-        raise ValueError(
-            f"`before` pagination must be within the range of {MINIMUM_BIG_INT}<= before {MAXIMUM_BIG_INT}"
-        )
-
-    if before is not None and not MINIMUM_BIG_INT <= before <= MAXIMUM_BIG_INT:
-        raise ValueError(
-            f"`before` pagination must be within the range of {MINIMUM_BIG_INT}<= before {MAXIMUM_BIG_INT}"
-        )
-
-    return after, before

@@ -44,8 +44,6 @@ if typing.TYPE_CHECKING:
 class User(typing.Protocol):
     """Definition of the structure returned by database implementations for user entries."""
 
-    __slots__: tuple[str, ...] = ()
-
     id: uuid.UUID
     created_at: datetime.datetime
     flags: int
@@ -56,8 +54,6 @@ class User(typing.Protocol):
 class Device(typing.Protocol):
     """Definition of the structure returned by database implementations for device entries."""
 
-    __slots__: tuple[str, ...] = ()
-
     id: int
     is_required_viewer: bool
     name: str
@@ -67,8 +63,6 @@ class Device(typing.Protocol):
 @typing.runtime_checkable
 class Message(typing.Protocol):
     """Definition of the structure returned by database implementations for message entries."""
-
-    __slots__: tuple[str, ...] = ()
 
     id: uuid.UUID
     created_at: datetime.datetime
@@ -81,8 +75,6 @@ class Message(typing.Protocol):
 
 @typing.runtime_checkable
 class MessageLink(typing.Protocol):
-    __slots__: tuple[str, ...] = ()
-
     token: str
     message_id: uuid.UUID
     expires_at: typing.Optional[datetime.datetime]
@@ -91,8 +83,6 @@ class MessageLink(typing.Protocol):
 @typing.runtime_checkable
 class File(typing.Protocol):
     """Definition of the structure returned by database implementations for file entries."""
-
-    __slots__: tuple[str, ...] = ()
 
     content_type: str
     file_name: str
@@ -103,8 +93,6 @@ class File(typing.Protocol):
 @typing.runtime_checkable
 class View(typing.Protocol):
     """Definition of the structure returned by database implementations for view entries."""
-
-    __slots__: tuple[str, ...] = ()
 
     created_at: datetime.datetime
     device_id: int

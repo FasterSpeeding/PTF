@@ -114,7 +114,6 @@ async def patch_user_device(
     return dto_models.Device.from_orm(new_device)
 
 
-# TODO: move to devices resources
 # TODO: merge PATCH and POST to PUT
 @utilities.as_endpoint(
     "POST",
