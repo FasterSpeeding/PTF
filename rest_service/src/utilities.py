@@ -135,25 +135,43 @@ else:
         return decorator
 
 
+REQUIRED_ENV_ENTRIES: typing.Final[list[str]] = [
+    "auth_service_address",
+    "database_url",
+    "file_service_hostname",
+    "rest_service_cert",
+    "rest_service_key",
+]
+
+
 class Metadata:
-    __slots__: tuple[str, ...] = ("auth_service_address", "database_url", "file_service_hostname", "log_level")
+    __slots__: tuple[str, ...] = (
+        "auth_service_address",
+        "database_url",
+        "file_service_hostname",
+        "log_level",
+        "ssl_cert",
+        "ssl_key",
+    )
 
     def __init__(self) -> None:
         dotenv.load_dotenv()
 
-        if not (auth_service_address := os.getenv("auth_service_address")):
-            raise RuntimeError("Must set auth service address in .env")
+        values = {key: os.getenv(key) for key in REQUIRED_ENV_ENTRIES}
 
-        if not (database_url := os.getenv("database_url")):
-            raise RuntimeError("Must set database connection URL in .env")
+        for key, value in values.items():
+            if value is None:
+                raise RuntimeError(f"{key} must be set in .env or environment")
 
-        if not (file_service_hostname := os.getenv("file_service_hostname")):
-            raise RuntimeError("Must set file service hostname in .env")
+        values = typing.cast("typing.Mapping[str, str]", values)
 
-        self.auth_service_address = auth_service_address
-        self.database_url = "//" + database_url.split("//", 1)[1]  # TODO: there must be a better way to handle this
-        self.file_service_hostname = file_service_hostname
+        self.auth_service_address = values["auth_service_address"]
+        # TODO: there must be a better way to handle the database url between rust and python
+        self.database_url = "//" + values["database_url"].split("//", 1)[1]
+        self.file_service_hostname = values["file_service_hostname"]
         self.log_level = (os.getenv("log_level") or "info").lower()
+        self.ssl_cert = values["rest_service_cert"]
+        self.ssl_key = values["rest_service_key"]
 
     def __call__(self) -> Metadata:
         return self

@@ -37,6 +37,7 @@ use shared::sql::Database;
 mod auth;
 mod files;
 mod utility;
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use shared::dto_models;
 
 
@@ -48,6 +49,8 @@ lazy_static::lazy_static! {
     static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
     static ref FILE_BASE_URL: String = shared::get_env_variable("FILE_BASE_URL").unwrap();
     static ref HOSTNAME: String = shared::get_env_variable("FILE_SERVICE_HOSTNAME").unwrap();
+    static ref SSL_KEY: String = shared::get_env_variable("FILE_SERVICE_KEY").unwrap();
+    static ref SSL_CERT: String = shared::get_env_variable("FILE_SERVICE_CERT").unwrap();
 }
 
 
@@ -233,6 +236,10 @@ async fn actix_main() -> std::io::Result<()> {
     let file_reader = files::LocalReader::new(&FILE_BASE_URL);
     let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
 
+    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
+    builder.set_private_key_file(&*SSL_KEY, SslFiletype::PEM).unwrap();
+    builder.set_certificate_chain_file(&*SSL_CERT).unwrap();
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(Arc::from(auth_handler.clone()) as Arc<dyn auth::Auth>))
@@ -247,12 +254,12 @@ async fn actix_main() -> std::io::Result<()> {
             .service(put_my_message_file)
     })
     .server_hostname(&*HOSTNAME)
-    .bind(&*URL)?
+    .bind_openssl(&*URL, builder)?
     .run()
     .await
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     shared::setup_logging();
     actix_web::rt::System::with_tokio_rt(|| {
         tokio::runtime::Builder::new_multi_thread()
@@ -261,5 +268,4 @@ fn main() {
             .unwrap()
     })
     .block_on(actix_main())
-    .unwrap();
 }

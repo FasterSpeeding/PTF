@@ -137,6 +137,8 @@ dependencies = [
  "futures-core",
  "http",
  "log",
+ "openssl",
+ "tokio-openssl",
  "tokio-util",
 ]
 
@@ -163,6 +165,7 @@ dependencies = [
  "actix-rt",
  "actix-server",
  "actix-service",
+ "actix-tls",
  "actix-utils",
  "actix-web-codegen",
  "ahash 0.7.2",
@@ -293,6 +296,7 @@ dependencies = [
  "chrono",
  "lazy_static",
  "log",
+ "openssl",
  "shared",
  "sodiumoxide",
  "tokio",
@@ -596,6 +600,7 @@ dependencies = [
  "chrono",
  "lazy_static",
  "log",
+ "openssl",
  "reqwest",
  "serde_json",
  "shared",
@@ -1233,6 +1238,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 
 [[package]]
+name = "openssl-src"
+version = "111.15.0+1.1.1k"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1a5f6ae2ac04393b217ea9f700cd04fa9bf3d93fae2872069f3d15d908af70a"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "openssl-sys"
 version = "0.9.61"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1241,6 +1255,7 @@ dependencies = [
  "autocfg",
  "cc",
  "libc",
+ "openssl-src",
  "pkg-config",
  "vcpkg",
 ]
@@ -2092,6 +2107,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f7d995660bd2b7f8c1568414c1126076c13fbb725c40112dc0120b78eb9b717b"
 dependencies = [
  "native-tls",
+ "tokio",
+]
+
+[[package]]
+name = "tokio-openssl"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ac1bec5c0a4aa71e3459802c7a12e8912c2091ce2151004f9ce95cc5d1c6124e"
+dependencies = [
+ "futures",
+ "openssl",
+ "pin-project",
  "tokio",
 ]
 

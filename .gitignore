@@ -61,3 +61,5 @@ coverage.xml
 # Logs
 *.log
 *target/
+
+*.ssl/
