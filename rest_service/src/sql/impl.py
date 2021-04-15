@@ -259,10 +259,7 @@ class PostgreDatabase(api.DatabaseHandler):
     ) -> collections.Sequence[_ValueT]:
         cursor = await self._execute(query)
         results = cursor.fetchall()
-
-        if results:
-            assert isinstance(results[0], expected_type)
-
+        assert not results or isinstance(results[0], expected_type)
         return typing.cast("collections.Sequence[_ValueT]", results)
 
     async def _set(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Insert) -> _ValueT:
@@ -274,9 +271,8 @@ class PostgreDatabase(api.DatabaseHandler):
 
     # TODO: what happens if you try to update en entry that doesn't exist
     async def _update(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Update) -> typing.Optional[_ValueT]:
-        async with self._database.begin() as connection:
-            cursor = await connection.execute(query)
-
+        with InsertErrorManager():
+            cursor = await self._execute(query)
             result = cursor.fetchone()
             assert result is None or isinstance(result, expected_type)
             return result
