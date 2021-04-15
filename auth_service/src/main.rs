@@ -32,6 +32,7 @@
 use std::sync::Arc;
 
 use actix_web::{delete, get, patch, post, web, App, HttpRequest, HttpResponse, HttpServer};
+use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 use shared::dto_models;
 use shared::sql::{Database, SetError};
 use validator::Validate;
@@ -46,6 +47,8 @@ lazy_static::lazy_static! {
         .map(shared::remove_protocol)
         .unwrap();
     static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
+    static ref SSL_KEY: String = shared::get_env_variable("AUTH_SERVICE_KEY").unwrap();
+    static ref SSL_CERT: String = shared::get_env_variable("AUTH_SERVICE_CERT").unwrap();
 }
 
 
@@ -270,6 +273,10 @@ async fn actix_main() -> std::io::Result<()> {
     let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
     let hasher = crypto::Argon::new();
 
+    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
+    builder.set_private_key_file(&*SSL_KEY, SslFiletype::PEM).unwrap();
+    builder.set_certificate_chain_file(&*SSL_CERT).unwrap();
+
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
@@ -283,12 +290,12 @@ async fn actix_main() -> std::io::Result<()> {
             .service(post_my_message_link)
             .service(post_user)
     })
-    .bind(&*URL)? // TODO: bind_openssl
+    .bind_openssl(&*URL, builder)?
     .run()
     .await
 }
 
-fn main() {
+fn main() -> std::io::Result<()> {
     shared::setup_logging();
     sodiumoxide::init().unwrap();
     actix_web::rt::System::with_tokio_rt(|| {
@@ -298,5 +305,4 @@ fn main() {
             .unwrap()
     })
     .block_on(actix_main())
-    .unwrap();
 }

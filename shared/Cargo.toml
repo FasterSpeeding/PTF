@@ -38,4 +38,3 @@ edition = "2018"
 
 [features]
     postgres    = ["sqlx/postgres"]
-
