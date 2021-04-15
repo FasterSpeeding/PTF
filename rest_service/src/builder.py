@@ -38,12 +38,10 @@ import typing
 import fastapi
 
 if typing.TYPE_CHECKING:
-    import collections.abc as collections
-
     from .sql import api as sql_api
 
 
-def build(*, sql_builder: typing.Optional[collections.Callable[[], sql_api.DatabaseHandler]] = None) -> fastapi.FastAPI:
+def build(*, sql_builder: typing.Optional[sql_api.DatabaseManager] = None) -> fastapi.FastAPI:
     from . import refs
     from . import resources
     from . import security
@@ -63,6 +61,7 @@ def build(*, sql_builder: typing.Optional[collections.Callable[[], sql_api.Datab
     server.dependency_overrides[utilities.Metadata] = metadata
 
     async def _on_shutdown() -> None:
+        assert sql_builder is not None
         await sql_builder.close()
         await user_auth_handler.close()
 

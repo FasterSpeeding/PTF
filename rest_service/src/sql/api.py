@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["DatabaseHandler", "DatabaseIterator", "FilteredClear"]
+__all__: list[str] = ["DatabaseHandler", "DatabaseIterator", "DatabaseManager", "FilteredClear"]
 
 import abc
 import typing
@@ -302,4 +302,14 @@ class DatabaseHandler(abc.ABC):
 
     @abc.abstractmethod
     async def set_view(self, *, device_id: int, message_id: uuid.UUID) -> dao_protos.View:
+        raise NotImplementedError
+
+
+class DatabaseManager(typing.Protocol):
+    __slots__: tuple[str, ...] = ("_database",)
+
+    def __call__(self) -> DatabaseHandler:
+        raise NotImplementedError
+
+    async def close(self) -> None:
         raise NotImplementedError

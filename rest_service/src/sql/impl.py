@@ -164,14 +164,14 @@ class _PostgresCollection(typing.Generic[_KeyT, _ValueT]):
         return self
 
 
-class PostgreIterator(_PostgresCollection[_KeyT, _ValueT], api.DatabaseIterator[_KeyT, _ValueT]):
+class PostgreIterator(_PostgresCollection[_KeyT, _ValueT], typing.Generic[_KeyT, _ValueT]):
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterator[_ValueT]]:
         return self.iter().__await__()
 
 
-class FilteredClear(_PostgresCollection[_KeyT, _ValueT], api.FilteredClear[_KeyT, _ValueT]):
+class FilteredClear(_PostgresCollection[_KeyT, _ValueT], typing.Generic[_KeyT, _ValueT]):
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, int]:
@@ -286,10 +286,14 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._fetch_one(dao_protos.User, query)
 
     def iter_users(self) -> api.DatabaseIterator[api.UserFieldsT, dao_protos.User]:
-        return PostgreIterator(self._database, dao_models.Users, dao_models.Users.select())
+        result: PostgreIterator[api.UserFieldsT, dao_protos.User]
+        result = PostgreIterator(self._database, dao_models.Users, dao_models.Users.select())
+        return result
 
     def clear_devices(self) -> api.FilteredClear[api.DeviceFieldsT, dao_protos.Device]:
-        return FilteredClear(self._database, dao_models.Devices, dao_models.Devices.delete())
+        result: FilteredClear[api.DeviceFieldsT, dao_protos.Device]
+        result = FilteredClear(self._database, dao_models.Devices, dao_models.Devices.delete())
+        return result
 
     async def delete_device_by_id(self, device_id: int, /) -> None:
         await self._execute(dao_models.Devices.delete().where(dao_models.Devices.columns["id"] == device_id))
@@ -309,7 +313,9 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._fetch_one(dao_protos.Device, query)
 
     def iter_devices(self) -> api.DatabaseIterator[api.DeviceFieldsT, dao_protos.Device]:
-        return PostgreIterator(self._database, dao_models.Devices, dao_models.Devices.select())
+        result: PostgreIterator[api.DeviceFieldsT, dao_protos.Device]
+        result = PostgreIterator(self._database, dao_models.Devices, dao_models.Devices.select())
+        return result
 
     async def set_device(self, **kwargs: typing.Any) -> dao_protos.Device:
         query = dao_models.Devices.insert().values(kwargs).returning(dao_models.Devices)
@@ -343,7 +349,9 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._update(dao_protos.Device, query)
 
     def clear_messages(self) -> api.FilteredClear[api.MessageFieldsT, dao_protos.Message]:
-        return FilteredClear(self._database, dao_models.Messages, dao_models.Messages.delete())
+        result: FilteredClear[api.MessageFieldsT, dao_protos.Message]
+        result = FilteredClear(self._database, dao_models.Messages, dao_models.Messages.delete())
+        return result
 
     async def delete_message(self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /) -> None:
         columns = dao_models.Messages.columns
@@ -366,7 +374,9 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._fetch_one(dao_protos.Message, query)
 
     def iter_messages(self) -> api.DatabaseIterator[api.MessageFieldsT, dao_protos.Message]:
-        return PostgreIterator(self._database, dao_models.Messages, dao_models.Messages.select())
+        result: PostgreIterator[api.MessageFieldsT, dao_protos.Message]
+        result = PostgreIterator(self._database, dao_models.Messages, dao_models.Messages.select())
+        return result
 
     async def set_message(self, **kwargs: typing.Any) -> dao_protos.Message:
         kwargs["id"] = uuid.uuid4()
@@ -398,10 +408,14 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._fetch_one(dao_protos.File, query)
 
     def iter_files(self) -> api.DatabaseIterator[api.FileFieldsT, dao_protos.File]:
-        return PostgreIterator(self._database, dao_models.Files, dao_models.Files.select())
+        result: PostgreIterator[api.FileFieldsT, dao_protos.File]
+        result = PostgreIterator(self._database, dao_models.Files, dao_models.Files.select())
+        return result
 
     def clear_views(self) -> api.FilteredClear[api.ViewFieldsT, dao_protos.View]:
-        return FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())
+        result: FilteredClear[api.ViewFieldsT, dao_protos.View]
+        result = FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())
+        return result
 
     async def delete_view(self, device_id: int, message_id: uuid.UUID, /) -> None:
         columns = dao_models.Views.columns
@@ -414,7 +428,9 @@ class PostgreDatabase(api.DatabaseHandler):
         return await self._fetch_one(dao_protos.View, query)
 
     def iter_views(self) -> api.DatabaseIterator[api.ViewFieldsT, dao_protos.View]:
-        return PostgreIterator(self._database, dao_models.Views, dao_models.Views.select())
+        result: PostgreIterator[api.ViewFieldsT, dao_protos.View]
+        result = PostgreIterator(self._database, dao_models.Views, dao_models.Views.select())
+        return result
 
     async def set_view(self, **kwargs: typing.Any) -> dao_protos.View:
         query = dao_models.Views.insert().values(kwargs).returning(dao_models.Views)
