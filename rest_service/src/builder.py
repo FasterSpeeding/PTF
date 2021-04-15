@@ -62,8 +62,8 @@ def build(*, sql_builder: typing.Optional[collections.Callable[[], sql_api.Datab
     server.dependency_overrides[refs.UserAuthProto] = user_auth_handler.user_auth
     server.dependency_overrides[utilities.Metadata] = metadata
 
-    async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
-        await database.close()
+    async def _on_shutdown() -> None:
+        await sql_builder.close()
         await user_auth_handler.close()
 
     server.add_event_handler("shutdown", _on_shutdown)
