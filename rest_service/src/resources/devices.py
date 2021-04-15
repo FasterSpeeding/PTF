@@ -77,7 +77,7 @@ async def get_user_devices(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Device]:
-    return list(await database.iter_devices_for_user(auth.id).map(dto_models.Device.from_orm))
+    return list(await database.iter_devices().filter("eq", ("user_id", auth.id)).map(dto_models.Device.from_orm))
 
 
 # TODO: merge PATCH and POST to PUT

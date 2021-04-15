@@ -53,7 +53,8 @@ if typing.TYPE_CHECKING:
     import types
 
 _DatabaseT = typing.TypeVar("_DatabaseT", bound=api.DatabaseHandler)
-_PostgresCollectionT = typing.TypeVar("_PostgresCollectionT", bound="_PostgresCollection[typing.Any]")
+_PostgresCollectionT = typing.TypeVar("_PostgresCollectionT", bound="_PostgresCollection[typing.Any, typing.Any]")
+_KeyT = typing.TypeVar("_KeyT", bound=str)
 _ValueT = typing.TypeVar("_ValueT")
 _OtherValueT = typing.TypeVar("_OtherValueT")
 _QueryT = typing.Union[sqlalchemy.sql.Select, sqlalchemy.sql.Delete, sqlalchemy.sql.Insert, sqlalchemy.sql.Update]
@@ -103,7 +104,7 @@ _operators: dict[api.FilterTypeT, collections.Callable[..., typing.Any]] = {
 }
 
 
-class _PostgresCollection(typing.Generic[_ValueT]):
+class _PostgresCollection(typing.Generic[_KeyT, _ValueT]):
     __slots__: tuple[str, ...] = ("_engine", "_query", "_table")
 
     def __init__(
@@ -127,7 +128,7 @@ class _PostgresCollection(typing.Generic[_ValueT]):
             return cursor.rowcount
 
     def filter(
-        self: _PostgresCollectionT, filter_type: api.FilterTypeT, *rules: tuple[str, typing.Any]
+        self: _PostgresCollectionT, filter_type: api.FilterTypeT, *rules: tuple[_KeyT, typing.Any]
     ) -> _PostgresCollectionT:
         namespace = self._table.entity_namespace
         if filter_type == "contains":
@@ -139,7 +140,7 @@ class _PostgresCollection(typing.Generic[_ValueT]):
 
         return self
 
-    def filter_truth(self: _PostgresCollectionT, *fields: str, truth: bool = True) -> _PostgresCollectionT:
+    def filter_truth(self: _PostgresCollectionT, *fields: _KeyT, truth: bool = True) -> _PostgresCollectionT:
         operator_ = operator.truth if truth else operator.not_
         namespace = self._table.entity_namespace
         self._query = self._query.filter(*(operator_(namespace[attr]) for attr in fields))
@@ -156,20 +157,20 @@ class _PostgresCollection(typing.Generic[_ValueT]):
     async def map(self, cast: typing.Callable[[_ValueT], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
         return map(cast, await self.collect())
 
-    def order_by(self: _PostgresCollectionT, field: str, /, ascending: bool = True) -> _PostgresCollectionT:
+    def order_by(self: _PostgresCollectionT, field: _KeyT, /, ascending: bool = True) -> _PostgresCollectionT:
         order = sqlalchemy.asc if ascending else sqlalchemy.desc
         self._query = self._query.order_by(order(self._table.entity_namespace[field]))
         return self
 
 
-class PostgreIterator(_PostgresCollection[_ValueT], api.DatabaseIterator[_ValueT]):
+class PostgreIterator(_PostgresCollection[_KeyT, _ValueT], api.DatabaseIterator[_KeyT, _ValueT]):
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterator[_ValueT]]:
         return self.iter().__await__()
 
 
-class FilteredClear(_PostgresCollection[_ValueT], api.FilteredClear[_ValueT]):
+class FilteredClear(_PostgresCollection[_KeyT, _ValueT], api.FilteredClear[_KeyT, _ValueT]):
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, int]:
@@ -282,15 +283,15 @@ class PostgreDatabase(api.DatabaseHandler):
     async def get_user_by_id(self, user_id: uuid.UUID, /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(dao_protos.User, dao_models.Users.select(dao_models.Users.c["id"] == user_id))
 
-    async def get_user_by_username(self, username: typing.Union[int, str], /) -> typing.Optional[dao_protos.User]:
+    async def get_user_by_username(self, username: str, /) -> typing.Optional[dao_protos.User]:
         return await self._fetch_one(
             dao_protos.User, dao_models.Users.select(dao_models.Users.c["username"] == username)
         )
 
-    def iter_users(self) -> api.DatabaseIterator[dao_protos.User]:
+    def iter_users(self) -> api.DatabaseIterator[api.UserFieldsT, dao_protos.User]:
         return PostgreIterator(self._database, dao_models.Users, dao_models.Users.select())
 
-    def clear_devices(self) -> api.FilteredClear[dao_protos.Device]:
+    def clear_devices(self) -> api.FilteredClear[api.DeviceFieldsT, dao_protos.Device]:
         return FilteredClear(self._database, dao_models.Devices, dao_models.Devices.delete())
 
     async def delete_device_by_id(self, device_id: int, /) -> None:
@@ -315,11 +316,8 @@ class PostgreDatabase(api.DatabaseHandler):
         )
         return await self._fetch_one(dao_protos.Device, query)
 
-    def iter_devices(self) -> api.DatabaseIterator[dao_protos.Device]:
+    def iter_devices(self) -> api.DatabaseIterator[api.DeviceFieldsT, dao_protos.Device]:
         return PostgreIterator(self._database, dao_models.Devices, dao_models.Devices.select())
-
-    def iter_devices_for_user(self, user_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.Device]:
-        return self.iter_devices().filter("eq", ("user_id", user_id))
 
     async def set_device(self, **kwargs: typing.Any) -> dao_protos.Device:
         return await self._set(
@@ -351,7 +349,7 @@ class PostgreDatabase(api.DatabaseHandler):
         )
         return await self._update(dao_protos.Device, query)
 
-    def clear_messages(self) -> api.FilteredClear[dao_protos.Message]:
+    def clear_messages(self) -> api.FilteredClear[api.MessageFieldsT, dao_protos.Message]:
         return FilteredClear(self._database, dao_models.Messages, dao_models.Messages.delete())
 
     async def delete_message(self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /) -> None:
@@ -374,11 +372,8 @@ class PostgreDatabase(api.DatabaseHandler):
 
         return await self._fetch_one(dao_protos.Message, query)
 
-    def iter_messages(self) -> api.DatabaseIterator[dao_protos.Message]:
+    def iter_messages(self) -> api.DatabaseIterator[api.MessageFieldsT, dao_protos.Message]:
         return PostgreIterator(self._database, dao_models.Messages, dao_models.Messages.select())
-
-    def iter_messages_for_user(self, user_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.Message]:
-        return self.iter_messages().filter("eq", ("user_id", user_id))
 
     async def set_message(self, **kwargs: typing.Any) -> dao_protos.Message:
         kwargs["id"] = uuid.uuid4()
@@ -407,13 +402,10 @@ class PostgreDatabase(api.DatabaseHandler):
         )
         return await self._fetch_one(dao_protos.File, query)
 
-    def iter_files(self) -> api.DatabaseIterator[dao_protos.File]:
+    def iter_files(self) -> api.DatabaseIterator[api.FileFieldsT, dao_protos.File]:
         return PostgreIterator(self._database, dao_models.Files, dao_models.Files.select())
 
-    def iter_files_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.File]:
-        return self.iter_files().filter("eq", ("message_id", message_id))
-
-    def clear_views(self) -> api.FilteredClear[dao_protos.View]:
+    def clear_views(self) -> api.FilteredClear[api.ViewFieldsT, dao_protos.View]:
         return FilteredClear(self._database, dao_models.Views, dao_models.Views.delete())
 
     async def delete_view(self, device_id: int, message_id: uuid.UUID, /) -> None:
@@ -430,14 +422,8 @@ class PostgreDatabase(api.DatabaseHandler):
         )
         return await self._fetch_one(dao_protos.View, query)
 
-    def iter_views(self) -> api.DatabaseIterator[dao_protos.View]:
+    def iter_views(self) -> api.DatabaseIterator[api.ViewFieldsT, dao_protos.View]:
         return PostgreIterator(self._database, dao_models.Views, dao_models.Views.select())
-
-    def iter_views_for_device(self, device_id: int, /) -> api.DatabaseIterator[dao_protos.View]:
-        return self.iter_views().filter("eq", ("device_id", device_id))
-
-    def iter_views_for_message(self, message_id: uuid.UUID, /) -> api.DatabaseIterator[dao_protos.View]:
-        return self.iter_views().filter("eq", ("message_id", message_id))
 
     async def set_view(self, **kwargs: typing.Any) -> dao_protos.View:
         return await self._set(

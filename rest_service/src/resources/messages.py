@@ -134,7 +134,8 @@ async def get_linked_message(
 ) -> dto_models.Message:
     if message := await database.get_message(message_id):
         result = dto_models.Message.from_orm(message)
-        result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+        files = await database.iter_files().filter("eq", ("message_id", result.id)).map(dto_models.File.from_orm)
+        result.files.extend(files)
         result.with_paths(metadata)
         return result
 
@@ -155,7 +156,8 @@ async def get_message(
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     result = dto_models.Message.from_orm(message)
-    result.files.extend(await database.iter_files_for_message(message.id).map(dto_models.File.from_orm))
+    files = await database.iter_files().filter("eq", ("message_id", message.id)).map(dto_models.File.from_orm)
+    result.files.extend(files)
     result.with_paths(metadata)
     return result
 
@@ -172,7 +174,8 @@ async def get_messages(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> list[dto_models.Message]:
-    messages = {m.id: m for m in await database.iter_messages_for_user(auth.id).map(dto_models.Message.from_orm)}
+    files_iter = await database.iter_messages().filter("eq", ("user_id", auth.id)).map(dto_models.Message.from_orm)
+    messages = {message.id: message for message in files_iter}
     files = (
         await database.iter_files()
         .filter("contains", ("message_id", set(messages.keys())))
@@ -226,7 +229,8 @@ async def patch_message(
         raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
 
     result = dto_models.Message.from_orm(new_message)
-    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    files = await database.iter_files().filter("eq", ("message_id", result.id)).map(dto_models.File.from_orm)
+    result.files.extend(files)
     result.with_paths(metadata)
     return result
 

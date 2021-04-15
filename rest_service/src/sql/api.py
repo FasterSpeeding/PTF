@@ -35,6 +35,7 @@ __all__: list[str] = ["DatabaseHandler", "DatabaseIterator", "FilteredClear", "F
 
 import abc
 import typing
+from typing import Literal
 
 if typing.TYPE_CHECKING:
     import asyncio
@@ -46,20 +47,38 @@ if typing.TYPE_CHECKING:
 
 _DatabaseT = typing.TypeVar("_DatabaseT", bound="DatabaseHandler")
 _ValueT_co = typing.TypeVar("_ValueT_co", covariant=True)
+_FieldT_co = typing.TypeVar("_FieldT_co", bound=str, contravariant=True)
 _OtherValueT = typing.TypeVar("_OtherValueT")
-_DatabaseCollectionT = typing.TypeVar("_DatabaseCollectionT", bound="DatabaseCollection[typing.Any]")
+_DatabaseCollectionT = typing.TypeVar("_DatabaseCollectionT", bound="DatabaseCollection[typing.Any, typing.Any]")
 
 
 FilterTypeT = typing.Union[
-    typing.Literal["lt"],
-    typing.Literal["le"],
-    typing.Literal["eq"],
-    typing.Literal["ne"],
-    typing.Literal["ge"],
-    typing.Literal["gt"],
-    typing.Literal["contains"],
+    Literal["lt"],
+    Literal["le"],
+    Literal["eq"],
+    Literal["ne"],
+    Literal["ge"],
+    Literal["gt"],
+    Literal["contains"],
 ]
 # For a reference on what these all mean see https://docs.python.org/3/library/operator.html
+
+
+UserFieldsT = typing.Union[
+    Literal["id"], Literal["created_at"], Literal["flags"], Literal["password_hash"], Literal["username"]
+]
+DeviceFieldsT = typing.Union[Literal["id"], Literal["is_required_viewer"], Literal["name"], Literal["user_id"]]
+MessageFieldsT = typing.Union[
+    Literal["id"],
+    Literal["created_at"],
+    Literal["expire_at"],
+    Literal["is_transient"],
+    Literal["text"],
+    Literal["title"],
+    Literal["user_id"],
+]
+FileFieldsT = typing.Union[Literal["content_type"], Literal["file_name"], Literal["message_id"], Literal["set_at"]]
+ViewFieldsT = typing.Union[Literal["created_at"], Literal["device_id"], Literal["message_id"]]
 
 
 class SQLError(Exception):
@@ -83,7 +102,7 @@ class AlreadyExistsError(SQLError):
     __slots__: tuple[str, ...] = ()
 
 
-class DatabaseCollection(typing.Protocol[_ValueT_co]):
+class DatabaseCollection(typing.Protocol[_FieldT_co, _ValueT_co]):
     __slots__: tuple[str, ...] = ()
 
     async def collect(self) -> collections.Collection[_ValueT_co]:
@@ -93,11 +112,11 @@ class DatabaseCollection(typing.Protocol[_ValueT_co]):
         raise NotImplementedError
 
     def filter(
-        self: _DatabaseCollectionT, filter_type: FilterTypeT, *rules: tuple[str, typing.Any]
+        self: _DatabaseCollectionT, filter_type: FilterTypeT, *rules: tuple[_FieldT_co, typing.Any]
     ) -> _DatabaseCollectionT:
         raise NotImplementedError
 
-    def filter_truth(self: _DatabaseCollectionT, *fields: str, truth: bool = True) -> _DatabaseCollectionT:
+    def filter_truth(self: _DatabaseCollectionT, *fields: _FieldT_co, truth: bool = True) -> _DatabaseCollectionT:
         raise NotImplementedError
 
     async def iter(self) -> collections.Iterator[_ValueT_co]:
@@ -110,18 +129,18 @@ class DatabaseCollection(typing.Protocol[_ValueT_co]):
     async def map(self, cast: typing.Callable[[_ValueT_co], _OtherValueT], /) -> collections.Iterator[_OtherValueT]:
         raise NotImplementedError
 
-    def order_by(self: _DatabaseCollectionT, field: str, /, ascending: bool = True) -> _DatabaseCollectionT:
+    def order_by(self: _DatabaseCollectionT, field: _FieldT_co, /, ascending: bool = True) -> _DatabaseCollectionT:
         raise NotImplementedError
 
 
-class DatabaseIterator(DatabaseCollection[_ValueT_co], typing.Protocol[_ValueT_co]):
+class DatabaseIterator(DatabaseCollection[_FieldT_co, _ValueT_co], typing.Protocol[_FieldT_co, _ValueT_co]):
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, collections.Iterable[_ValueT_co]]:
         raise NotImplementedError
 
 
-class FilteredClear(DatabaseCollection[_ValueT_co], typing.Protocol[_ValueT_co]):
+class FilteredClear(DatabaseCollection[_FieldT_co, _ValueT_co], typing.Protocol[_FieldT_co, _ValueT_co]):
     __slots__: tuple[str, ...] = ()
 
     def __await__(self) -> collections.Generator[typing.Any, None, int]:
@@ -160,11 +179,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_users(self) -> DatabaseIterator[dao_protos.User]:
+    def iter_users(self) -> DatabaseIterator[UserFieldsT, dao_protos.User]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def clear_devices(self) -> FilteredClear[dao_protos.Device]:
+    def clear_devices(self) -> FilteredClear[DeviceFieldsT, dao_protos.Device]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -184,11 +203,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_devices(self) -> DatabaseIterator[dao_protos.Device]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_devices_for_user(self, user_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.Device]:
+    def iter_devices(self) -> DatabaseIterator[DeviceFieldsT, dao_protos.Device]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -219,7 +234,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def clear_messages(self) -> FilteredClear[dao_protos.Message]:
+    def clear_messages(self) -> FilteredClear[MessageFieldsT, dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -233,11 +248,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_messages(self) -> DatabaseIterator[dao_protos.Message]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_messages_for_user(self, user_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.Message]:
+    def iter_messages(self) -> DatabaseIterator[MessageFieldsT, dao_protos.Message]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -271,15 +282,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_files(self) -> DatabaseIterator[dao_protos.File]:
+    def iter_files(self) -> DatabaseIterator[FileFieldsT, dao_protos.File]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_files_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.File]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def clear_views(self) -> FilteredClear[dao_protos.View]:
+    def clear_views(self) -> FilteredClear[ViewFieldsT, dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -291,15 +298,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def iter_views(self) -> DatabaseIterator[dao_protos.View]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_views_for_device(self, device_id: int, /) -> DatabaseIterator[dao_protos.View]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_views_for_message(self, message_id: uuid.UUID, /) -> DatabaseIterator[dao_protos.View]:
+    def iter_views(self) -> DatabaseIterator[ViewFieldsT, dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod
