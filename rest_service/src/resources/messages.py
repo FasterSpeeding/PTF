@@ -132,13 +132,14 @@ async def get_linked_message(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
-    message = await database.get_message(message_id)
-    assert message is not None  # TODO: what if they manage to delete the message before we could get it?
+    if message := await database.get_message(message_id):
+        result = dto_models.Message.from_orm(message)
+        result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+        result.with_paths(metadata)
+        return result
 
-    result = dto_models.Message.from_orm(message)
-    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
-    result.with_paths(metadata)
-    return result
+    # In the rare case that a message is deleted as we're getting our response from the auth service we want to 404 here
+    raise fastapi.exceptions.HTTPException(404, detail="Message not found.")
 
 
 @utilities.as_endpoint(
@@ -215,19 +216,19 @@ async def patch_message(
         else:
             fields["expire_at"] = None
 
-    if new_message := await database.update_message(message_id, auth.id, **fields):
-        result = dto_models.Message.from_orm(new_message)
+    try:
+        new_message = await database.update_message(message_id, auth.id, **fields)
 
-        try:
-            result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    except sql_api.DataError as exc:
+        raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
-        except sql_api.DataError as exc:
-            raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
+    if not new_message:
+        raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
 
-        result.with_paths(metadata)
-        return result
-
-    raise fastapi.exceptions.HTTPException(404, detail="Message not found") from None
+    result = dto_models.Message.from_orm(new_message)
+    result.files.extend(await database.iter_files_for_message(result.id).map(dto_models.File.from_orm))
+    result.with_paths(metadata)
+    return result
 
 
 @utilities.as_endpoint(
@@ -243,11 +244,11 @@ async def post_messages(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
-    try:
-        expire_at: typing.Optional[datetime.datetime] = None
-        if message.expire_after:
-            expire_at = datetime.datetime.now(tz=datetime.timezone.utc) + message.expire_after
+    expire_at: typing.Optional[datetime.datetime] = None
+    if message.expire_after:
+        expire_at = datetime.datetime.now(tz=datetime.timezone.utc) + message.expire_after
 
+    try:
         result = await database.set_message(
             expire_at=expire_at,
             is_transient=message.is_transient,
@@ -255,9 +256,10 @@ async def post_messages(
             title=message.title,
             user_id=auth.id,
         )
-        response = dto_models.Message.from_orm(result)
-        response.with_paths(metadata)
-        return response
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
+
+    response = dto_models.Message.from_orm(result)
+    response.with_paths(metadata)
+    return response

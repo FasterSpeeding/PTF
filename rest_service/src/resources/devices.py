@@ -131,10 +131,11 @@ async def post_user_devices(
         result = await database.set_device(
             is_required_viewer=device.is_required_viewer, user_id=auth.id, name=device.name
         )
-        return dto_models.Device.from_orm(result)
 
     except sql_api.AlreadyExistsError:
         raise fastapi.exceptions.HTTPException(409, detail=f"Device `{device.name}` already exists.") from None
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
+
+    return dto_models.Device.from_orm(result)
