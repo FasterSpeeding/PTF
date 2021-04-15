@@ -31,45 +31,8 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["build"]
+__all__: list[str] = ["app"]
 
-import typing
+from . import builder
 
-import fastapi
-
-if typing.TYPE_CHECKING:
-    import collections.abc as collections
-
-    from .sql import api as sql_api
-
-
-def build(sql_builder: typing.Optional[collections.Callable[[], sql_api.DatabaseHandler]] = None, /) -> fastapi.FastAPI:
-    from . import refs
-    from . import resources
-    from . import security
-    from . import utilities
-    from .sql import impl as sql_impl
-
-    metadata = utilities.Metadata()
-
-    if not sql_builder:
-        sql_builder = sql_impl.DatabaseManager(metadata.database_url)
-
-    user_auth_handler = security.UserAuth(metadata.auth_service_address)
-    server = fastapi.FastAPI(title="PTF API")
-    server.dependency_overrides[refs.DatabaseProto] = sql_builder
-    server.dependency_overrides[refs.LinkAuthProto] = user_auth_handler.link_auth
-    server.dependency_overrides[refs.UserAuthProto] = user_auth_handler.user_auth
-    server.dependency_overrides[utilities.Metadata] = metadata
-
-    async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
-        await database.close()
-        await user_auth_handler.close()
-
-    server.add_event_handler("shutdown", _on_shutdown)
-
-    for value in vars(resources).values():
-        if isinstance(value, utilities.EndpointDescriptor):
-            server.add_api_route(**value.build())
-
-    return server
+app = builder.build()

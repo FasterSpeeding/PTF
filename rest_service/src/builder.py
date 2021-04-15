@@ -29,34 +29,47 @@
 # CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
 # OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-from src import utilities
+from __future__ import annotations
+
+__all__: list[str] = ["build"]
+
+import typing
+
+import fastapi
+
+if typing.TYPE_CHECKING:
+    import collections.abc as collections
+
+    from .sql import api as sql_api
 
 
-# Uvicorn, hypercorn, daphne, Gunicorn
-def run_uvicorn(metadata: utilities.Metadata) -> None:
-    import uvicorn  # type: ignore[import]
+def build(*, sql_builder: typing.Optional[collections.Callable[[], sql_api.DatabaseHandler]] = None) -> fastapi.FastAPI:
+    from . import refs
+    from . import resources
+    from . import security
+    from . import utilities
+    from .sql import impl as sql_impl
 
-    uvicorn.run(
-        "src.builder:build",
-        factory=True,
-        log_level=metadata.log_level,
-        ssl_keyfile=metadata.ssl_key,
-        ssl_certfile=metadata.ssl_cert,
-    )
+    metadata = utilities.Metadata()
 
+    if not sql_builder:
+        sql_builder = sql_impl.DatabaseManager(metadata.database_url)
 
-def run_hypercorn(metadata: utilities.Metadata) -> None:
-    import hypercorn.run
+    user_auth_handler = security.UserAuth(metadata.auth_service_address)
+    server = fastapi.FastAPI(title="PTF API")
+    server.dependency_overrides[refs.DatabaseProto] = sql_builder
+    server.dependency_overrides[refs.LinkAuthProto] = user_auth_handler.link_auth
+    server.dependency_overrides[refs.UserAuthProto] = user_auth_handler.user_auth
+    server.dependency_overrides[utilities.Metadata] = metadata
 
-    config = hypercorn.Config()
-    config.application_path = "src.app:app"
-    config.worker_class = "asyncio"
-    config.loglevel = metadata.log_level
-    config.certfile = metadata.ssl_cert
-    config.keyfile = metadata.ssl_key
+    async def _on_shutdown(database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto)) -> None:
+        await database.close()
+        await user_auth_handler.close()
 
-    hypercorn.run.run(config)
+    server.add_event_handler("shutdown", _on_shutdown)
 
+    for value in vars(resources).values():
+        if isinstance(value, utilities.EndpointDescriptor):
+            server.add_api_route(**value.build())
 
-if __name__ == "__main__":
-    run_hypercorn(utilities.Metadata())
+    return server

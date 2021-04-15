@@ -34,11 +34,11 @@ from __future__ import annotations
 __all__: list[str] = ["RequireFlags", "UserAuth"]
 
 import base64
-import typing
+import ssl
 import uuid
 
-import aiohttp
 import fastapi.security
+import httpx
 
 from . import dto_models
 from . import flags
@@ -54,38 +54,33 @@ class UserAuth:
 
     def __init__(self, base_url: str) -> None:
         self.base_url = base_url
-        self._client: typing.Optional[aiohttp.ClientSession] = None
-
-    def _get_client(self) -> aiohttp.ClientSession:
-        if self._client is None:
-            self._client = aiohttp.ClientSession()
-
-        return self._client
+        # By default AsyncClient will use it's own packaged CA bundle. We don't want this so we override it with a
+        # default ssl context.
+        self._client = httpx.AsyncClient(http2=True, verify=ssl.create_default_context())
 
     @staticmethod
-    async def _handle_error(response: aiohttp.client.ClientResponse) -> fastapi.exceptions.HTTPException:
+    async def _handle_error(response: httpx.Response) -> fastapi.exceptions.HTTPException:
         try:
-            data = await response.json()
+            data = response.json()
             message = data["errors"][0]["detail"]
 
         except Exception:
-            message = "Internal server error" if response.status >= 500 else "Unknown error"
+            message = "Internal server error" if response.status_code >= 500 else "Unknown error"
 
         authenticate = response.headers.get("WWW-Authenticate")
         headers = {"WWW-Authenticate": authenticate} if authenticate else None
-        return fastapi.exceptions.HTTPException(response.status, detail=message, headers=headers)
+        return fastapi.exceptions.HTTPException(response.status_code, detail=message, headers=headers)
 
     async def link_auth(
         self, message_id: uuid.UUID = fastapi.Path(...), link: str = fastapi.Query(...)
     ) -> dto_models.LinkAuth:
-        client = self._get_client()
-        response = await client.get(f"{self.base_url}/messages/{message_id}/links", params=(("link", link),))
+        response = await self._client.get(f"{self.base_url}/messages/{message_id}/links", params=(("link", link),))
 
-        if response.status == 200:
-            found_link = dto_models.LinkAuth.parse_obj(await response.json())
+        if response.status_code == 200:
+            found_link = dto_models.LinkAuth.parse_obj(response.json())
             return found_link
 
-        if response.status == 404:
+        if response.status_code == 404:
             raise fastapi.exceptions.HTTPException(401, detail="Unknown message link")
 
         raise await self._handle_error(response)
@@ -95,18 +90,17 @@ class UserAuth:
         credentials: fastapi.security.HTTPBasicCredentials = fastapi.Depends(fastapi.security.HTTPBasic()),
     ) -> dto_models.AuthUser:
         auth = base64.b64encode(credentials.username.encode() + b":" + credentials.password.encode()).decode()
-        client = self._get_client()
-        response = await client.get(f"{self.base_url}/users/@me", headers={"Authorization": f"Basic {auth}"})
+        response = await self._client.get(f"{self.base_url}/users/@me", headers={"Authorization": f"Basic {auth}"})
 
-        if response.status == 200:
-            user = dto_models.AuthUser.parse_obj(await response.json())
+        if response.status_code == 200:
+            user = dto_models.AuthUser.parse_obj(response.json())
             return user
 
         raise await self._handle_error(response)
 
     async def close(self) -> None:
         if self._client:
-            await self._client.close()
+            await self._client.aclose()
 
 
 class RequireFlags:
