@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["DatabaseHandler", "DatabaseIterator", "FilteredClear", "FilterTypeT"]
+__all__: list[str] = ["DatabaseHandler", "DatabaseIterator", "FilteredClear"]
 
 import abc
 import typing
@@ -45,12 +45,12 @@ if typing.TYPE_CHECKING:
 
     from . import dao_protos
 
-_DatabaseT = typing.TypeVar("_DatabaseT", bound="DatabaseHandler")
+    _DatabaseT = typing.TypeVar("_DatabaseT", bound="DatabaseHandler")
+    _OtherValueT = typing.TypeVar("_OtherValueT")
+    _DatabaseCollectionT = typing.TypeVar("_DatabaseCollectionT", bound="DatabaseCollection[typing.Any, typing.Any]")
+
 _ValueT_co = typing.TypeVar("_ValueT_co", covariant=True)
 _FieldT_co = typing.TypeVar("_FieldT_co", bound=str, contravariant=True)
-_OtherValueT = typing.TypeVar("_OtherValueT")
-_DatabaseCollectionT = typing.TypeVar("_DatabaseCollectionT", bound="DatabaseCollection[typing.Any, typing.Any]")
-
 
 FilterTypeT = typing.Union[
     Literal["lt"],
@@ -62,7 +62,6 @@ FilterTypeT = typing.Union[
     Literal["contains"],
 ]
 # For a reference on what these all mean see https://docs.python.org/3/library/operator.html
-
 
 UserFieldsT = typing.Union[
     Literal["id"], Literal["created_at"], Literal["flags"], Literal["password_hash"], Literal["username"]
