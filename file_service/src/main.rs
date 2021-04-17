@@ -141,7 +141,7 @@ async fn get_my_message_file(
 #[get("/messages/{message_id}/files/{file_name}")]
 async fn get_shared_message_file(
     path: web::Path<(uuid::Uuid, String)>,
-    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    link: web::Query<dto_models::LinkQuery>,
     auth_handler: web::Data<Arc<dyn auth::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
@@ -175,8 +175,8 @@ async fn get_shared_message_file(
 async fn put_my_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
-    data: actix_web::web::Bytes,
-    // data: actix_web::web::Payload,
+    data: web::Bytes,
+    // data: web::Payload,
     auth_handler: web::Data<Arc<dyn auth::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
@@ -247,7 +247,7 @@ async fn actix_main() -> std::io::Result<()> {
             .app_data(web::Data::new(
                 Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
             ))
-            .app_data(actix_web::web::PayloadConfig::new(209_715_200)) // TODO: decide on size
+            .app_data(web::PayloadConfig::new(209_715_200)) // TODO: decide on size
             .service(delete_my_message_file)
             .service(get_my_message_file)
             .service(get_shared_message_file)

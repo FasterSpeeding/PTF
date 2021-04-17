@@ -43,14 +43,11 @@ import httpx
 from . import dto_models
 from . import flags
 from . import refs
-from .sql import api as sql_api
 from .sql import dao_protos
 
 
 class UserAuth:
     __slots__: tuple[str, ...] = ("base_url", "_client")
-    # This is a temporary hack around a missing case in how fastapi handles forward references
-    __globals__ = {"fastapi": fastapi, "sql_api": sql_api, "refs": refs}  # TODO: open issue
 
     def __init__(self, base_url: str) -> None:
         self.base_url = base_url
@@ -106,7 +103,7 @@ class UserAuth:
 class RequireFlags:
     __slots__: tuple[str, ...] = ("options",)
     # This is a temporary hack around a missing case in how fastapi handles forward references
-    __globals__ = {"flags": flags, "dao_protos": dao_protos, "refs": refs}  # TODO: open issue
+    __globals__ = {"flags": flags, "dao_protos": dao_protos, "dto_models": dto_models, "refs": refs}  # TODO: open issue
 
     def __init__(self, flag_option: flags.UserFlags, /, *flags_options: flags.UserFlags) -> None:
         self.options = (flag_option, *flags_options)

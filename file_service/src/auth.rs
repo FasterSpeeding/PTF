@@ -107,7 +107,7 @@ async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> 
     // We don't expect the header to_str to ever fail here
     let content_type = response
         .headers()
-        .get(actix_web::http::header::CONTENT_TYPE)
+        .get(http::header::CONTENT_TYPE)
         .map(|v| v.to_str().unwrap_or("application/json").to_owned()); // TODO: what to do here?
     let status = response.status().as_u16();
 
@@ -197,7 +197,7 @@ pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
     result.map_err(|message| {
         let response = ErrorsResponse::default().with_error(Error::default().status(401).detail(message));
         HttpResponse::Unauthorized()
-            .insert_header((actix_web::http::header::WWW_AUTHENTICATE, "Basic"))
+            .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
             .json(response)
     })
 }
@@ -211,14 +211,14 @@ pub fn map_auth_response(error: AuthError) -> HttpResponse {
             content_type,
             status_code
         } => {
-            let mut response = HttpResponse::build(actix_web::http::StatusCode::from_u16(status_code).unwrap());
+            let mut response = HttpResponse::build(http::StatusCode::from_u16(status_code).unwrap());
 
             if let Some(authenticate) = authenticate.as_deref() {
-                response.insert_header((actix_web::http::header::WWW_AUTHENTICATE, authenticate));
+                response.insert_header((http::header::WWW_AUTHENTICATE, authenticate));
             }
 
             if let Some(content_type) = content_type.as_deref() {
-                response.insert_header((actix_web::http::header::CONTENT_TYPE, content_type));
+                response.insert_header((http::header::CONTENT_TYPE, content_type));
             }
 
             response.body(actix_web::body::Body::from_slice(&body))

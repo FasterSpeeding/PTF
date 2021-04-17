@@ -51,7 +51,7 @@ impl<'de> de::Visitor<'de> for DurationVisitor {
     type Value = chrono::Duration;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "a iso8601 duration string")
+        write!(formatter, "an iso8601 duration string")
     }
 
     fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
@@ -76,7 +76,7 @@ impl<'de> de::Visitor<'de> for OptionalDurationVisitor {
     type Value = Option<chrono::Duration>;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(formatter, "null or a iso8601 duration string")
+        write!(formatter, "null or an iso8601 duration string")
     }
 
     fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
@@ -84,7 +84,7 @@ impl<'de> de::Visitor<'de> for OptionalDurationVisitor {
     }
 
     fn visit_some<D: de::Deserializer<'de>>(self, d: D) -> Result<Self::Value, D::Error> {
-        d.deserialize_str(DurationVisitor).map(Some)
+        d.deserialize_any(DurationVisitor).map(Some)
     }
 }
 
@@ -93,7 +93,7 @@ fn deserialize_optional_duration<'de, D: serde::Deserializer<'de>>(d: D) -> Resu
 }
 
 fn deserialize_duration<'de, D: serde::Deserializer<'de>>(d: D) -> Result<chrono::Duration, D::Error> {
-    d.deserialize_str(DurationVisitor)
+    d.deserialize_any(DurationVisitor)
 }
 
 

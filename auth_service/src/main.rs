@@ -86,13 +86,11 @@ async fn get_current_user(
 
 #[post("/users")]
 async fn post_user(
-    // TODO: refactor this so it's less internal info leaky
     req: HttpRequest,
     user: web::Json<dto_models::ReceivedUser>,
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>
 ) -> Result<HttpResponse, HttpResponse> {
-    // TODO: remove "id" from some responses
     if let Err(error) = user.validate() {
         let response = dto_models::Error::from_validation_errors(&error);
         return Err(HttpResponse::BadRequest().json(response));
@@ -127,7 +125,6 @@ async fn patch_current_user(
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>
 ) -> Result<HttpResponse, HttpResponse> {
-    // TODO: remove "id" from some responses
     if let Err(error) = user_update.validate() {
         let response = dto_models::Error::from_validation_errors(&error);
         return Err(HttpResponse::BadRequest().json(response));
@@ -163,7 +160,7 @@ async fn patch_current_user(
 #[get("/messages/{message_id}/links")]
 async fn get_message_link(
     message_id: web::Path<uuid::Uuid>,
-    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    link: web::Query<dto_models::LinkQuery>,
     db: web::Data<Arc<dyn Database>>
 ) -> Result<HttpResponse, HttpResponse> {
     let message_id = message_id.into_inner();
@@ -185,7 +182,7 @@ async fn get_message_link(
 #[delete("/users/@me/messages/{message_id}/links")]
 async fn delete_my_message_link(
     req: HttpRequest,
-    link: web::Query<dto_models::LinkQuery>, // TODO: remove "id" from some responses
+    link: web::Query<dto_models::LinkQuery>,
     message_id: web::Path<uuid::Uuid>,
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>

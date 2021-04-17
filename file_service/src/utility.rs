@@ -39,7 +39,7 @@ pub fn single_error(status: u16, detail: &str) -> HttpResponse {
     let mut response = HttpResponse::build(http::StatusCode::from_u16(status).unwrap());
 
     if status == 401 {
-        response.insert_header((actix_web::http::header::WWW_AUTHENTICATE, "Basic"));
+        response.insert_header((http::header::WWW_AUTHENTICATE, "Basic"));
     };
 
     response.json(data)

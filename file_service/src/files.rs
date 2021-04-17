@@ -29,7 +29,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 use std::error::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -50,7 +50,7 @@ pub trait FileReader: Send + Sync {
 
 #[derive(Clone, Debug)]
 pub struct LocalReader {
-    base_url: Arc<std::path::Path>
+    base_url: Arc<Path>
 }
 
 
@@ -61,7 +61,7 @@ impl LocalReader {
         }
     }
 
-    fn build_url(&self, message_id: &uuid::Uuid, created_at: &chrono::DateTime<chrono::Utc>) -> std::path::PathBuf {
+    fn build_url(&self, message_id: &uuid::Uuid, created_at: &chrono::DateTime<chrono::Utc>) -> PathBuf {
         let mut path = self.base_url.to_path_buf();
         path.push(format!("{}#{}", message_id, created_at.timestamp_millis()));
         path
