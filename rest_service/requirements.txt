@@ -4,4 +4,4 @@ httpx[http2]==0.17.1
 hypercorn==0.11.2
 python-dotenv==0.17.0
 pydantic==1.8.1
-sqlalchemy==1.4.0b2
+sqlalchemy==1.4.9
