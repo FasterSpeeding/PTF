@@ -64,10 +64,6 @@ impl<'de> de::Visitor<'de> for DurationVisitor {
     fn visit_borrowed_str<E: de::Error>(self, value: &'de str) -> Result<Self::Value, E> {
         self.visit_str(value)
     }
-
-    fn visit_string<E: de::Error>(self, value: String) -> Result<Self::Value, E> {
-        self.visit_str(&value)
-    }
 }
 
 struct OptionalDurationVisitor;
