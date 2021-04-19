@@ -60,10 +60,6 @@ impl<'de> de::Visitor<'de> for DurationVisitor {
             .map_err(|e| E::custom(format!("invalid duration: {}", e)))?
             .map_err(|e| E::custom(format!("invalid duration: {}", e)))
     }
-
-    fn visit_borrowed_str<E: de::Error>(self, value: &'de str) -> Result<Self::Value, E> {
-        self.visit_str(value)
-    }
 }
 
 struct OptionalDurationVisitor;
