@@ -111,7 +111,7 @@ async def _delete_views(
     response_class=fastapi.Response,
     status_code=204,
     responses={**dto_models.USER_AUTH_RESPONSE, 404: dto_models.BASIC_ERROR},
-    tags=["Messages"],
+    tags=["Message Views"],
 )
 async def delete_message_views(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
@@ -133,7 +133,7 @@ async def delete_message_views(
     response_model=list[dto_models.View],
     status_code=200,
     responses={**dto_models.USER_AUTH_RESPONSE, 404: dto_models.BASIC_ERROR},
-    tags=["Messages"],
+    tags=["Message Views"],
 )
 async def get_message_views(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
@@ -170,7 +170,7 @@ async def get_message_views(
         404: dto_models.BASIC_ERROR,
         **dto_models.USER_AUTH_RESPONSE,
     },
-    tags=["Messages"],
+    tags=["Message Views"],
 )
 async def put_message_view(
     device_name: str = fastapi.Path(
