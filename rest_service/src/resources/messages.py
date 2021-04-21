@@ -33,14 +33,17 @@ from __future__ import annotations
 
 __all__: list[str] = [
     "delete_messages",
+    "delete_message_views",
     "get_linked_message",
     "get_message",
     "get_messages",
+    "get_message_views",
     "patch_message",
     "post_messages",
     "put_message_view",
 ]
 
+import asyncio
 import datetime
 import typing
 import uuid
@@ -79,16 +82,90 @@ async def delete_messages(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", auth.id)).start()
+    if message_ids:
+        database.clear_messages().filter("contains", ("id", message_ids)).filter("eq", ("user_id", auth.id)).start()
+
     return fastapi.Response(status_code=202)
+
+
+async def _delete_views(
+    auth: dto_models.AuthUser,
+    device_names: set[str],
+    message: dao_protos.Message,
+    database: sql_api.DatabaseHandler,
+) -> None:
+    devices = (
+        await database.iter_devices()
+        .filter("eq", ("user_id", auth.id))
+        .filter("contains", ("name", device_names))
+        .map(lambda d: d.id)
+    )
+    await database.clear_views().filter("eq", ("message_id", message.id)).filter(
+        "contains", ("device_id", devices)
+    ).execute()
+
+
+@utilities.as_endpoint(
+    "DELETE",
+    "/users/@me/messages/{message_id}/views",
+    response_class=fastapi.Response,
+    status_code=204,
+    responses={**dto_models.USER_AUTH_RESPONSE, 404: dto_models.BASIC_ERROR},
+    tags=["Messages"],
+)
+async def delete_message_views(
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
+    device_names: set[str] = fastapi.Body(
+        ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
+    ),
+    message: dao_protos.Message = fastapi.Depends(user_auth_message),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+) -> fastapi.Response:
+    if device_names:
+        asyncio.create_task(_delete_views(auth, device_names, message, database))
+
+    return fastapi.Response(status_code=204)
+
+
+@utilities.as_endpoint(
+    "GET",
+    "/users/@me/messages/{message_id}/views",
+    response_model=list[dto_models.View],
+    status_code=200,
+    responses={**dto_models.USER_AUTH_RESPONSE, 404: dto_models.BASIC_ERROR},
+    tags=["Messages"],
+)
+async def get_message_views(
+    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
+    message: dao_protos.Message = fastapi.Depends(user_auth_message),
+    database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
+) -> list[dto_models.View]:
+    # Avoid unnecessary extra-lookups if there's no views
+    if not (view_daos := list(await database.iter_views().filter("eq", ("message_id", message.id)))):
+        return []
+
+    device_ids = [view.device_id for view in view_daos]
+    devices_iter = (
+        await database.iter_devices().filter("eq", ("user_id", auth.id)).filter("contains", ("id", device_ids))
+    )
+    devices = {d.id: d.name for d in devices_iter}
+
+    views = []
+    for dao in view_daos:
+        dto = dto_models.View.from_orm(dao)
+        dto.device_name = devices[dao.device_id]
+        views.append(dto)
+
+    return views
 
 
 @utilities.as_endpoint(
     "PUT",
     "/users/@me/messages/{message_id}/views/{device_name}",
-    response_class=fastapi.Response,
-    status_code=204,
+    response_model=dto_models.View,
+    status_code=201,
     responses={
+        204: {"description": "The view already exists."},
         400: dto_models.BASIC_ERROR,
         404: dto_models.BASIC_ERROR,
         **dto_models.USER_AUTH_RESPONSE,
@@ -97,25 +174,27 @@ async def delete_messages(
 )
 async def put_message_view(
     device_name: str = fastapi.Path(
-        default=None, min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
+        ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
     message: dao_protos.Message = fastapi.Depends(user_auth_message),
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
-) -> fastapi.Response:
+) -> typing.Union[dto_models.View, fastapi.Response]:
     if not (device := await database.get_device_by_name(auth.id, device_name)):
         raise fastapi.exceptions.HTTPException(404, detail="Device not found.") from None
 
     try:
-        await database.set_view(device_id=device.id, message_id=message.id)
+        view = await database.set_view(device_id=device.id, message_id=message.id)
 
     except sql_api.AlreadyExistsError:
-        pass
+        return fastapi.Response(status_code=204)
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
-    return fastapi.Response(status_code=204)
+    result = dto_models.View.from_orm(view)
+    result.device_name = device_name
+    return result
 
 
 @utilities.as_endpoint(

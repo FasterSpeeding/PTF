@@ -62,7 +62,9 @@ async def delete_user_devices(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> fastapi.Response:
-    database.clear_devices().filter("eq", ("user_id", auth.id)).filter("contains", ("name", device_names)).start()
+    if device_names:
+        database.clear_devices().filter("eq", ("user_id", auth.id)).filter("contains", ("name", device_names)).start()
+
     return fastapi.Response(status_code=202)
 
 

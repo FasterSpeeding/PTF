@@ -43,7 +43,6 @@ __all__: list[str] = [
     "ReceivedMessageUpdate",
     "Message",
     "File",
-    "ReceivedView",
     "View",
     "BASIC_ERROR",
     "LINK_AUTH_RESPONSE",
@@ -203,8 +202,8 @@ class Message(pydantic.BaseModel):
     created_at: datetime.datetime
     expire_at: typing.Union[datetime.datetime, None]
     is_transient: bool
-    private_link: str = pydantic.Field(default="")
-    shareable_link: str = pydantic.Field(default="")
+    private_link: str = pydantic.Field(default="")  # This field should be filled in before this is sent.
+    shareable_link: str = pydantic.Field(default="")  # This field should be filled in before this is sent.
     text: typing.Optional[str]
     title: typing.Optional[str]
     files: list[File] = pydantic.Field(default_factory=list)
@@ -230,8 +229,8 @@ class File(pydantic.BaseModel):
     content_type: str
     file_name: str
     message_id: uuid.UUID
-    private_link: str = pydantic.Field(default="")
-    shareable_link: str = pydantic.Field(default="")
+    private_link: str = pydantic.Field(default="")  # This field should be filled in before this is sent.
+    shareable_link: str = pydantic.Field(default="")  # This field should be filled in before this is sent.
     set_at: datetime.datetime
 
     Config = _ModelConfig
@@ -247,15 +246,12 @@ class File(pydantic.BaseModel):
         self.shareable_link = metadata.file_service_hostname + self.shareable_path()
 
 
-class ReceivedView(pydantic.BaseModel):
-    device_id: int = pydantic.Field(ge=validation.MINIMUM_BIG_INT, le=validation.MAXIMUM_BIG_INT)
+class View(pydantic.BaseModel):
+    created_at: datetime.datetime
+    device_name: str = pydantic.Field(default="")  # This field should be filled in before this is sent.
     message_id: uuid.UUID
 
     Config = _ModelConfig
-
-
-class View(ReceivedView, pydantic.BaseModel):
-    created_at: datetime.datetime
 
 
 # TODO: switch to func which accepts description
