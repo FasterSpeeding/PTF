@@ -91,7 +91,6 @@ async def delete_messages(
     responses={
         400: dto_models.BASIC_ERROR,
         404: dto_models.BASIC_ERROR,
-        409: dto_models.BASIC_ERROR,
         **dto_models.USER_AUTH_RESPONSE,
     },
     tags=["Messages"],
@@ -110,8 +109,8 @@ async def put_message_view(
     try:
         await database.set_view(device_id=device.id, message_id=message.id)
 
-    except sql_api.AlreadyExistsError:  # TODO: is this necessary
-        raise fastapi.exceptions.HTTPException(409, detail="View already exists.") from None
+    except sql_api.AlreadyExistsError:
+        pass
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
@@ -123,7 +122,7 @@ async def put_message_view(
     "GET",
     "/messages/{message_id}",
     response_model=dto_models.Message,
-    responses={**dto_models.LINK_AUTH_RESPONSE},
+    responses=dto_models.LINK_AUTH_RESPONSE,
     tags=["Linked Messages"],
 )
 async def get_linked_message(

@@ -109,7 +109,7 @@ async fn post_user(
 
     match result {
         Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(user))),
-        Err(SetError::Conflict) => Err(utility::single_error(409, "User already exists")),
+        Err(SetError::Conflict) => Err(utility::single_error(403, "User already exists")),
         Err(SetError::Unknown(error)) => {
             log::error!("Failed to set user due to {:?}", error);
             Err(utility::single_error(500, "Internal server error"))

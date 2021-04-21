@@ -80,7 +80,6 @@ async def get_user_devices(
     return list(await database.iter_devices().filter("eq", ("user_id", auth.id)).map(dto_models.Device.from_orm))
 
 
-# TODO: merge PATCH and POST to PUT
 @utilities.as_endpoint(
     "PATCH",
     "/users/@me/devices/{device_name}",
@@ -114,12 +113,11 @@ async def patch_user_device(
     return dto_models.Device.from_orm(new_device)
 
 
-# TODO: merge PATCH and POST to PUT
 @utilities.as_endpoint(
     "POST",
     "/users/@me/devices",
     response_model=dto_models.Device,
-    responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR, 409: dto_models.BASIC_ERROR},
+    responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR, 403: dto_models.BASIC_ERROR},
     tags=["Devices"],
 )
 async def post_user_devices(
@@ -133,7 +131,7 @@ async def post_user_devices(
         )
 
     except sql_api.AlreadyExistsError:
-        raise fastapi.exceptions.HTTPException(409, detail=f"Device `{device.name}` already exists.") from None
+        raise fastapi.exceptions.HTTPException(403, detail=f"Device `{device.name}` already exists.") from None
 
     except sql_api.DataError as exc:
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
