@@ -269,7 +269,6 @@ class PostgreDatabase(api.DatabaseHandler):
             assert isinstance(result, expected_type)
             return result
 
-    # TODO: what happens if you try to update en entry that doesn't exist
     async def _update(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Update) -> typing.Optional[_ValueT]:
         with InsertErrorManager():
             cursor = await self._execute(query)
@@ -355,7 +354,7 @@ class PostgreDatabase(api.DatabaseHandler):
 
     async def delete_message(self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /) -> None:
         columns = dao_models.Messages.columns
-        query = dao_models.Messages.delete().where(["id"] == message_id)
+        query = dao_models.Messages.delete().where(columns["id"] == message_id)
 
         if user_id:
             query = query.where(columns["user_id"] == user_id)
