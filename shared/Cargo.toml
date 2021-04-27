@@ -15,6 +15,7 @@ edition = "2018"
     regex           = "1.4.5"
     simple_logger   = "1.11.0"
     time-parse      = "0.2.0"
+    urlencoding     = "1.1.1"
 
 [dependencies.chrono]
     version     = "0.4.2"
