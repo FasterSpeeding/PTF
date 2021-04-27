@@ -49,7 +49,7 @@ from ..sql import api as sql_api
 
 @utilities.as_endpoint(
     "DELETE",
-    "/users/@me/devices",
+    "/devices",
     status_code=202,
     response_class=fastapi.Response,
     responses=dto_models.USER_AUTH_RESPONSE,
@@ -70,7 +70,7 @@ async def delete_user_devices(
 
 @utilities.as_endpoint(
     "GET",
-    "/users/@me/devices",
+    "/devices",
     response_model=list[dto_models.Device],
     responses=dto_models.USER_AUTH_RESPONSE,
     tags=["Devices"],
@@ -84,7 +84,7 @@ async def get_user_devices(
 
 @utilities.as_endpoint(
     "PATCH",
-    "/users/@me/devices/{device_name}",
+    "/devices/{device_name}",
     response_model=dto_models.Device,
     responses={
         **dto_models.USER_AUTH_RESPONSE,
@@ -117,7 +117,7 @@ async def patch_user_device(
 
 @utilities.as_endpoint(
     "POST",
-    "/users/@me/devices",
+    "/devices",
     response_model=dto_models.Device,
     responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR, 403: dto_models.BASIC_ERROR},
     tags=["Devices"],

@@ -71,7 +71,7 @@ class UserAuth:
     async def link_auth(
         self, message_id: uuid.UUID = fastapi.Path(...), link: str = fastapi.Query(...)
     ) -> dto_models.LinkAuth:
-        response = await self._client.get(f"{self.base_url}/messages/{message_id}/links", params=(("link", link),))
+        response = await self._client.get(f"{self.base_url}/messages/{message_id}/links/{link}")
 
         if response.status_code == 200:
             found_link = dto_models.LinkAuth.parse_obj(response.json())

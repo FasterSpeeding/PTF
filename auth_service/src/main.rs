@@ -157,16 +157,14 @@ async fn patch_current_user(
 }
 
 
-#[get("/messages/{message_id}/links")]
+#[get("/messages/{message_id}/links/{link}")]
 async fn get_message_link(
-    message_id: web::Path<uuid::Uuid>,
-    link: web::Query<dto_models::LinkQuery>,
+    path: web::Path<(uuid::Uuid, String)>,
     db: web::Data<Arc<dyn Database>>
 ) -> Result<HttpResponse, HttpResponse> {
-    let message_id = message_id.into_inner();
-    let link = link.into_inner();
+    let (message_id, link) = path.into_inner();
 
-    db.get_message_link(&message_id, &link.link)
+    db.get_message_link(&message_id, &link)
         .await
         .map(|v| match v {
             Some(link) if link.message_id == message_id => HttpResponse::Ok().json(link),
@@ -179,16 +177,14 @@ async fn get_message_link(
 }
 
 
-#[delete("/users/@me/messages/{message_id}/links")]
+#[delete("/messages/{message_id}/links/{link}")]
 async fn delete_my_message_link(
     req: HttpRequest,
-    link: web::Query<dto_models::LinkQuery>,
-    message_id: web::Path<uuid::Uuid>,
+    path: web::Path<(uuid::Uuid, String)>,
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>
 ) -> Result<HttpResponse, HttpResponse> {
-    let link = link.into_inner();
-    let message_id = message_id.into_inner();
+    let (message_id, link) = path.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
 
@@ -196,7 +192,7 @@ async fn delete_my_message_link(
         return Err(utility::single_error(404, "Message not found"));
     };
 
-    match db.delete_message_link(&message_id, &link.link).await {
+    match db.delete_message_link(&message_id, &link).await {
         Ok(true) => Ok(HttpResponse::NoContent().finish()),
         Ok(false) => Err(utility::single_error(404, "Message link not found")),
         Err(error) => {
@@ -207,7 +203,7 @@ async fn delete_my_message_link(
 }
 
 
-#[get("/users/@me/messages/{message_id}/links")]
+#[get("/messages/{message_id}/links")]
 async fn get_my_message_links(
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>,
@@ -233,7 +229,7 @@ async fn get_my_message_links(
 }
 
 
-#[post("/users/@me/messages/{message_id}/links")]
+#[post("/messages/{message_id}/links")]
 async fn post_my_message_link(
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>,

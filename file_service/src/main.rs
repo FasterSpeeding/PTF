@@ -68,7 +68,7 @@ fn content_disposition(filename: &str) -> (http::HeaderName, header::ContentDisp
 }
 
 
-#[delete("/users/@me/messages/{message_id}/files/{file_name}")]
+#[delete("/messages/{message_id}/files/{file_name}")]
 async fn delete_my_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
@@ -100,7 +100,7 @@ async fn delete_my_message_file(
 }
 
 
-#[get("/users/@me/messages/{message_id}/files/{file_name}")]
+#[get("/messages/{message_id}/files/{file_name}")]
 async fn get_my_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
@@ -138,7 +138,7 @@ async fn get_my_message_file(
 }
 
 
-#[get("/messages/{message_id}/files/{file_name}")]
+#[get("/messages/{message_id}/files/{file_name}/shared")]
 async fn get_shared_message_file(
     path: web::Path<(uuid::Uuid, String)>,
     link: web::Query<dto_models::LinkQuery>,
@@ -149,7 +149,7 @@ async fn get_shared_message_file(
     let (message_id, file_name) = path.into_inner();
 
     auth_handler
-        .resolve_link(&message_id, &link)
+        .resolve_link(&message_id, &link.link)
         .await
         .map_err(auth::map_auth_response)?;
 
@@ -171,7 +171,7 @@ async fn get_shared_message_file(
 }
 
 
-#[put("/users/@me/messages/{message_id}/files/{file_name}")]
+#[put("/messages/{message_id}/files/{file_name}")]
 async fn put_my_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,

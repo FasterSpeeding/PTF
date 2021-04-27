@@ -77,11 +77,7 @@ impl AuthError {
 
 #[async_trait]
 pub trait Auth: Send + Sync {
-    async fn resolve_link(
-        &self,
-        message_id: &uuid::Uuid,
-        link: &dto_models::LinkQuery
-    ) -> Result<dao_models::MessageLink, AuthError>;
+    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> Result<dao_models::MessageLink, AuthError>;
     async fn resolve_user(&self, authorization: &str) -> Result<dto_models::User, AuthError>;
 }
 
@@ -151,15 +147,10 @@ impl Auth for AuthClient {
         }
     }
 
-    async fn resolve_link(
-        &self,
-        message_id: &uuid::Uuid,
-        link: &dto_models::LinkQuery
-    ) -> Result<dao_models::MessageLink, AuthError> {
+    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> Result<dao_models::MessageLink, AuthError> {
         let response = self
             .client
-            .get(format!("{}/messages/{}/links", self.base_url, message_id))
-            .query(&[("link", &link.link)])
+            .get(format!("{}/messages/{}/links/{}", self.base_url, message_id, link))
             .send()
             .await
             .map_err(|e| {

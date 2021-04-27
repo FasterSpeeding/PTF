@@ -71,7 +71,7 @@ async def user_auth_message(
 
 @utilities.as_endpoint(
     "DELETE",
-    "/users/@me/messages",
+    "/messages",
     status_code=202,
     response_class=fastapi.Response,
     responses=dto_models.USER_AUTH_RESPONSE,
@@ -107,7 +107,7 @@ async def _delete_views(
 
 @utilities.as_endpoint(
     "DELETE",
-    "/users/@me/messages/{message_id}/views",
+    "/messages/{message_id}/views",
     response_class=fastapi.Response,
     status_code=204,
     responses={**dto_models.USER_AUTH_RESPONSE, 404: dto_models.BASIC_ERROR},
@@ -129,7 +129,7 @@ async def delete_message_views(
 
 @utilities.as_endpoint(
     "GET",
-    "/users/@me/messages/{message_id}/views",
+    "/messages/{message_id}/views",
     response_model=list[dto_models.View],
     status_code=200,
     responses={**dto_models.USER_AUTH_RESPONSE, 404: dto_models.BASIC_ERROR},
@@ -161,7 +161,7 @@ async def get_message_views(
 
 @utilities.as_endpoint(
     "PUT",
-    "/users/@me/messages/{message_id}/views/{device_name}",
+    "/messages/{message_id}/views/{device_name}",
     response_model=dto_models.View,
     status_code=201,
     responses={
@@ -199,7 +199,7 @@ async def put_message_view(
 
 @utilities.as_endpoint(
     "GET",
-    "/messages/{message_id}",
+    "/messages/{message_id}/shared",
     response_model=dto_models.Message,
     responses=dto_models.LINK_AUTH_RESPONSE,
     tags=["Linked Messages"],
@@ -223,7 +223,7 @@ async def get_linked_message(
 
 @utilities.as_endpoint(
     "GET",
-    "/users/@me/messages/{message_id}",
+    "/messages/{message_id}",
     response_model=dto_models.Message,
     responses={404: dto_models.BASIC_ERROR, **dto_models.USER_AUTH_RESPONSE},
     tags=["Messages"],
@@ -242,7 +242,7 @@ async def get_message(
 
 @utilities.as_endpoint(
     "GET",
-    "/users/@me/messages",
+    "/messages",
     response_model=list[dto_models.Message],
     responses={400: dto_models.BASIC_ERROR, **dto_models.USER_AUTH_RESPONSE},
     tags=["Messages"],
@@ -272,7 +272,7 @@ async def get_messages(
 
 @utilities.as_endpoint(
     "PATCH",
-    "/users/@me/messages/{message_id}",
+    "/messages/{message_id}",
     response_model=dto_models.Message,
     responses={
         **dto_models.USER_AUTH_RESPONSE,
@@ -315,7 +315,7 @@ async def patch_message(
 
 @utilities.as_endpoint(
     "POST",
-    "/users/@me/messages",
+    "/messages",
     response_model=dto_models.Message,
     responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
     tags=["Messages"],
@@ -343,5 +343,5 @@ async def post_messages(
         raise fastapi.exceptions.HTTPException(400, detail=str(exc)) from None
 
     response = dto_models.Message.from_orm(result)
-    response.with_paths(metadata)
+    response.with_paths(metadata, recursive=False)
     return response

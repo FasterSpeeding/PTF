@@ -210,15 +210,9 @@ class Message(pydantic.BaseModel):
 
     Config = _ModelConfig
 
-    def private_path(self) -> str:
-        return f"/users/@me/messages/{self.id}"
-
-    def shareable_path(self) -> str:
-        return f"/messages/{self.id}"
-
     def with_paths(self, metadata: utilities.Metadata, *, recursive: bool = True) -> None:
-        self.private_link = metadata.file_service_hostname + self.private_path()
-        self.shareable_link = metadata.file_service_hostname + self.shareable_path()
+        self.private_link = metadata.file_service_hostname + f"/messages/{self.id}"
+        self.shareable_link = self.private_link + "/shared"
 
         if recursive:
             for file in self.files:
@@ -235,15 +229,11 @@ class File(pydantic.BaseModel):
 
     Config = _ModelConfig
 
-    def private_path(self) -> str:
-        return f"/users/@me/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
-
-    def shareable_path(self) -> str:
-        return f"/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
-
     def with_paths(self, metadata: utilities.Metadata) -> None:
-        self.private_link = metadata.file_service_hostname + self.private_path()
-        self.shareable_link = metadata.file_service_hostname + self.shareable_path()
+        self.private_link = (
+            metadata.file_service_hostname + f"/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
+        )
+        self.shareable_link = self.private_link + "/shared"
 
 
 class View(pydantic.BaseModel):
