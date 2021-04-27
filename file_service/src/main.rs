@@ -69,7 +69,7 @@ fn content_disposition(filename: &str) -> (http::HeaderName, header::ContentDisp
 
 
 #[delete("/messages/{message_id}/files/{file_name}")]
-async fn delete_my_message_file(
+async fn delete_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
     auth_handler: web::Data<Arc<dyn auth::Auth>>,
@@ -101,7 +101,7 @@ async fn delete_my_message_file(
 
 
 #[get("/messages/{message_id}/files/{file_name}")]
-async fn get_my_message_file(
+async fn get_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
     auth_handler: web::Data<Arc<dyn auth::Auth>>,
@@ -172,7 +172,7 @@ async fn get_shared_message_file(
 
 
 #[put("/messages/{message_id}/files/{file_name}")]
-async fn put_my_message_file(
+async fn put_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
     data: web::Bytes,
@@ -248,10 +248,10 @@ async fn actix_main() -> std::io::Result<()> {
                 Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
             ))
             .app_data(web::PayloadConfig::new(209_715_200)) // TODO: decide on size
-            .service(delete_my_message_file)
-            .service(get_my_message_file)
+            .service(delete_message_file)
+            .service(get_message_file)
             .service(get_shared_message_file)
-            .service(put_my_message_file)
+            .service(put_message_file)
     })
     .server_hostname(&*HOSTNAME)
     .bind_openssl(&*URL, builder)?

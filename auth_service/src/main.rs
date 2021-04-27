@@ -178,7 +178,7 @@ async fn get_message_link(
 
 
 #[delete("/messages/{message_id}/links/{link}")]
-async fn delete_my_message_link(
+async fn delete_message_link(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
     db: web::Data<Arc<dyn Database>>,
@@ -204,7 +204,7 @@ async fn delete_my_message_link(
 
 
 #[get("/messages/{message_id}/links")]
-async fn get_my_message_links(
+async fn get_message_links(
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>,
     db: web::Data<Arc<dyn Database>>,
@@ -230,7 +230,7 @@ async fn get_my_message_links(
 
 
 #[post("/messages/{message_id}/links")]
-async fn post_my_message_link(
+async fn post_message_link(
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>,
     received_link: web::Json<dto_models::ReceivedMessageLink>,
@@ -275,12 +275,12 @@ async fn actix_main() -> std::io::Result<()> {
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
             .app_data(web::Data::new(Arc::from(hasher.clone()) as Arc<dyn Hasher>))
             .service(delete_current_user)
-            .service(delete_my_message_link)
+            .service(delete_message_link)
             .service(get_current_user)
-            .service(get_my_message_links)
+            .service(get_message_links)
             .service(get_message_link)
             .service(patch_current_user)
-            .service(post_my_message_link)
+            .service(post_message_link)
             .service(post_user)
     })
     .bind_openssl(&*URL, builder)?

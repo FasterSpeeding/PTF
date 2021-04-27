@@ -34,12 +34,12 @@ from __future__ import annotations
 __all__: list[str] = [
     "delete_messages",
     "delete_message_views",
-    "get_linked_message",
+    "get_shared_message",
     "get_message",
     "get_messages",
     "get_message_views",
     "patch_message",
-    "post_messages",
+    "post_message",
     "put_message_view",
 ]
 
@@ -202,9 +202,9 @@ async def put_message_view(
     "/messages/{message_id}/shared",
     response_model=dto_models.Message,
     responses=dto_models.LINK_AUTH_RESPONSE,
-    tags=["Linked Messages"],
+    tags=["Shared Messages"],
 )
-async def get_linked_message(
+async def get_shared_message(
     _: dto_models.LinkAuth = fastapi.Depends(refs.LinkAuthProto),
     message_id: uuid.UUID = fastapi.Path(...),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
@@ -320,7 +320,7 @@ async def patch_message(
     responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
     tags=["Messages"],
 )
-async def post_messages(
+async def post_message(
     message: dto_models.ReceivedMessage,
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),

@@ -32,10 +32,10 @@
 from __future__ import annotations
 
 __all__: list[str] = [
-    "delete_user_devices",
-    "get_user_devices",
-    "patch_user_device",
-    "post_user_devices",
+    "delete_devices",
+    "get_devices",
+    "patch_device",
+    "post_device",
 ]
 
 import fastapi
@@ -55,7 +55,7 @@ from ..sql import api as sql_api
     responses=dto_models.USER_AUTH_RESPONSE,
     tags=["Devices"],
 )
-async def delete_user_devices(
+async def delete_devices(
     device_names: set[str] = fastapi.Body(
         ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
     ),
@@ -75,7 +75,7 @@ async def delete_user_devices(
     responses=dto_models.USER_AUTH_RESPONSE,
     tags=["Devices"],
 )
-async def get_user_devices(
+async def get_devices(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.Device]:
@@ -93,7 +93,7 @@ async def get_user_devices(
     },
     tags=["Devices"],
 )
-async def patch_user_device(
+async def patch_device(
     device_update: dto_models.ReceivedDeviceUpdate,
     device_name: str = fastapi.Path(
         ..., min_length=validation.MINIMUM_NAME_LENGTH, max_length=validation.MAXIMUM_NAME_LENGTH
@@ -122,7 +122,7 @@ async def patch_user_device(
     responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR, 403: dto_models.BASIC_ERROR},
     tags=["Devices"],
 )
-async def post_user_devices(
+async def post_device(
     device: dto_models.Device,
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
