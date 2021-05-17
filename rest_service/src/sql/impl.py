@@ -42,8 +42,8 @@ import uuid
 
 # https://github.com/MagicStack/asyncpg/issues/699
 import asyncpg.exceptions  # type: ignore[import]  # TODO: wait for asyncpg to add python 3.10 support
-import sqlalchemy.exc  # type: ignore[import]
-import sqlalchemy.ext.asyncio  # type: ignore[import]
+import sqlalchemy.exc
+import sqlalchemy.ext.asyncio
 
 from . import api
 from . import dao_models
@@ -78,7 +78,7 @@ class InsertErrorManager:
             return None
 
         # These should really be caught earlier on by validation
-        if isinstance(exc_val, sqlalchemy.exc.IntegrityError):
+        if isinstance(exc_val, sqlalchemy.exc.IntegrityError) and exc_val.__cause__ and exc_val.__cause__:
             root_error = exc_val.__cause__.__cause__
             if isinstance(root_error, asyncpg.exceptions.IntegrityConstraintViolationError):
                 if isinstance(root_error, asyncpg.exceptions.UniqueViolationError):
@@ -86,7 +86,7 @@ class InsertErrorManager:
 
                 raise api.DataError(str(root_error.args[0])) from None
 
-        elif isinstance(exc_val, sqlalchemy.exc.DBAPIError):
+        elif isinstance(exc_val, sqlalchemy.exc.DBAPIError) and exc_val.__cause__:
             root_error = exc_val.__cause__.__cause__
             if isinstance(root_error, asyncpg.exceptions.DataError):
                 raise api.DataError(str(root_error.args[0])) from None
@@ -109,7 +109,11 @@ class _PostgresCollection(typing.Generic[_KeyT, _ValueT]):
     __slots__: tuple[str, ...] = ("_engine", "_query", "_table")
 
     def __init__(
-        self, engine: sqlalchemy.ext.asyncio.AsyncEngine, table: sqlalchemy.Table, query: sqlalchemy.sql.Select, /
+        self,
+        engine: sqlalchemy.ext.asyncio.AsyncEngine,
+        table: sqlalchemy.Table,
+        query: typing.Union[sqlalchemy.sql.Select, sqlalchemy.sql.Delete],
+        /,
     ) -> None:
         self._engine = engine
         self._query = query
@@ -119,13 +123,14 @@ class _PostgresCollection(typing.Generic[_KeyT, _ValueT]):
         async with self._engine.begin() as connection:
             cursor = await connection.execute(self._query)
             result = cursor.fetchall()
-            assert isinstance(result, collections.Collection)
-            return result
+            return typing.cast("collections.Collection[_ValueT]", result)
 
     async def count(self) -> int:
         async with self._engine.begin() as connection:
             cursor = await connection.execute(self._query)
-            assert isinstance(cursor.rowcount, int)
+            # Not exactly sure what the semantics are for when we get Result vs CursorResult but we should always get
+            # CursorResult here(?) thus we upgrade it from Result to CursorResult with an assertion
+            assert isinstance(cursor, sqlalchemy.engine.cursor.CursorResult)
             return cursor.rowcount
 
     def filter(
@@ -197,9 +202,7 @@ class PostgreDatabase(api.DatabaseHandler):
             database=url.path.strip("/") or "ptf",
             query=urllib.parse.parse_qs(url.query),
         )
-        self._database: sqlalchemy.ext.asyncio.AsyncEngine = sqlalchemy.ext.asyncio.create_async_engine(
-            engine_url, future=True
-        )
+        self._database = sqlalchemy.ext.asyncio.create_async_engine(engine_url, future=True)
 
     @classmethod
     def from_config(cls, config: collections.Mapping[str, typing.Any], /) -> PostgreDatabase:
@@ -246,6 +249,9 @@ class PostgreDatabase(api.DatabaseHandler):
     async def _execute(self, query: _QueryT) -> sqlalchemy.engine.cursor.CursorResult:
         async with self._database.begin() as connection:
             cursor = await connection.execute(query)
+            # Not exactly sure what the semantics are for when we get Result vs CursorResult but we should always get
+            # CursorResult here(?) thus we upgrade it from Result to CursorResult with an assertion
+            assert isinstance(cursor, sqlalchemy.engine.cursor.CursorResult)
             return cursor
 
     async def _fetch_one(self, expected_type: type[_ValueT], query: sqlalchemy.sql.Select) -> typing.Optional[_ValueT]:
