@@ -8,6 +8,4 @@ Then create a `.env` file in the `rest_service` directory and populate it with t
 `message_service/.env.example` while replacing the values with your environment's equivalent.
 
 Then to initiate a server service instance make sure you have the created virtual environment
-activated before running `python .\rest_service\main.py`. Information
-on the additional arguments for Uvicorn such as how to startup multiple worker processes can be
-found at https://www.uvicorn.org/#command-line-options.
+activated before running `python .\rest_service\main.py`.
