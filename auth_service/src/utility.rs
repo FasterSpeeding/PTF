@@ -46,6 +46,16 @@ pub fn single_error(status: u16, detail: &str) -> HttpResponse {
 }
 
 
+pub fn with_location<'a>(
+    builder: &'a mut actix_web::dev::HttpResponseBuilder,
+    location: &str
+) -> &'a mut actix_web::dev::HttpResponseBuilder {
+    builder
+        .insert_header((http::header::CONTENT_LOCATION, location))
+        .insert_header((http::header::LOCATION, location))
+}
+
+
 pub fn unauthorized_error(detail: &str) -> HttpResponse {
     let response = dto_models::ErrorsResponse::default().with_error(
         dto_models::Error::default()

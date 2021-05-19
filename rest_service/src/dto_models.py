@@ -52,7 +52,6 @@ __all__: list[str] = [
 import datetime
 import inspect
 import typing
-import urllib.parse
 import uuid
 
 import pydantic
@@ -211,8 +210,8 @@ class Message(pydantic.BaseModel):
     Config = _ModelConfig
 
     def with_paths(self, metadata: utilities.Metadata, *, recursive: bool = True) -> None:
-        self.private_link = metadata.file_service_hostname + f"/messages/{self.id}"
-        self.shareable_link = self.private_link + "/shared"
+        self.private_link = metadata.message_private_uri(self.id)
+        self.shareable_link = metadata.message_public_uri(self.id)
 
         if recursive:
             for file in self.files:
@@ -230,10 +229,8 @@ class File(pydantic.BaseModel):
     Config = _ModelConfig
 
     def with_paths(self, metadata: utilities.Metadata) -> None:
-        self.private_link = (
-            metadata.file_service_hostname + f"/messages/{self.message_id}/files/{urllib.parse.quote(self.file_name)}"
-        )
-        self.shareable_link = self.private_link + "/shared"
+        self.private_link = metadata.file_private_uri(self.message_id, self.file_name)
+        self.shareable_link = metadata.file_public_uri(self.message_id, self.file_name)
 
 
 class View(pydantic.BaseModel):

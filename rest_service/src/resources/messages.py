@@ -57,6 +57,10 @@ from .. import validation
 from ..sql import api as sql_api
 from ..sql import dao_protos
 
+CONTENT_LOCATION: typing.Final[str] = "Content-Location"
+LOCATION: typing.Final[str] = "Location"
+JSON: typing.Final[str] = "application/json"
+
 
 async def user_auth_message(
     message_id: uuid.UUID = fastapi.Path(...),
@@ -320,7 +324,7 @@ async def post_message(
     auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
-) -> dto_models.Message:
+) -> fastapi.responses.Response:
     expire_at: typing.Optional[datetime.datetime] = None
     if message.expire_after:
         expire_at = datetime.datetime.now(tz=datetime.timezone.utc) + message.expire_after
@@ -339,4 +343,5 @@ async def post_message(
 
     response = dto_models.Message.from_orm(result)
     response.with_paths(metadata, recursive=False)
-    return response
+    uri = metadata.message_private_uri(response.id)
+    return fastapi.responses.Response(response.json(), headers={LOCATION: uri, CONTENT_LOCATION: uri}, media_type=JSON)

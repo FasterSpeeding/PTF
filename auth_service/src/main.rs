@@ -43,6 +43,7 @@ mod utility;
 
 
 lazy_static::lazy_static! {
+    static ref HOSTNAME: String = shared::get_env_variable("AUTH_SERVICE_HOSTNAME").unwrap();
     static ref URL: String = shared::get_env_variable("AUTH_SERVICE_ADDRESS")
         .map(shared::remove_protocol)
         .unwrap();
@@ -108,6 +109,7 @@ async fn post_user(
         .await;
 
     match result {
+        // TODO: get current user as Location?
         Ok(user) => Ok(HttpResponse::Created().json(dto_models::User::from_auth(user))),
         Err(SetError::Conflict) => Err(utility::single_error(403, "User already exists")),
         Err(SetError::Unknown(error)) => {
@@ -247,15 +249,19 @@ async fn post_message_link(
         return Err(utility::single_error(404, "Message not found"));
     };
 
+
+    let token = crypto::gen_link_key();
+    let location = format!("{}/messages/{}/links/{}", *HOSTNAME, message_id, token);
+
     db.set_message_link(
         &message_id,
-        &crypto::gen_link_key(),
+        &token,
         &received_link.access,
         &received_link.expires_after.map(|v| chrono::Utc::now() + v),
         &received_link.resource
     )
     .await
-    .map(|v| HttpResponse::Ok().json(v))
+    .map(|v| utility::with_location(&mut HttpResponse::Created(), &location).json(v))
     .map_err(|e| {
         log::error!("Failed to set message link due to {:?}", e);
         utility::single_error(500, "Internal server error")

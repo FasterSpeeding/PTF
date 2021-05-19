@@ -35,6 +35,8 @@ __all__: list[str] = ["as_endpoint", "EndpointDescriptor", "Metadata", "MethodT"
 
 import os
 import typing
+import urllib.parse
+import uuid
 
 import dotenv
 from fastapi import datastructures
@@ -172,6 +174,18 @@ class Metadata:
         self.log_level = (os.getenv("log_level") or "info").lower()
         self.ssl_cert = values["rest_service_cert"]
         self.ssl_key = values["rest_service_key"]
+
+    def file_private_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
+        return self.file_service_hostname + f"/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
+
+    def file_public_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
+        return self.file_public_uri(message_id, file_name) + "/shared"
+
+    def message_private_uri(self, message_id: uuid.UUID, /) -> str:
+        return self.file_service_hostname + f"/messages/{message_id}"
+
+    def message_public_uri(self, message_id: uuid.UUID, /) -> str:
+        return self.message_private_uri(message_id) + "/shared"
 
     def __call__(self) -> Metadata:
         return self
