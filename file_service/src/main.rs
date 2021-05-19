@@ -125,14 +125,14 @@ async fn get_message_file(
     file_reader
         .read_file(&file)
         .await
-        .map(|v| {
+        .map(|value| {
             HttpResponse::Ok()
                 .insert_header((header::CONTENT_TYPE, file.content_type))
                 .insert_header(content_disposition(&file_name))
-                .body(v)
+                .body(value)
         })
-        .map_err(|e| {
-            log::error!("Failed to read file due to {:?}", e);
+        .map_err(|error| {
+            log::error!("Failed to read file due to {:?}", error);
             utility::single_error(500, "Failed to load file's contents")
         })
 }
@@ -158,14 +158,14 @@ async fn get_shared_message_file(
     file_reader
         .read_file(&file)
         .await
-        .map(|v| {
+        .map(|value| {
             HttpResponse::Ok()
                 .insert_header((header::CONTENT_TYPE, file.content_type))
                 .insert_header(content_disposition(&file_name))
-                .body(v)
+                .body(value)
         })
-        .map_err(|e| {
-            log::error!("Failed to read file due to {:?}", e);
+        .map_err(|error| {
+            log::error!("Failed to read file due to {:?}", error);
             utility::single_error(500, "Failed to load file's contents")
         })
 }
@@ -214,17 +214,17 @@ async fn put_message_file(
     file_reader
         .save_file(&message.id, &date, &file_name, &data)
         .await
-        .map_err(|e| {
-            log::error!("Failed to save file due to {:?}", e);
+        .map_err(|error| {
+            log::error!("Failed to save file due to {:?}", error);
             utility::single_error(500, "Internal server error")
         })?;
 
     db.set_or_update_file(&message.id, &file_name, &content_type, &date)
         .await
-        .map(|v| HttpResponse::Ok().json(dto_models::File::from_dao(v, &HOSTNAME)))
+        .map(|value| HttpResponse::Ok().json(dto_models::File::from_dao(value, &HOSTNAME)))
         // TODO: should some cases of this actually be handled as the message not existing
-        .map_err(|e| {
-            log::error!("Failed to set file database entry due to {:?}", e);
+        .map_err(|error| {
+            log::error!("Failed to set file database entry due to {:?}", error);
             utility::single_error(500, "Internal server error")
         })
 }

@@ -54,11 +54,13 @@ impl<'de> de::Visitor<'de> for DurationVisitor {
         write!(formatter, "an iso8601 duration string")
     }
 
-    fn visit_str<E: de::Error>(self, value: &str) -> Result<Self::Value, E> {
+    fn visit_str<Error>(self, value: &str) -> Result<Self::Value, Error>
+    where
+        Error: de::Error {
         time_parse::duration::parse(value)
             .map(chrono::Duration::from_std)
-            .map_err(|e| E::custom(format!("invalid duration: {}", e)))?
-            .map_err(|e| E::custom(format!("invalid duration: {}", e)))
+            .map_err(|error| Error::custom(format!("invalid duration: {}", error)))?
+            .map_err(|error| Error::custom(format!("invalid duration: {}", error)))
     }
 }
 
@@ -71,21 +73,29 @@ impl<'de> de::Visitor<'de> for OptionalDurationVisitor {
         write!(formatter, "null or an iso8601 duration string")
     }
 
-    fn visit_none<E: de::Error>(self) -> Result<Self::Value, E> {
+    fn visit_none<Error>(self) -> Result<Self::Value, Error>
+    where
+        Error: de::Error {
         Ok(None)
     }
 
-    fn visit_some<D: de::Deserializer<'de>>(self, d: D) -> Result<Self::Value, D::Error> {
-        d.deserialize_any(DurationVisitor).map(Some)
+    fn visit_some<D>(self, deserializer: D) -> Result<Self::Value, D::Error>
+    where
+        D: de::Deserializer<'de> {
+        deserializer.deserialize_any(DurationVisitor).map(Some)
     }
 }
 
-fn deserialize_optional_duration<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<chrono::Duration>, D::Error> {
-    d.deserialize_option(OptionalDurationVisitor)
+fn deserialize_optional_duration<'de, D>(deserializer: D) -> Result<Option<chrono::Duration>, D::Error>
+where
+    D: serde::Deserializer<'de> {
+    deserializer.deserialize_option(OptionalDurationVisitor)
 }
 
-fn deserialize_duration<'de, D: serde::Deserializer<'de>>(d: D) -> Result<chrono::Duration, D::Error> {
-    d.deserialize_any(DurationVisitor)
+fn deserialize_duration<'de, D>(deserializer: D) -> Result<chrono::Duration, D::Error>
+where
+    D: serde::Deserializer<'de> {
+    deserializer.deserialize_any(DurationVisitor)
 }
 
 

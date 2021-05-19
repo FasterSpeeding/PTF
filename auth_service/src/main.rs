@@ -99,8 +99,8 @@ async fn post_user(
 
     utility::resolve_flags(&req, &db, &hasher, 1 << 2).await?;
 
-    let password_hash = hasher.hash(&user.password).await.map_err(|e| {
-        log::error!("Failed to hash password due to {:?}", e);
+    let password_hash = hasher.hash(&user.password).await.map_err(|error| {
+        log::error!("Failed to hash password due to {:?}", error);
         utility::single_error(500, "Internal server error")
     })?;
 
@@ -152,11 +152,11 @@ async fn patch_current_user(
         .await;
 
     match result {
-        Err(e) => {
-            log::error!("Failed to update user due to {:?}", e);
+        Err(error) => {
+            log::error!("Failed to update user due to {:?}", error);
             Err(utility::single_error(500, "Internal server error"))
         }
-        Ok(Some(v)) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(v))),
+        Ok(Some(value)) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(value))),
         // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
         Ok(None) => Err(utility::single_error(404, "Couldn't find user"))
     }
@@ -171,11 +171,11 @@ async fn get_message_link(
     let (message_id, link) = path.into_inner();
 
     match db.get_message_link(&message_id, &link).await {
-        Err(e) => {
-            log::error!("Failed to get message link from db due to {:?}", e);
+        Err(error) => {
+            log::error!("Failed to get message link from db due to {:?}", error);
             Err(utility::single_error(500, "Internal server error"))
         }
-        Ok(Some(v)) => Ok(HttpResponse::Ok().json(v)),
+        Ok(Some(value)) => Ok(HttpResponse::Ok().json(value)),
         Ok(None) => Err(utility::single_error(404, "Link not found"))
     }
 }
@@ -225,9 +225,9 @@ async fn get_message_links(
 
     db.get_message_links(&message_id)
         .await
-        .map(|v| HttpResponse::Ok().json(v))
-        .map_err(|e| {
-            log::error!("Failed to get message links from database due to {:?}", e);
+        .map(|value| HttpResponse::Ok().json(value))
+        .map_err(|error| {
+            log::error!("Failed to get message links from database due to {:?}", error);
             utility::single_error(500, "Failed to delete link")
         })
 }
@@ -257,13 +257,13 @@ async fn post_message_link(
         &message_id,
         &token,
         &received_link.access,
-        &received_link.expires_after.map(|v| chrono::Utc::now() + v),
+        &received_link.expires_after.map(|value| chrono::Utc::now() + value),
         &received_link.resource
     )
     .await
-    .map(|v| utility::with_location(&mut HttpResponse::Created(), &location).json(v))
-    .map_err(|e| {
-        log::error!("Failed to set message link due to {:?}", e);
+    .map(|value| utility::with_location(&mut HttpResponse::Created(), &location).json(value))
+    .map_err(|error| {
+        log::error!("Failed to set message link due to {:?}", error);
         utility::single_error(500, "Internal server error")
     })
 }

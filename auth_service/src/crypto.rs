@@ -61,8 +61,8 @@ impl Error for HashError {
 }
 
 impl std::fmt::Display for HashError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.message)
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.message)
     }
 }
 
@@ -103,15 +103,19 @@ impl Hasher for Argon {
             .map_err(|_| HashError::new("Failed to hash password"))
         })
         .await?
-        .map(|v| v.as_ref().to_vec())?;
+        .map(|value| value.as_ref().to_vec())?;
 
         while result.ends_with(&[0]) {
             // Remove padding which would otherwise lead to an error down the line.
             result.pop();
         }
 
-        std::string::String::from_utf8(result)
-            .map_err(|e| Box::from(HashError::from_string(format!("Failed to parse password due to {}", e))))
+        std::string::String::from_utf8(result).map_err(|error| {
+            Box::from(HashError::from_string(format!(
+                "Failed to parse password due to {}",
+                error
+            )))
+        })
     }
 }
 

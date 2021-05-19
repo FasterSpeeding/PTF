@@ -132,14 +132,14 @@ impl Auth for AuthClient {
             .header("Authorization", authorization)
             .send()
             .await
-            .map_err(|e| {
-                log::error!("User auth request failed due to {:?}", e);
+            .map_err(|error| {
+                log::error!("User auth request failed due to {:?}", error);
                 AuthError::Error
             })?; // TODO: will service unavailable ever be applicable?
 
         if response.status().is_success() {
-            response.json::<dto_models::User>().await.map_err(|e| {
-                log::error!("Failed to parse user auth response due to {:?}", e);
+            response.json::<dto_models::User>().await.map_err(|error| {
+                log::error!("Failed to parse user auth response due to {:?}", error);
                 AuthError::Error
             })
         } else {
@@ -153,8 +153,8 @@ impl Auth for AuthClient {
             .get(format!("{}/messages/{}/links/{}", self.base_url, message_id, link))
             .send()
             .await
-            .map_err(|e| {
-                log::error!("Auth request failed due to {:?}", e);
+            .map_err(|error| {
+                log::error!("Auth request failed due to {:?}", error);
                 AuthError::Error
             })?;
 

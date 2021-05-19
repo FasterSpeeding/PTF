@@ -45,8 +45,8 @@ impl std::error::Error for MissingEnvVariable<'_> {
 }
 
 impl std::fmt::Display for MissingEnvVariable<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Couldnt load missing env variable {}", self.key)
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "Couldnt load missing env variable {}", self.key)
     }
 }
 
