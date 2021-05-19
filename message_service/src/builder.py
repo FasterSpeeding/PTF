@@ -43,7 +43,7 @@ if typing.TYPE_CHECKING:
 
 def build(*, sql_builder: typing.Optional[sql_api.DatabaseManager] = None) -> fastapi.FastAPI:
     from . import refs
-    from . import resources
+    from . import routes
     from . import security
     from . import utilities
     from .sql import impl as sql_impl
@@ -67,7 +67,7 @@ def build(*, sql_builder: typing.Optional[sql_api.DatabaseManager] = None) -> fa
 
     server.add_event_handler("shutdown", _on_shutdown)
 
-    for value in vars(resources).values():
+    for value in vars(routes).values():
         if isinstance(value, utilities.EndpointDescriptor):
             server.add_api_route(**value.build())
 
