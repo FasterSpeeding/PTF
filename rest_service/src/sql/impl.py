@@ -78,7 +78,7 @@ class InsertErrorManager:
             return None
 
         # These should really be caught earlier on by validation
-        if isinstance(exc_val, sqlalchemy.exc.IntegrityError) and exc_val.__cause__ and exc_val.__cause__:
+        if isinstance(exc_val, sqlalchemy.exc.IntegrityError) and exc_val.__cause__:
             root_error = exc_val.__cause__.__cause__
             if isinstance(root_error, asyncpg.exceptions.IntegrityConstraintViolationError):
                 if isinstance(root_error, asyncpg.exceptions.UniqueViolationError):
