@@ -77,7 +77,6 @@ class InsertErrorManager:
         if exc_val is None:
             return None
 
-        # These should really be caught earlier on by validation
         if isinstance(exc_val, sqlalchemy.exc.IntegrityError) and exc_val.__cause__:
             root_error = exc_val.__cause__.__cause__
             if isinstance(root_error, asyncpg.exceptions.IntegrityConstraintViolationError):
@@ -86,10 +85,11 @@ class InsertErrorManager:
 
                 raise api.DataError(str(root_error.args[0])) from None
 
-        elif isinstance(exc_val, sqlalchemy.exc.DBAPIError) and exc_val.__cause__:
-            root_error = exc_val.__cause__.__cause__
-            if isinstance(root_error, asyncpg.exceptions.DataError):
-                raise api.DataError(str(root_error.args[0])) from None
+        # # These should really be caught earlier on by validation
+        # elif isinstance(exc_val, sqlalchemy.exc.DBAPIError) and exc_val.__cause__:
+        #     root_error = exc_val.__cause__.__cause__
+        #     if isinstance(root_error, asyncpg.exceptions.DataError):
+        #         raise api.DataError(str(root_error.args[0])) from None
 
 
 # Type error
