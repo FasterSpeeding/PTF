@@ -118,6 +118,7 @@ async def patch_device(
 @utilities.as_endpoint(
     "POST",
     "/devices",
+    status_code=201,
     response_model=dto_models.Device,
     responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR, 403: dto_models.BASIC_ERROR},
     tags=["Devices"],

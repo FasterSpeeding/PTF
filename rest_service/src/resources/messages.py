@@ -136,7 +136,6 @@ async def delete_message_views(
     tags=["Message Views"],
 )
 async def get_message_views(
-    auth: dto_models.AuthUser = fastapi.Depends(refs.UserAuthProto),
     message: dao_protos.Message = fastapi.Depends(user_auth_message),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
 ) -> list[dto_models.View]:
@@ -145,9 +144,7 @@ async def get_message_views(
         return []
 
     device_ids = [view.device_id for view in view_daos]
-    devices_iter = (
-        await database.iter_devices().filter("eq", ("user_id", auth.id)).filter("contains", ("id", device_ids))
-    )
+    devices_iter = await database.iter_devices().filter("contains", ("id", device_ids))
     devices = {d.id: d.name for d in devices_iter}
 
     views = []
@@ -165,6 +162,7 @@ async def get_message_views(
     response_model=dto_models.View,
     status_code=201,
     responses={
+        # This behaviour of 204 vs 201 is specified under https://datatracker.ietf.org/doc/html/rfc7231#section-4.3.4
         204: {"description": "The view already exists."},
         400: dto_models.BASIC_ERROR,
         404: dto_models.BASIC_ERROR,
@@ -211,11 +209,7 @@ async def get_shared_message(
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
     if message := await database.get_message(message_id):
-        result = dto_models.Message.from_orm(message)
-        files = await database.iter_files().filter("eq", ("message_id", result.id)).map(dto_models.File.from_orm)
-        result.files.extend(files)
-        result.with_paths(metadata)
-        return result
+        return await get_message(message, database, metadata)
 
     # In the rare case that a message is deleted as we're getting our response from the auth service we want to 404 here
     raise fastapi.exceptions.HTTPException(404, detail="Message not found.")
@@ -317,6 +311,7 @@ async def patch_message(
     "POST",
     "/messages",
     response_model=dto_models.Message,
+    status_code=201,
     responses={**dto_models.USER_AUTH_RESPONSE, 400: dto_models.BASIC_ERROR},
     tags=["Messages"],
 )

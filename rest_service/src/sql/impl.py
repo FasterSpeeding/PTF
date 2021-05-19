@@ -121,7 +121,7 @@ class _PostgresCollection(typing.Generic[_KeyT, _ValueT]):
 
     async def collect(self) -> collections.Collection[_ValueT]:
         async with self._engine.begin() as connection:
-            cursor = await connection.execute(self._query)
+            cursor = await connection.execute(self._query)  # TODO: stream?
             result = cursor.fetchall()
             return typing.cast("collections.Collection[_ValueT]", result)
 
@@ -362,7 +362,7 @@ class PostgreDatabase(api.DatabaseHandler):
         columns = dao_models.Messages.columns
         query = dao_models.Messages.delete().where(columns["id"] == message_id)
 
-        if user_id:
+        if user_id is not None:
             query = query.where(columns["user_id"] == user_id)
 
         await self._execute(query)
@@ -373,7 +373,7 @@ class PostgreDatabase(api.DatabaseHandler):
         columns = dao_models.Messages.columns
         query = dao_models.Messages.select().where(columns["id"] == message_id)
 
-        if user_id:
+        if user_id is not None:
             query = query.where(columns["user_id"] == user_id)
 
         return await self._fetch_one(dao_protos.Message, query)
@@ -402,7 +402,7 @@ class PostgreDatabase(api.DatabaseHandler):
             .returning(dao_models.Messages)
         )
 
-        if user_id:
+        if user_id is not None:
             query = query.where(columns["user_id"] == user_id)
 
         return await self._update(dao_protos.Message, query)

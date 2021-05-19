@@ -108,7 +108,7 @@ async fn post_user(
         .await;
 
     match result {
-        Ok(user) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(user))),
+        Ok(user) => Ok(HttpResponse::Created().json(dto_models::User::from_auth(user))),
         Err(SetError::Conflict) => Err(utility::single_error(403, "User already exists")),
         Err(SetError::Unknown(error)) => {
             log::error!("Failed to set user due to {:?}", error);
@@ -140,20 +140,24 @@ async fn patch_current_user(
         None => None
     };
 
-    db.update_user(
-        &user.id,
-        &user_update.flags,
-        &password_hash.as_deref(),
-        &user_update.username.as_deref()
-    )
-    .await
-    .map_err(|e| {
-        log::error!("Failed to update user due to {:?}", e);
-        utility::single_error(500, "Internal server error")
-    })?
-    .map(|v| HttpResponse::Ok().json(dto_models::User::from_auth(v)))
-    // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
-    .ok_or_else(|| utility::single_error(404, "Couldn't find user"))
+    let result = db
+        .update_user(
+            &user.id,
+            &user_update.flags,
+            &password_hash.as_deref(),
+            &user_update.username.as_deref()
+        )
+        .await;
+
+    match result {
+        Err(e) => {
+            log::error!("Failed to update user due to {:?}", e);
+            Err(utility::single_error(500, "Internal server error"))
+        }
+        Ok(Some(v)) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(v))),
+        // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
+        Ok(None) => Err(utility::single_error(404, "Couldn't find user"))
+    }
 }
 
 
@@ -164,16 +168,14 @@ async fn get_message_link(
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, link) = path.into_inner();
 
-    db.get_message_link(&message_id, &link)
-        .await
-        .map(|v| match v {
-            Some(link) if link.message_id == message_id => HttpResponse::Ok().json(link),
-            _ => utility::single_error(404, "Link not found")
-        })
-        .map_err(|e| {
+    match db.get_message_link(&message_id, &link).await {
+        Err(e) => {
             log::error!("Failed to get message link from db due to {:?}", e);
-            utility::single_error(500, "Internal server error")
-        })
+            Err(utility::single_error(500, "Internal server error"))
+        }
+        Ok(Some(v)) => Ok(HttpResponse::Ok().json(v)),
+        Ok(None) => Err(utility::single_error(404, "Link not found"))
+    }
 }
 
 
