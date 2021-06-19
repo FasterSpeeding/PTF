@@ -59,4 +59,5 @@ def run_hypercorn(metadata: utilities.Metadata) -> None:
 
 
 if __name__ == "__main__":
-    run_hypercorn(utilities.Metadata())
+    run_uvicorn(utilities.Metadata())
+    # run_hypercorn(utilities.Metadata())
