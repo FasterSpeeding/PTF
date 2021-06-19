@@ -56,7 +56,7 @@ import uuid
 
 import pydantic
 
-from . import flags
+from . import flags as flags_
 from . import validation
 
 if typing.TYPE_CHECKING:
@@ -110,7 +110,7 @@ class BasicError(pydantic.BaseModel):
 
 class AuthUser(pydantic.BaseModel):
     created_at: datetime.datetime
-    flags: flags.UserFlags
+    flags: flags_.UserFlags
     id: uuid.UUID
     username: str
 

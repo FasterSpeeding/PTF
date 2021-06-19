@@ -81,8 +81,13 @@ class EndpointDescriptor(typing.Generic[fastapi_types.DecoratedCallable]):
         kwargs["methods"] = {methods} if isinstance(methods, str) else set(methods)
         self._kwargs = kwargs
 
-    def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
-        return self._endpoint(*args, **kwargs)
+    if typing.TYPE_CHECKING:
+        __call__: fastapi_types.DecoratedCallable
+
+    else:
+
+        def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+            return self._endpoint(*args, **kwargs)
 
     def build(self) -> dict[str, typing.Any]:
         return self._kwargs.copy()

@@ -170,27 +170,7 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_user_by_id(self, user_id: uuid.UUID, /) -> typing.Optional[dao_protos.User]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def get_user_by_username(self, username: str, /) -> typing.Optional[dao_protos.User]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def iter_users(self) -> DatabaseIterator[UserFieldsT, dao_protos.User]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def clear_devices(self) -> FilteredClear[DeviceFieldsT, dao_protos.Device]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_device_by_id(self, device_id: int, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_device_by_name(self, user_id: uuid.UUID, device_name: str, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -210,17 +190,6 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def update_device_by_id(
-        self,
-        device_id: int,
-        /,
-        *,
-        is_required_viewer: bool = ...,
-        name: str = ...,
-    ) -> typing.Optional[dao_protos.Device]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     async def update_device_by_name(
         self,
         user_id: uuid.UUID,
@@ -234,10 +203,6 @@ class DatabaseHandler(abc.ABC):
 
     @abc.abstractmethod
     def clear_messages(self) -> FilteredClear[MessageFieldsT, dao_protos.Message]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_message(self, message_id: uuid.UUID, user_id: typing.Optional[uuid.UUID] = None, /) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -277,23 +242,11 @@ class DatabaseHandler(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_file(self, message_id: uuid.UUID, file_name: str, /) -> typing.Optional[dao_protos.File]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def iter_files(self) -> DatabaseIterator[FileFieldsT, dao_protos.File]:
         raise NotImplementedError
 
     @abc.abstractmethod
     def clear_views(self) -> FilteredClear[ViewFieldsT, dao_protos.View]:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def delete_view(self, device_id: int, message_id: uuid.UUID, /) -> None:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    async def get_view(self, device_id: int, message_id: uuid.UUID, /) -> typing.Optional[dao_protos.View]:
         raise NotImplementedError
 
     @abc.abstractmethod
