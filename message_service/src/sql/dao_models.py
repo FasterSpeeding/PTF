@@ -31,7 +31,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["Users", "Devices", "Messages", "Files", "Views"]
+__all__: list[str] = ["Devices", "Messages", "Files", "Views"]
 
 import typing
 
@@ -44,21 +44,6 @@ ALWAYS: typing.Final[typing.Literal["ALWAYS"]] = "ALWAYS"
 CASCADE: typing.Final[typing.Literal["CASCADE"]] = "CASCADE"
 
 metadata = sqlalchemy.MetaData()
-
-Users = sqlalchemy.Table(
-    "users",
-    metadata,
-    sqlalchemy.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
-    sqlalchemy.Column(
-        "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
-    ),
-    sqlalchemy.Column("flags", sqlalchemy.BIGINT, nullable=False),
-    sqlalchemy.Column("username", sqlalchemy.VARCHAR(validation.MAXIMUM_NAME_LENGTH), nullable=False),
-    # Constraints
-    sqlalchemy.PrimaryKeyConstraint("id", name="user_pk"),
-    sqlalchemy.UniqueConstraint("username", name="user_username_uc"),
-)
-
 
 Devices = sqlalchemy.Table(
     "devices",

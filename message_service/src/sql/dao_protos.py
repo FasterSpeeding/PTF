@@ -31,23 +31,13 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 from __future__ import annotations
 
-__all__: list[str] = ["User", "Device", "Message", "MessageLink", "File", "View"]
+__all__: list[str] = ["Device", "Message", "MessageLink", "File", "View"]
 
 import typing
 import uuid
 
 if typing.TYPE_CHECKING:
     import datetime
-
-
-@typing.runtime_checkable
-class User(typing.Protocol):
-    """Definition of the structure returned by database implementations for user entries."""
-
-    id: uuid.UUID
-    created_at: datetime.datetime
-    flags: int
-    username: str
 
 
 @typing.runtime_checkable
