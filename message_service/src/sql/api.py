@@ -70,7 +70,7 @@ DeviceFieldsT = typing.Union[Literal["id"], Literal["is_required_viewer"], Liter
 MessageFieldsT = typing.Union[
     Literal["id"],
     Literal["created_at"],
-    Literal["expire_at"],
+    Literal["expires_at"],
     Literal["is_transient"],
     Literal["text"],
     Literal["title"],
@@ -219,7 +219,7 @@ class DatabaseHandler(abc.ABC):
     async def set_message(
         self,
         *,
-        expire_at: typing.Optional[datetime.datetime],
+        expires_at: typing.Optional[datetime.datetime],
         is_transient: bool,
         text: typing.Optional[str],
         title: typing.Optional[str],
@@ -234,7 +234,7 @@ class DatabaseHandler(abc.ABC):
         user_id: typing.Optional[uuid.UUID] = None,
         /,
         *,
-        expire_at: typing.Optional[datetime.datetime] = ...,
+        expires_at: typing.Optional[datetime.datetime] = ...,
         is_transient: bool = ...,
         text: typing.Optional[str] = ...,
         title: typing.Optional[str] = ...,

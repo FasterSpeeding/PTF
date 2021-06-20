@@ -145,18 +145,21 @@ else:
 REQUIRED_ENV_ENTRIES: typing.Final[list[str]] = [
     "auth_service_address",
     "database_url",
-    "file_service_hostname",
-    "rest_service_cert",
-    "rest_service_key",
+    "message_service_address",
+    "message_service_hostname",
+    "message_service_cert",
+    "message_service_key",
 ]
 
 
 class Metadata:
     __slots__: tuple[str, ...] = (
+        "address",
         "auth_service_address",
         "database_url",
-        "file_service_hostname",
+        "hostname",
         "log_level",
+        "port",
         "ssl_cert",
         "ssl_key",
     )
@@ -172,22 +175,26 @@ class Metadata:
 
         values = typing.cast("typing.Mapping[str, str]", values)
 
+        address = urllib.parse.urlparse(values["message_service_address"])
+        self.address = address.hostname
+        self.hostname = values["message_service_hostname"]
+        self.port = address.port or "8080"
+
         self.auth_service_address = values["auth_service_address"]
         # TODO: there must be a better way to handle the database url between rust and python
         self.database_url = "//" + values["database_url"].split("//", 1)[1]
-        self.file_service_hostname = values["file_service_hostname"]
         self.log_level = (os.getenv("log_level") or "info").lower()
-        self.ssl_cert = values["rest_service_cert"]
-        self.ssl_key = values["rest_service_key"]
+        self.ssl_cert = values["message_service_cert"]
+        self.ssl_key = values["message_service_key"]
 
     def file_private_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
-        return self.file_service_hostname + f"/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
+        return self.hostname + f"/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
 
     def file_public_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
         return self.file_private_uri(message_id, file_name) + "/shared"
 
     def message_private_uri(self, message_id: uuid.UUID, /) -> str:
-        return self.file_service_hostname + f"/messages/{message_id}"
+        return self.hostname + f"/messages/{message_id}"
 
     def message_public_uri(self, message_id: uuid.UUID, /) -> str:
         return self.message_private_uri(message_id) + "/shared"

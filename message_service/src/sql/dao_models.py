@@ -65,7 +65,7 @@ Messages = sqlalchemy.Table(
     sqlalchemy.Column(
         "created_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=False, server_default=sqlalchemy.sql.func.now()
     ),
-    sqlalchemy.Column("expire_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=True),
+    sqlalchemy.Column("expires_at", sqlalchemy.TIMESTAMP(timezone=True), nullable=True),
     sqlalchemy.Column("is_transient", sqlalchemy.BOOLEAN, nullable=False),
     sqlalchemy.Column("text", sqlalchemy.VARCHAR, nullable=True),
     sqlalchemy.Column("title", sqlalchemy.VARCHAR, nullable=True),

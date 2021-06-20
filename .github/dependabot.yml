@@ -16,6 +16,6 @@ updates:
       interval: "daily"
 
   - package-ecosystem: "pip" # See documentation for possible values
-    directory: "/rest_service" # Location of package manifests
+    directory: "/message_service" # Location of package manifests
     schedule:
       interval: "daily"

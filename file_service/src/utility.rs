@@ -58,3 +58,12 @@ pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str)
         }
     }
 }
+
+pub fn with_location<'a>(
+    builder: &'a mut actix_web::dev::HttpResponseBuilder,
+    location: &str
+) -> &'a mut actix_web::dev::HttpResponseBuilder {
+    builder
+        .insert_header((http::header::CONTENT_LOCATION, location))
+        .insert_header((http::header::LOCATION, location))
+}

@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS devices (
 CREATE TABLE IF NOT EXISTS messages (
     id              UUID                        NOT NULL,
     created_at      TIMESTAMP WITH TIME ZONE    NOT NULL                        DEFAULT CURRENT_TIMESTAMP,
-    expire_at       TIMESTAMP WITH TIME ZONE,
+    expires_at      TIMESTAMP WITH TIME ZONE,
     is_transient    BOOLEAN                     NOT NULL,
     text            VARCHAR,                    -- TODO: not nullable?
     title           VARCHAR,                    -- TODO: not nullable?

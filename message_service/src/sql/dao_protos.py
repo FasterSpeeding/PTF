@@ -56,7 +56,7 @@ class Message(typing.Protocol):
 
     id: uuid.UUID
     created_at: datetime.datetime
-    expire_at: typing.Optional[datetime.datetime]
+    expires_at: typing.Optional[datetime.datetime]
     is_transient: bool
     text: typing.Optional[str]
     title: typing.Optional[str]

@@ -290,10 +290,10 @@ async def patch_message(
     if (expire_after := fields.pop("expire_after", ...)) is not ...:
         assert expire_after is None or isinstance(expire_after, datetime.timedelta)
         if expire_after:
-            fields["expire_at"] = datetime.datetime.now(tz=datetime.timezone.utc) + expire_after
+            fields["expires_at"] = datetime.datetime.now(tz=datetime.timezone.utc) + expire_after
 
         else:
-            fields["expire_at"] = None
+            fields["expires_at"] = None
 
     try:
         new_message = await database.update_message(message_id, auth.id, **fields)
@@ -325,13 +325,13 @@ async def post_message(
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> fastapi.responses.Response:
-    expire_at: typing.Optional[datetime.datetime] = None
+    expires_at: typing.Optional[datetime.datetime] = None
     if message.expire_after:
-        expire_at = datetime.datetime.now(tz=datetime.timezone.utc) + message.expire_after
+        expires_at = datetime.datetime.now(tz=datetime.timezone.utc) + message.expire_after
 
     try:
         result = await database.set_message(
-            expire_at=expire_at,
+            expires_at=expires_at,
             is_transient=message.is_transient,
             text=message.text,
             title=message.title,

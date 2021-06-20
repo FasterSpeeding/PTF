@@ -257,7 +257,7 @@ async fn post_message_link(
         &message_id,
         &token,
         &received_link.access,
-        &received_link.expires_after.map(|value| chrono::Utc::now() + value),
+        &received_link.expire_after.map(|value| chrono::Utc::now() + value),
         &received_link.resource
     )
     .await
@@ -274,9 +274,9 @@ async fn actix_main() -> std::io::Result<()> {
     let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
     let hasher = crypto::Argon::new();
 
-    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
-    builder.set_private_key_file(&*SSL_KEY, SslFiletype::PEM).unwrap();
-    builder.set_certificate_chain_file(&*SSL_CERT).unwrap();
+    let mut ssl_acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
+    ssl_acceptor.set_private_key_file(&*SSL_KEY, SslFiletype::PEM).unwrap();
+    ssl_acceptor.set_certificate_chain_file(&*SSL_CERT).unwrap();
 
     HttpServer::new(move || {
         App::new()
@@ -291,7 +291,7 @@ async fn actix_main() -> std::io::Result<()> {
             .service(post_message_link)
             .service(post_user)
     })
-    .bind_openssl(&*URL, builder)?
+    .bind_openssl(&*URL, ssl_acceptor)?
     .run()
     .await
 }

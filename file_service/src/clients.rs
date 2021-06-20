@@ -36,7 +36,7 @@ use shared::{dao_models, dto_models};
 use crate::utility;
 
 #[derive(Debug)]
-pub enum AuthError {
+pub enum RestError {
     Error,
     Response {
         authenticate: Option<Box<str>>,
@@ -46,7 +46,9 @@ pub enum AuthError {
     }
 }
 
-impl AuthError {
+pub type RestResult<T> = Result<T, RestError>;
+
+impl RestError {
     pub fn response(body: &[u8], content_type: Option<&str>, status_code: u16) -> Self {
         Self::Response {
             authenticate: None,
@@ -54,6 +56,10 @@ impl AuthError {
             content_type: content_type.map(Box::from),
             status_code
         }
+    }
+
+    pub fn internal_server_error() -> Self {
+        Self::response(b"Internal server error", Some(&"text/plain; charset=UTF-8"), 500)
     }
 
     pub fn authenticate(self, value: &str) -> Self {
@@ -77,8 +83,9 @@ impl AuthError {
 
 #[async_trait]
 pub trait Auth: Send + Sync {
-    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> Result<dao_models::MessageLink, AuthError>;
-    async fn resolve_user(&self, authorization: &str) -> Result<dto_models::User, AuthError>;
+    async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dao_models::MessageLink>;
+    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dao_models::MessageLink>;
+    async fn resolve_user(&self, authorization: &str) -> RestResult<dto_models::User>;
 }
 
 
@@ -99,7 +106,7 @@ impl AuthClient {
 }
 
 
-async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> AuthError {
+async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> RestError {
     // We don't expect the header to_str to ever fail here
     let content_type = response
         .headers()
@@ -109,7 +116,7 @@ async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> 
 
     match response.bytes().await {
         Ok(body) => {
-            let response = AuthError::response(&body, content_type.as_deref(), status);
+            let response = RestError::response(&body, content_type.as_deref(), status);
             match auth_header {
                 Some(value) => response.authenticate(value),
                 None => response
@@ -117,7 +124,7 @@ async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> 
         }
         Err(error) => {
             log::error!("Failed to parse user auth response due to {:?}", error);
-            AuthError::Error
+            RestError::Error
         }
     }
 }
@@ -125,7 +132,32 @@ async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> 
 
 #[async_trait]
 impl Auth for AuthClient {
-    async fn resolve_user(&self, authorization: &str) -> Result<dto_models::User, AuthError> {
+    async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dao_models::MessageLink> {
+        let response = self
+            .client
+            .post(format!("{}/messages/{}/links", self.base_url.to_string(), message_id))
+            .json(&serde_json::json!({}))
+            .header("Authorization", authorization)
+            .send()
+            .await
+            .map_err(|error| {
+                log::error!("Failed to create message link due to {:?}", error);
+                RestError::Error
+            })?;
+
+        if response.status().is_success() {
+            response.json::<dao_models::MessageLink>().await.map_err(|error| {
+                log::error!("Failed to parse message link response due to {:?}", error);
+                RestError::Error
+            })
+        } else {
+            log::error!("Failed to create message link due to receiving {:?}", response.status());
+            Err(RestError::internal_server_error())
+            // TODO: how are we handling content type and charset elsewhere lol?
+        }
+    }
+
+    async fn resolve_user(&self, authorization: &str) -> RestResult<dto_models::User> {
         let response = self
             .client
             .get(self.base_url.to_string() + "/users/@me")
@@ -134,20 +166,20 @@ impl Auth for AuthClient {
             .await
             .map_err(|error| {
                 log::error!("User auth request failed due to {:?}", error);
-                AuthError::Error
+                RestError::Error
             })?; // TODO: will service unavailable ever be applicable?
 
         if response.status().is_success() {
             response.json::<dto_models::User>().await.map_err(|error| {
                 log::error!("Failed to parse user auth response due to {:?}", error);
-                AuthError::Error
+                RestError::Error
             })
         } else {
             Err(relay_error(response, Some("Basic")).await)
         }
     }
 
-    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> Result<dao_models::MessageLink, AuthError> {
+    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dao_models::MessageLink> {
         let response = self
             .client
             .get(format!("{}/messages/{}/links/{}", self.base_url, message_id, link))
@@ -155,18 +187,18 @@ impl Auth for AuthClient {
             .await
             .map_err(|error| {
                 log::error!("Auth request failed due to {:?}", error);
-                AuthError::Error
+                RestError::Error
             })?;
 
         match response.status() {
             reqwest::StatusCode::OK => response.json::<dao_models::MessageLink>().await.map_err(|e| {
                 log::error!("Failed to parse link auth response due to {:?}", e);
-                AuthError::Error
+                RestError::Error
             }),
             reqwest::StatusCode::NOT_FOUND => {
                 let response =
                     ErrorsResponse::default().with_error(Error::default().status(401).detail("Message link not found"));
-                Err(AuthError::response(
+                Err(RestError::response(
                     serde_json::to_string(&response).unwrap().as_bytes(),
                     Some("application/json"),
                     401
@@ -193,10 +225,10 @@ pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
     })
 }
 
-pub fn map_auth_response(error: AuthError) -> HttpResponse {
+pub fn map_auth_response(error: RestError) -> HttpResponse {
     match error {
-        AuthError::Error => utility::single_error(500, "Internal server error"),
-        AuthError::Response {
+        RestError::Error => utility::single_error(500, "Internal server error"),
+        RestError::Response {
             authenticate,
             body,
             content_type,
@@ -213,6 +245,66 @@ pub fn map_auth_response(error: AuthError) -> HttpResponse {
             }
 
             response.body(actix_web::body::Body::from_slice(&body))
+        }
+    }
+}
+
+
+#[async_trait]
+pub trait Message: Send + Sync {
+    async fn create_message(
+        &self,
+        authorization: &str,
+        expire_after: &Option<chrono::Duration>
+    ) -> RestResult<dto_models::Message>;
+}
+
+
+#[derive(Clone, Debug)]
+pub struct MessageClient {
+    base_url: Box<str>,
+    client:   reqwest::Client
+}
+
+
+impl MessageClient {
+    pub fn new(base_url: &str) -> Self {
+        Self {
+            base_url: Box::from(base_url),
+            client:   reqwest::Client::new()
+        }
+    }
+}
+
+#[async_trait]
+impl Message for MessageClient {
+    async fn create_message(
+        &self,
+        authorization: &str,
+        expire_after: &Option<chrono::Duration>
+    ) -> RestResult<dto_models::Message> {
+        let expire_after = expire_after.map(shared::dto_models::serialize_duration);
+        let response = self
+            .client
+            .post(format!("{}/messages", self.base_url.to_string()))
+            .json(&serde_json::json!({ "expire_after": expire_after }))
+            .header("Authorization", authorization)
+            .send()
+            .await
+            .map_err(|error| {
+                log::error!("Failed to create message due to {:?}", error);
+                RestError::Error
+            })?;
+
+        if response.status().is_success() {
+            response.json::<dto_models::Message>().await.map_err(|error| {
+                log::error!("Failed to parse message response due to {:?}", error);
+                RestError::Error
+            })
+        } else {
+            log::error!("Failed to create message due to receiving {:?}", response.status());
+            Err(RestError::internal_server_error())
+            // TODO: how are we handling content type and charset elsewhere lol?
         }
     }
 }

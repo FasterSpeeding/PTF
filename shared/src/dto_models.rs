@@ -44,7 +44,6 @@ lazy_static! {
     static ref USERNAME_REGEX: regex::Regex = regex::Regex::new(RAW_USERNAME_REGEX).unwrap();
 }
 
-
 struct DurationVisitor;
 
 impl<'de> de::Visitor<'de> for DurationVisitor {
@@ -86,16 +85,21 @@ impl<'de> de::Visitor<'de> for OptionalDurationVisitor {
     }
 }
 
-fn deserialize_optional_duration<'de, D>(deserializer: D) -> Result<Option<chrono::Duration>, D::Error>
+pub fn deserialize_optional_duration<'de, D>(deserializer: D) -> Result<Option<chrono::Duration>, D::Error>
 where
     D: serde::Deserializer<'de> {
     deserializer.deserialize_option(OptionalDurationVisitor)
 }
 
-fn deserialize_duration<'de, D>(deserializer: D) -> Result<chrono::Duration, D::Error>
+pub fn deserialize_duration<'de, D>(deserializer: D) -> Result<chrono::Duration, D::Error>
 where
     D: serde::Deserializer<'de> {
     deserializer.deserialize_any(DurationVisitor)
+}
+
+pub fn serialize_duration(duration: chrono::Duration) -> String {
+    // TODO: be smarter here to avoid encouraging C code to buffer overflow
+    format!("PT{}S", duration.num_seconds())  // This is ISO8601
 }
 
 
@@ -124,6 +128,21 @@ impl File {
         }
     }
 }
+
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct Message {
+    pub id:             uuid::Uuid,
+    pub created_at:     chrono::DateTime<chrono::Utc>,
+    pub expires_at:     Option<chrono::DateTime<chrono::Utc>>,
+    pub is_transient:   bool,
+    pub private_link:   String,
+    pub shareable_link: String,
+    pub text:           Option<String>,
+    pub title:          Option<String>,
+    pub files:          Vec<File>,
+}
+
 
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
@@ -187,7 +206,7 @@ pub struct ReceivedMessageLink {
     #[serde(default = "zero_default")]
     pub access:        i16,
     #[serde(default, deserialize_with = "deserialize_optional_duration")]
-    pub expires_after: Option<chrono::Duration>,
+    pub expire_after:  Option<chrono::Duration>,
     pub resource:      Option<String>
 }
 

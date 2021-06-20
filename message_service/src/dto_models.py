@@ -199,7 +199,7 @@ else:
 class Message(pydantic.BaseModel):
     id: uuid.UUID
     created_at: datetime.datetime
-    expire_at: typing.Union[datetime.datetime, None]
+    expires_at: typing.Union[datetime.datetime, None]
     is_transient: bool
     private_link: str = pydantic.Field(default="")  # This field should be filled in before this is sent.
     shareable_link: str = pydantic.Field(default="")  # This field should be filled in before this is sent.

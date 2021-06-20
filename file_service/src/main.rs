@@ -32,9 +32,9 @@
 use std::sync::Arc;
 
 use actix_web::http::header;
-use actix_web::{delete, get, http, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{delete, get, http, post, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
 use shared::sql::Database;
-mod auth;
+mod clients;
 mod files;
 mod utility;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
@@ -47,6 +47,7 @@ lazy_static::lazy_static! {
         .unwrap();
     static ref AUTH_URL: String = shared::get_env_variable("AUTH_SERVICE_ADDRESS").unwrap();
     static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
+    static ref MESSAGE_URL: String = shared::get_env_variable("MESSAGE_SERVICE_ADDRESS").unwrap();
     static ref FILE_BASE_URL: String = shared::get_env_variable("FILE_BASE_URL").unwrap();
     static ref HOSTNAME: String = shared::get_env_variable("FILE_SERVICE_HOSTNAME").unwrap();
     static ref SSL_KEY: String = shared::get_env_variable("FILE_SERVICE_KEY").unwrap();
@@ -72,15 +73,15 @@ fn content_disposition(filename: &str) -> (http::HeaderName, header::ContentDisp
 async fn delete_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
-    auth_handler: web::Data<Arc<dyn auth::Auth>>,
+    auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
     let user = auth_handler
-        .resolve_user(auth::get_auth_header(&req)?)
+        .resolve_user(clients::get_auth_header(&req)?)
         .await
-        .map_err(auth::map_auth_response)?;
+        .map_err(clients::map_auth_response)?;
 
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
@@ -104,16 +105,16 @@ async fn delete_message_file(
 async fn get_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
-    auth_handler: web::Data<Arc<dyn auth::Auth>>,
+    auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
     let user = auth_handler
-        .resolve_user(auth::get_auth_header(&req)?)
+        .resolve_user(clients::get_auth_header(&req)?)
         .await
-        .map_err(auth::map_auth_response)?;
+        .map_err(clients::map_auth_response)?;
 
     let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
@@ -142,7 +143,7 @@ async fn get_message_file(
 async fn get_shared_message_file(
     path: web::Path<(uuid::Uuid, String)>,
     link: web::Query<dto_models::LinkQuery>,
-    auth_handler: web::Data<Arc<dyn auth::Auth>>,
+    auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
@@ -151,7 +152,7 @@ async fn get_shared_message_file(
     auth_handler
         .resolve_link(&message_id, &link.link)
         .await
-        .map_err(auth::map_auth_response)?;
+        .map_err(clients::map_auth_response)?;
 
     let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
 
@@ -177,7 +178,7 @@ async fn put_message_file(
     path: web::Path<(uuid::Uuid, String)>,
     data: web::Bytes,
     // data: web::Payload,
-    auth_handler: web::Data<Arc<dyn auth::Auth>>,
+    auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>
 ) -> Result<HttpResponse, HttpResponse> {
@@ -196,9 +197,9 @@ async fn put_message_file(
     };
 
     let user = auth_handler
-        .resolve_user(auth::get_auth_header(&req)?)
+        .resolve_user(clients::get_auth_header(&req)?)
         .await
-        .map_err(auth::map_auth_response)?;
+        .map_err(clients::map_auth_response)?;
 
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
 
@@ -206,22 +207,36 @@ async fn put_message_file(
         return Err(utility::single_error(404, "Message not found"));
     };
 
+    save_file(&db, &file_reader, &message.id, &file_name, content_type, &data)
+        .await
+        .map(|value| HttpResponse::Ok().json(value))
+}
+
+
+async fn save_file(
+    db: &web::Data<Arc<dyn Database>>,
+    file_reader: &web::Data<Arc<dyn files::FileReader>>,
+    message_id: &uuid::Uuid,
+    file_name: &str,
+    content_type: &str,
+    data: &[u8] // ) -> clients::RestResult<dto_models::File> {
+) -> Result<dto_models::File, HttpResponse> {
     let date = chrono::Utc::now();
 
     // We save the file before making an SQL entry as while an entry-less file will
     // be ignored and eventually garbage collected, a file-less SQL entry will
     // persist and lead to errors if it's looked up
     file_reader
-        .save_file(&message.id, &date, &file_name, &data)
+        .save_file(&message_id, &date, file_name, data)
         .await
         .map_err(|error| {
             log::error!("Failed to save file due to {:?}", error);
             utility::single_error(500, "Internal server error")
         })?;
 
-    db.set_or_update_file(&message.id, &file_name, &content_type, &date)
+    db.set_or_update_file(&message_id, file_name, content_type, &date)
         .await
-        .map(|value| HttpResponse::Ok().json(dto_models::File::from_dao(value, &HOSTNAME)))
+        .map(|value| dto_models::File::from_dao(value, &HOSTNAME))
         // TODO: should some cases of this actually be handled as the message not existing
         .map_err(|error| {
             log::error!("Failed to set file database entry due to {:?}", error);
@@ -230,19 +245,73 @@ async fn put_message_file(
 }
 
 
+// TODO: add query params inc file name, expire after, whether it should be
+// linked, etc etc
+#[post("/files")]
+async fn post_file(
+    req: HttpRequest,
+    data: web::Bytes,
+    // data: web::Payload,
+    auth_handler: web::Data<Arc<dyn clients::Auth>>,
+    db: web::Data<Arc<dyn Database>>,
+    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    message_service: web::Data<Arc<dyn clients::Message>>
+) -> Result<HttpResponse, HttpResponse> {
+    println!("gay");
+    let authorization = clients::get_auth_header(&req)?;
+    let file_name = "1";
+    let content_type = req.content_type();
+
+    if file_name.len() > 120 {
+        return Err(utility::single_error(
+            400,
+            "File name cannot be over 120 characters long"
+        ));
+    };
+
+    if content_type.is_empty() {
+        return Err(utility::single_error(400, "Missing content type header"));
+    };
+
+
+    let message = message_service
+        .create_message(authorization, &None)
+        .await
+        .map_err(clients::map_auth_response)?;
+
+    let link = auth_handler
+        .create_link(authorization, &message.id)
+        .await
+        .map_err(clients::map_auth_response)?;
+
+    let location = format!(
+        "{}/messages/{}/files/{}/shared?link={}",
+        *HOSTNAME, &message.id, &file_name, &link.token
+    );
+
+    save_file(&db, &file_reader, &message.id, &file_name, content_type, &data)
+        .await
+        .map(|value| utility::with_location(&mut HttpResponse::Ok(), &location).json(value))
+}
+
+
 // #[actix_web::main]
 async fn actix_main() -> std::io::Result<()> {
-    let auth_handler = auth::AuthClient::new(&AUTH_URL);
+    let auth_handler = clients::AuthClient::new(&AUTH_URL);
+    let message_service = clients::MessageClient::new(&MESSAGE_URL);
     let file_reader = files::LocalReader::new(&FILE_BASE_URL);
     let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
 
-    let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
-    builder.set_private_key_file(&*SSL_KEY, SslFiletype::PEM).unwrap();
-    builder.set_certificate_chain_file(&*SSL_CERT).unwrap();
+    let mut ssl_acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
+    ssl_acceptor.set_private_key_file(&*SSL_KEY, SslFiletype::PEM).unwrap();
+    ssl_acceptor.set_certificate_chain_file(&*SSL_CERT).unwrap();
 
     HttpServer::new(move || {
         App::new()
-            .app_data(web::Data::new(Arc::from(auth_handler.clone()) as Arc<dyn auth::Auth>))
+            .app_data(web::Data::new(Arc::from(auth_handler.clone()) as Arc<dyn clients::Auth>))
+            .app_data(web::Data::new(
+                Arc::from(message_service.clone()) as Arc<dyn clients::Message>
+            ))
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
             .app_data(web::Data::new(
                 Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
@@ -251,10 +320,11 @@ async fn actix_main() -> std::io::Result<()> {
             .service(delete_message_file)
             .service(get_message_file)
             .service(get_shared_message_file)
+            .service(post_file)
             .service(put_message_file)
     })
     .server_hostname(&*HOSTNAME)
-    .bind_openssl(&*URL, builder)?
+    .bind_openssl(&*URL, ssl_acceptor)?
     .run()
     .await
 }

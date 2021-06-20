@@ -39,6 +39,8 @@ def run_uvicorn(metadata: utilities.Metadata) -> None:
     uvicorn.run(
         "src.builder:build",
         factory=True,
+        host=metadata.address,
+        port=metadata.port,
         log_level=metadata.log_level,
         ssl_keyfile=metadata.ssl_key,
         ssl_certfile=metadata.ssl_cert,
@@ -50,6 +52,7 @@ def run_hypercorn(metadata: utilities.Metadata) -> None:
 
     config = hypercorn.Config()
     config.application_path = "src.app:app"
+    config.bind = [f"{metadata.address}:{metadata.port}"]
     config.worker_class = "asyncio"
     config.loglevel = metadata.log_level
     config.certfile = metadata.ssl_cert

@@ -52,7 +52,7 @@ pub struct Device {
 pub struct Message {
     pub id:           uuid::Uuid,
     pub created_at:   chrono::DateTime<chrono::Utc>,
-    pub expire_at:    Option<chrono::DateTime<chrono::Utc>>,
+    pub expires_at:   Option<chrono::DateTime<chrono::Utc>>,
     pub is_transient: bool,
     pub text:         Option<String>,
     pub title:        Option<String>,

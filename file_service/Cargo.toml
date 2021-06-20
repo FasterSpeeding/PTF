@@ -9,7 +9,6 @@ edition = "2018"
 
 [dependencies]
     async-trait = "0.1.42"
-    chrono      = "0.4.19"
     lazy_static = "1.4.0"
     log	        = "0.4.14"
     openssl     = "0.10"
@@ -19,6 +18,10 @@ edition = "2018"
 [dependencies.actix-web]
     version     = "4.0.0-beta.4"
     features    = ["openssl"]
+
+[dependencies.chrono]
+    version     = "0.4.2"
+    features    = ["serde"]
 
 # This vendors openssl for actix-web on windows specifically
 [target.'cfg(windows)'.dependencies.openssl]
