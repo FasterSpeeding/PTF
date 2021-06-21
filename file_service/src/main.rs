@@ -292,10 +292,13 @@ async fn post_file(
         location = format!("{}/messages/{}/files/{}", *HOSTNAME, &message.id, &query.file_name);
     }
 
-
     save_file(&db, &file_reader, &message.id, &query.file_name, content_type, &data)
         .await
-        .map(|value| utility::with_location(&mut HttpResponse::Created(), &location).json(value))
+        .map(|value| {
+            HttpResponse::Created()
+                .insert_header((header::LOCATION, location))
+                .json(value)
+        })
 }
 
 
