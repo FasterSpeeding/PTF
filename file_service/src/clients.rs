@@ -107,11 +107,11 @@ impl AuthClient {
 
 
 async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> RestError {
-    // We don't expect the header to_str to ever fail here
     let content_type = response
         .headers()
         .get(http::header::CONTENT_TYPE)
-        .map(|v| v.to_str().unwrap_or("application/json").to_owned()); // TODO: what to do here?
+        .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
+
     let status = response.status().as_u16();
 
     match response.bytes().await {
@@ -302,15 +302,7 @@ impl Message for MessageClient {
                 RestError::Error
             })
         } else {
-            let content_type = response
-                .headers()
-                .get("Content-Type")
-                .map(|v| v.to_str().ok())
-                .flatten()
-                .map(|v| v.to_owned());
-            let status = response.status().as_u16();
-            let body = response.bytes().await.map(|v| v.to_vec()).unwrap_or_else(|_| vec![]);
-            Err(RestError::response(&body, content_type.as_deref(), status))
+            Err(relay_error(response, Some("Basic")).await)
             // TODO: how are we handling content type and charset elsewhere lol?
         }
     }
