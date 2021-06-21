@@ -55,9 +55,9 @@ lazy_static::lazy_static! {
 
 #[delete("/users/@me")]
 async fn delete_current_user(
-    req: HttpRequest,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    hasher: web::Data<Arc<dyn Hasher>>,
+    req: HttpRequest
 ) -> Result<HttpResponse, HttpResponse> {
     let user = utility::resolve_user(&req, &db, &hasher).await?;
 
@@ -74,9 +74,9 @@ async fn delete_current_user(
 
 #[get("/users/@me")]
 async fn get_current_user(
-    req: HttpRequest,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    hasher: web::Data<Arc<dyn Hasher>>,
+    req: HttpRequest
 ) -> Result<HttpResponse, HttpResponse> {
     utility::resolve_user(&req, &db, &hasher)
         .await
@@ -87,10 +87,10 @@ async fn get_current_user(
 
 #[post("/users")]
 async fn post_user(
-    req: HttpRequest,
-    user: web::Json<dto_models::ReceivedUser>,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    hasher: web::Data<Arc<dyn Hasher>>,
+    req: HttpRequest,
+    user: web::Json<dto_models::ReceivedUser>
 ) -> Result<HttpResponse, HttpResponse> {
     if let Err(error) = user.validate() {
         let response = dto_models::Error::from_validation_errors(&error);
@@ -122,10 +122,10 @@ async fn post_user(
 
 #[patch("/users/@me")]
 async fn patch_current_user(
-    req: HttpRequest,
-    user_update: web::Json<dto_models::UserUpdate>,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    hasher: web::Data<Arc<dyn Hasher>>,
+    req: HttpRequest,
+    user_update: web::Json<dto_models::UserUpdate>
 ) -> Result<HttpResponse, HttpResponse> {
     if let Err(error) = user_update.validate() {
         let response = dto_models::Error::from_validation_errors(&error);
@@ -165,8 +165,8 @@ async fn patch_current_user(
 
 #[get("/messages/{message_id}/links/{link}")]
 async fn get_message_link(
-    path: web::Path<(uuid::Uuid, String)>,
-    db: web::Data<Arc<dyn Database>>
+    db: web::Data<Arc<dyn Database>>,
+    path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, link) = path.into_inner();
 
@@ -183,10 +183,10 @@ async fn get_message_link(
 
 #[delete("/messages/{message_id}/links/{link}")]
 async fn delete_message_link(
-    req: HttpRequest,
-    path: web::Path<(uuid::Uuid, String)>,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    hasher: web::Data<Arc<dyn Hasher>>,
+    req: HttpRequest,
+    path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, link) = path.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;
@@ -209,10 +209,10 @@ async fn delete_message_link(
 
 #[get("/messages/{message_id}/links")]
 async fn get_message_links(
-    req: HttpRequest,
-    message_id: web::Path<uuid::Uuid>,
     db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    hasher: web::Data<Arc<dyn Hasher>>,
+    req: HttpRequest,
+    message_id: web::Path<uuid::Uuid>
 ) -> Result<HttpResponse, HttpResponse> {
     let message_id = message_id.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;
@@ -235,11 +235,11 @@ async fn get_message_links(
 
 #[post("/messages/{message_id}/links")]
 async fn post_message_link(
+    db: web::Data<Arc<dyn Database>>,
+    hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>,
-    received_link: web::Json<dto_models::ReceivedMessageLink>,
-    db: web::Data<Arc<dyn Database>>,
-    hasher: web::Data<Arc<dyn Hasher>>
+    received_link: web::Json<dto_models::ReceivedMessageLink>
 ) -> Result<HttpResponse, HttpResponse> {
     let message_id = message_id.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;

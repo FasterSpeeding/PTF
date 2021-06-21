@@ -99,7 +99,7 @@ where
 
 pub fn serialize_duration(duration: chrono::Duration) -> String {
     // TODO: be smarter here to avoid encouraging C code to buffer overflow
-    format!("PT{}S", duration.num_seconds())  // This is ISO8601
+    format!("PT{}S", duration.num_seconds()) // This is ISO8601
 }
 
 
@@ -140,9 +140,8 @@ pub struct Message {
     pub shareable_link: String,
     pub text:           Option<String>,
     pub title:          Option<String>,
-    pub files:          Vec<File>,
+    pub files:          Vec<File>
 }
-
 
 
 #[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
@@ -196,6 +195,16 @@ pub struct LinkQuery {
 }
 
 
+#[derive(Deserialize)]
+pub struct PostFileQuery {
+    #[serde(default, deserialize_with = "deserialize_optional_duration")]
+    pub expire_after: Option<chrono::Duration>,
+    pub file_name:    String,
+    #[serde(default, rename = "shared")]
+    pub is_shared:    bool
+}
+
+
 fn zero_default() -> i16 {
     0
 }
@@ -204,10 +213,10 @@ fn zero_default() -> i16 {
 #[derive(Clone, Debug, Deserialize, sqlx::FromRow)]
 pub struct ReceivedMessageLink {
     #[serde(default = "zero_default")]
-    pub access:        i16,
+    pub access:       i16,
     #[serde(default, deserialize_with = "deserialize_optional_duration")]
-    pub expire_after:  Option<chrono::Duration>,
-    pub resource:      Option<String>
+    pub expire_after: Option<chrono::Duration>,
+    pub resource:     Option<String>
 }
 
 

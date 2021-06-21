@@ -71,10 +71,10 @@ fn content_disposition(filename: &str) -> (http::HeaderName, header::ContentDisp
 
 #[delete("/messages/{message_id}/files/{file_name}")]
 async fn delete_message_file(
-    req: HttpRequest,
-    path: web::Path<(uuid::Uuid, String)>,
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
-    db: web::Data<Arc<dyn Database>>
+    db: web::Data<Arc<dyn Database>>,
+    req: HttpRequest,
+    path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
@@ -103,11 +103,11 @@ async fn delete_message_file(
 
 #[get("/messages/{message_id}/files/{file_name}")]
 async fn get_message_file(
-    req: HttpRequest,
-    path: web::Path<(uuid::Uuid, String)>,
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>
+    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    req: HttpRequest,
+    path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
@@ -141,11 +141,11 @@ async fn get_message_file(
 
 #[get("/messages/{message_id}/files/{file_name}/shared")]
 async fn get_shared_message_file(
-    path: web::Path<(uuid::Uuid, String)>,
-    link: web::Query<dto_models::LinkQuery>,
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>
+    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    path: web::Path<(uuid::Uuid, String)>,
+    link: web::Query<dto_models::LinkQuery>
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
 
@@ -174,13 +174,12 @@ async fn get_shared_message_file(
 
 #[put("/messages/{message_id}/files/{file_name}")]
 async fn put_message_file(
-    req: HttpRequest,
-    path: web::Path<(uuid::Uuid, String)>,
-    data: web::Bytes,
-    // data: web::Payload,
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>
+    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    req: HttpRequest,
+    path: web::Path<(uuid::Uuid, String)>,
+    data: web::Bytes // data: web::Payload,
 ) -> Result<HttpResponse, HttpResponse> {
     let (message_id, file_name) = path.into_inner();
     let content_type = req.content_type();
@@ -245,24 +244,22 @@ async fn save_file(
 }
 
 
-// TODO: add query params inc file name, expire after, whether it should be
-// linked, etc etc
 #[post("/files")]
 async fn post_file(
-    req: HttpRequest,
-    data: web::Bytes,
-    // data: web::Payload,
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>,
-    message_service: web::Data<Arc<dyn clients::Message>>
+    message_service: web::Data<Arc<dyn clients::Message>>,
+    req: HttpRequest,
+    data: web::Bytes,
+    // data: web::Payload,
+    query: web::Query<dto_models::PostFileQuery>
 ) -> Result<HttpResponse, HttpResponse> {
     println!("gay");
     let authorization = clients::get_auth_header(&req)?;
-    let file_name = "1";
     let content_type = req.content_type();
 
-    if file_name.len() > 120 {
+    if query.file_name.len() > 120 {
         return Err(utility::single_error(
             400,
             "File name cannot be over 120 characters long"
@@ -275,23 +272,30 @@ async fn post_file(
 
 
     let message = message_service
-        .create_message(authorization, &None)
+        .create_message(authorization, &query.expire_after)
         .await
         .map_err(clients::map_auth_response)?;
 
-    let link = auth_handler
-        .create_link(authorization, &message.id)
-        .await
-        .map_err(clients::map_auth_response)?;
+    let location: String;
+    if query.is_shared {
+        let link_token = auth_handler
+            .create_link(authorization, &message.id)
+            .await
+            .map_err(clients::map_auth_response)?
+            .token;
 
-    let location = format!(
-        "{}/messages/{}/files/{}/shared?link={}",
-        *HOSTNAME, &message.id, &file_name, &link.token
-    );
+        location = format!(
+            "{}/messages/{}/files/{}/shared?link={}",
+            *HOSTNAME, &message.id, &query.file_name, &link_token
+        );
+    } else {
+        location = format!("{}/messages/{}/files/{}", *HOSTNAME, &message.id, &query.file_name);
+    }
 
-    save_file(&db, &file_reader, &message.id, &file_name, content_type, &data)
+
+    save_file(&db, &file_reader, &message.id, &query.file_name, content_type, &data)
         .await
-        .map(|value| utility::with_location(&mut HttpResponse::Ok(), &location).json(value))
+        .map(|value| utility::with_location(&mut HttpResponse::Created(), &location).json(value))
 }
 
 

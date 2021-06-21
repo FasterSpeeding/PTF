@@ -302,8 +302,15 @@ impl Message for MessageClient {
                 RestError::Error
             })
         } else {
-            log::error!("Failed to create message due to receiving {:?}", response.status());
-            Err(RestError::internal_server_error())
+            let content_type = response
+                .headers()
+                .get("Content-Type")
+                .map(|v| v.to_str().ok())
+                .flatten()
+                .map(|v| v.to_owned());
+            let status = response.status().as_u16();
+            let body = response.bytes().await.map(|v| v.to_vec()).unwrap_or_else(|_| vec![]);
+            Err(RestError::response(&body, content_type.as_deref(), status))
             // TODO: how are we handling content type and charset elsewhere lol?
         }
     }
