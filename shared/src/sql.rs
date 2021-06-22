@@ -100,7 +100,7 @@ pub trait Database: Send + Sync {
         link_token: &str,
         access: &i16,
         expires_at: &Option<chrono::DateTime<chrono::Utc>>,
-        resource: &Option<String>
+        resource: Option<&str>
     ) -> SetResult<dao_models::MessageLink>;
     async fn set_user(
         &self,
@@ -114,7 +114,7 @@ pub trait Database: Send + Sync {
         &self,
         user_id: &uuid::Uuid,
         flags: &Option<i64>,
-        password_hash: &Option<&str>,
-        username: &Option<&str>
+        password_hash: Option<&str>,
+        username: Option<&str>
     ) -> DatabaseResult<dao_models::User>;
 }

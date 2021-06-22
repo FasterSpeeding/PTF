@@ -146,8 +146,8 @@ async fn patch_current_user(
         .update_user(
             &user.id,
             &user_update.flags,
-            &password_hash.as_deref(),
-            &user_update.username.as_deref()
+            password_hash.as_deref(),
+            user_update.username.as_deref()
         )
         .await;
 
@@ -264,7 +264,7 @@ async fn post_message_link(
         &token,
         &received_link.access,
         &received_link.expire_after.map(|value| chrono::Utc::now() + value),
-        &received_link.resource
+        received_link.resource.as_deref()
     )
     .await
     .map(dto_models::MessageLink::from_dao)

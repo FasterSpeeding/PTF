@@ -221,7 +221,7 @@ impl sql::Database for Pool {
         link_token: &str,
         access: &i16,
         expires_at: &Option<chrono::DateTime<chrono::Utc>>,
-        resource: &Option<String>
+        resource: Option<&str>
     ) -> sql::SetResult<dao_models::MessageLink> {
         sqlx::query_as!(
             dao_models::MessageLink,
@@ -231,7 +231,7 @@ impl sql::Database for Pool {
             access,
             expires_at.as_ref(),
             message_id,
-            resource.as_ref(),
+            resource,
         )
         .fetch_one(&self.pool)
         .await
@@ -263,8 +263,8 @@ impl sql::Database for Pool {
         &self,
         user_id: &uuid::Uuid,
         flags: &Option<i64>,
-        password_hash: &Option<&str>,
-        username: &Option<&str>
+        password_hash: Option<&str>,
+        username: Option<&str>
     ) -> sql::DatabaseResult<dao_models::User> {
         let mut query = String::new();
         let mut values = sqlx::postgres::PgArguments::default();
