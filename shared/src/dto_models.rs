@@ -103,7 +103,7 @@ pub fn serialize_duration(duration: chrono::Duration) -> String {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct File {
     pub content_type:   String,
     pub file_name:      String,
@@ -130,7 +130,7 @@ impl File {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Message {
     pub id:             uuid::Uuid,
     pub created_at:     chrono::DateTime<chrono::Utc>,
@@ -144,7 +144,7 @@ pub struct Message {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct User {
     pub id:         uuid::Uuid,
     pub created_at: chrono::DateTime<chrono::Utc>,
@@ -154,7 +154,7 @@ pub struct User {
 
 // TODO: find a better (possibly automatic) way to handle this
 impl User {
-    pub fn from_auth(user: crate::dao_models::AuthUser) -> Self {
+    pub fn from_auth(user: crate::dao_models::User) -> Self {
         Self {
             id:         user.id,
             created_at: user.created_at,
@@ -177,7 +177,7 @@ pub struct ReceivedUser {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UserUpdate {
     #[validate(range(min = 0))]
     pub flags:    Option<i64>,
@@ -189,13 +189,13 @@ pub struct UserUpdate {
 }
 
 
-#[derive(Deserialize, Serialize)]
+#[derive(Debug, Deserialize)]
 pub struct LinkQuery {
     pub link: String
 }
 
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize)]
 pub struct PostFileQuery {
     #[serde(default, deserialize_with = "deserialize_optional_duration")]
     pub expire_after: Option<chrono::Duration>,
@@ -205,12 +205,34 @@ pub struct PostFileQuery {
 }
 
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct MessageLink {
+    pub access:     i16,
+    pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
+    pub message_id: uuid::Uuid,
+    pub resource:   Option<String>,
+    pub token:      String
+}
+
+impl MessageLink {
+    pub fn from_dao(link: crate::dao_models::MessageLink) -> Self {
+        Self {
+            access:     link.access,
+            expires_at: link.expires_at,
+            message_id: link.message_id,
+            resource:   link.resource,
+            token:      link.token
+        }
+    }
+}
+
+
 fn zero_default() -> i16 {
     0
 }
 
 
-#[derive(Clone, Debug, Deserialize, sqlx::FromRow)]
+#[derive(Debug, Deserialize)]
 pub struct ReceivedMessageLink {
     #[serde(default = "zero_default")]
     pub access:       i16,

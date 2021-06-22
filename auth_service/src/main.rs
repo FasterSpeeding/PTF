@@ -175,7 +175,7 @@ async fn get_message_link(
             log::error!("Failed to get message link from db due to {:?}", error);
             Err(utility::single_error(500, "Internal server error"))
         }
-        Ok(Some(value)) => Ok(HttpResponse::Ok().json(value)),
+        Ok(Some(value)) => Ok(HttpResponse::Ok().json(dto_models::MessageLink::from_dao(value))),
         Ok(None) => Err(utility::single_error(404, "Link not found"))
     }
 }
@@ -225,6 +225,12 @@ async fn get_message_links(
 
     db.get_message_links(&message_id)
         .await
+        .map(|mut value| {
+            value
+                .drain(..)
+                .map(dto_models::MessageLink::from_dao)
+                .collect::<Vec<_>>()
+        })
         .map(|value| HttpResponse::Ok().json(value))
         .map_err(|error| {
             log::error!("Failed to get message links from database due to {:?}", error);
@@ -261,6 +267,7 @@ async fn post_message_link(
         &received_link.resource
     )
     .await
+    .map(dto_models::MessageLink::from_dao)
     .map(|value| utility::with_location(&mut HttpResponse::Created(), &location).json(value))
     .map_err(|error| {
         log::error!("Failed to set message link due to {:?}", error);

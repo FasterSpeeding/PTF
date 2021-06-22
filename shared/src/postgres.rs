@@ -180,15 +180,15 @@ impl sql::Database for Pool {
         .map_err(Box::from)
     }
 
-    async fn get_user_by_id(&self, user_id: &uuid::Uuid) -> sql::DatabaseResult<dao_models::AuthUser> {
-        sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE id=$1;", user_id)
+    async fn get_user_by_id(&self, user_id: &uuid::Uuid) -> sql::DatabaseResult<dao_models::User> {
+        sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE id=$1;", user_id)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)
     }
 
-    async fn get_user_by_username(&self, username: &str) -> sql::DatabaseResult<dao_models::AuthUser> {
-        sqlx::query_as!(dao_models::AuthUser, "SELECT * FROM users WHERE username=$1;", username)
+    async fn get_user_by_username(&self, username: &str) -> sql::DatabaseResult<dao_models::User> {
+        sqlx::query_as!(dao_models::User, "SELECT * FROM users WHERE username=$1;", username)
             .fetch_optional(&self.pool)
             .await
             .map_err(Box::from)
@@ -244,9 +244,9 @@ impl sql::Database for Pool {
         flags: &i64,
         password_hash: &str,
         username: &str
-    ) -> sql::SetResult<dao_models::AuthUser> {
+    ) -> sql::SetResult<dao_models::User> {
         sqlx::query_as!(
-            dao_models::AuthUser,
+            dao_models::User,
             "INSERT INTO users (id, flags, password_hash, username) VALUES ($1, $2, $3, $4) RETURNING *;",
             user_id,
             flags,
@@ -265,7 +265,7 @@ impl sql::Database for Pool {
         flags: &Option<i64>,
         password_hash: &Option<&str>,
         username: &Option<&str>
-    ) -> sql::DatabaseResult<dao_models::AuthUser> {
+    ) -> sql::DatabaseResult<dao_models::User> {
         let mut query = String::new();
         let mut values = sqlx::postgres::PgArguments::default();
         values.add(user_id);

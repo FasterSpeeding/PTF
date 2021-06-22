@@ -31,7 +31,7 @@
 use actix_web::{http, HttpRequest, HttpResponse};
 use async_trait::async_trait;
 use dto_models::{Error, ErrorsResponse};
-use shared::{dao_models, dto_models};
+use shared::dto_models;
 
 use crate::utility;
 
@@ -83,8 +83,8 @@ impl RestError {
 
 #[async_trait]
 pub trait Auth: Send + Sync {
-    async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dao_models::MessageLink>;
-    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dao_models::MessageLink>;
+    async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dto_models::MessageLink>;
+    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dto_models::MessageLink>;
     async fn resolve_user(&self, authorization: &str) -> RestResult<dto_models::User>;
 }
 
@@ -132,7 +132,7 @@ async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> 
 
 #[async_trait]
 impl Auth for AuthClient {
-    async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dao_models::MessageLink> {
+    async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dto_models::MessageLink> {
         let response = self
             .client
             .post(format!("{}/messages/{}/links", self.base_url.to_string(), message_id))
@@ -146,7 +146,7 @@ impl Auth for AuthClient {
             })?;
 
         if response.status().is_success() {
-            response.json::<dao_models::MessageLink>().await.map_err(|error| {
+            response.json::<dto_models::MessageLink>().await.map_err(|error| {
                 log::error!("Failed to parse message link response due to {:?}", error);
                 RestError::Error
             })
@@ -179,7 +179,7 @@ impl Auth for AuthClient {
         }
     }
 
-    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dao_models::MessageLink> {
+    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dto_models::MessageLink> {
         let response = self
             .client
             .get(format!("{}/messages/{}/links/{}", self.base_url, message_id, link))
@@ -191,7 +191,7 @@ impl Auth for AuthClient {
             })?;
 
         match response.status() {
-            reqwest::StatusCode::OK => response.json::<dao_models::MessageLink>().await.map_err(|e| {
+            reqwest::StatusCode::OK => response.json::<dto_models::MessageLink>().await.map_err(|e| {
                 log::error!("Failed to parse link auth response due to {:?}", e);
                 RestError::Error
             }),
@@ -303,7 +303,6 @@ impl Message for MessageClient {
             })
         } else {
             Err(relay_error(response, Some("Basic")).await)
-            // TODO: how are we handling content type and charset elsewhere lol?
         }
     }
 }

@@ -86,7 +86,7 @@ pub async fn resolve_user(
     req: &HttpRequest,
     db: &web::Data<Arc<dyn Database>>,
     hasher: &web::Data<Arc<dyn Hasher>>
-) -> Result<shared::dao_models::AuthUser, HttpResponse> {
+) -> Result<shared::dao_models::User, HttpResponse> {
     let value = req
         .headers()
         .get(http::header::AUTHORIZATION)
@@ -141,7 +141,7 @@ pub async fn resolve_flags(
     db: &web::Data<Arc<dyn Database>>,
     hasher: &web::Data<Arc<dyn Hasher>>,
     flags: i64
-) -> Result<shared::dao_models::AuthUser, HttpResponse> {
+) -> Result<shared::dao_models::User, HttpResponse> {
     let user = resolve_user(req, db, hasher).await?;
 
     // Wanted flag(s) or ADMIN

@@ -28,10 +28,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-use serde::{Deserialize, Serialize};
-
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
-pub struct AuthUser {
+#[derive(Debug, sqlx::FromRow)]
+pub struct User {
     pub id:            uuid::Uuid,
     pub created_at:    chrono::DateTime<chrono::Utc>,
     pub flags:         i64, // TODO: flags?
@@ -40,7 +38,7 @@ pub struct AuthUser {
 }
 
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow)]
 pub struct Device {
     pub id:                 i64,
     pub is_required_viewer: bool,
@@ -48,7 +46,7 @@ pub struct Device {
     pub user_id:            uuid::Uuid
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow)]
 pub struct Message {
     pub id:           uuid::Uuid,
     pub created_at:   chrono::DateTime<chrono::Utc>,
@@ -59,7 +57,7 @@ pub struct Message {
     pub user_id:      uuid::Uuid
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow)]
 pub struct File {
     pub content_type: String,
     pub file_name:    String,
@@ -67,14 +65,14 @@ pub struct File {
     pub set_at:       chrono::DateTime<chrono::Utc>
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow)]
 pub struct View {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub device_id:  i64,
     pub message_id: uuid::Uuid
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, sqlx::FromRow)]
+#[derive(Debug, sqlx::FromRow)]
 pub struct MessageLink {
     pub access:     i16,
     pub expires_at: Option<chrono::DateTime<chrono::Utc>>,
