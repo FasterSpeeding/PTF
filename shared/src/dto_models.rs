@@ -154,7 +154,7 @@ pub struct User {
 
 // TODO: find a better (possibly automatic) way to handle this
 impl User {
-    pub fn from_auth(user: crate::dao_models::User) -> Self {
+    pub fn from_dao(user: crate::dao_models::User) -> Self {
         Self {
             id:         user.id,
             created_at: user.created_at,

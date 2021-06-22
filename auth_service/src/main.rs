@@ -80,7 +80,7 @@ async fn get_current_user(
 ) -> Result<HttpResponse, HttpResponse> {
     utility::resolve_user(&req, &db, &hasher)
         .await
-        .map(shared::dto_models::User::from_auth)
+        .map(shared::dto_models::User::from_dao)
         .map(|v| HttpResponse::Ok().json(v))
 }
 
@@ -110,7 +110,7 @@ async fn post_user(
 
     match result {
         // TODO: get current user as Location?
-        Ok(user) => Ok(HttpResponse::Created().json(dto_models::User::from_auth(user))),
+        Ok(user) => Ok(HttpResponse::Created().json(dto_models::User::from_dao(user))),
         Err(SetError::Conflict) => Err(utility::single_error(403, "User already exists")),
         Err(SetError::Unknown(error)) => {
             log::error!("Failed to set user due to {:?}", error);
@@ -156,7 +156,7 @@ async fn patch_current_user(
             log::error!("Failed to update user due to {:?}", error);
             Err(utility::single_error(500, "Internal server error"))
         }
-        Ok(Some(value)) => Ok(HttpResponse::Ok().json(dto_models::User::from_auth(value))),
+        Ok(Some(value)) => Ok(HttpResponse::Ok().json(dto_models::User::from_dao(value))),
         // TODO: this shouldn't actually ever happen outside of maybe a few race conditions
         Ok(None) => Err(utility::single_error(404, "Couldn't find user"))
     }
