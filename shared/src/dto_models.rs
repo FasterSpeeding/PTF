@@ -117,7 +117,10 @@ impl File {
     pub fn from_dao(model: crate::dao_models::File, base_url: &str) -> Self {
         let file_name = urlencoding::encode(&model.file_name);
         let private_link = format!("{}/messages/{}/files/{}", base_url, &model.message_id, &file_name);
-        let shareable_link = format!("{}/shared", &private_link);
+        let shareable_link = format!(
+            "{}/shared/messages/{}/files/{}",
+            base_url, &model.message_id, &file_name
+        );
         Self {
             content_type: model.content_type,
             file_name: model.file_name,

@@ -28,12 +28,10 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-use actix_web::{http, HttpRequest, HttpResponse};
 use async_trait::async_trait;
 use dto_models::{Error, ErrorsResponse};
-use shared::dto_models;
 
-use crate::utility;
+use crate::dto_models;
 
 #[derive(Debug)]
 pub enum RestError {
@@ -109,7 +107,7 @@ impl AuthClient {
 async fn relay_error(response: reqwest::Response, auth_header: Option<&str>) -> RestError {
     let content_type = response
         .headers()
-        .get(http::header::CONTENT_TYPE)
+        .get("Content-Type")
         .map(|value| String::from_utf8_lossy(value.as_bytes()).into_owned());
 
     let status = response.status().as_u16();
@@ -210,46 +208,6 @@ impl Auth for AuthClient {
 }
 
 
-pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
-    let result = match req.headers().get(http::header::AUTHORIZATION).map(|v| v.to_str()) {
-        Some(Ok(value)) => Ok(value),
-        Some(Err(_)) => Err("Invalid authorization header"),
-        None => Err("Missing authorization header")
-    };
-
-    result.map_err(|message| {
-        let response = ErrorsResponse::default().with_error(Error::default().status(401).detail(message));
-        HttpResponse::Unauthorized()
-            .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
-            .json(response)
-    })
-}
-
-pub fn map_auth_response(error: RestError) -> HttpResponse {
-    match error {
-        RestError::Error => utility::single_error(500, "Internal server error"),
-        RestError::Response {
-            authenticate,
-            body,
-            content_type,
-            status_code
-        } => {
-            let mut response = HttpResponse::build(http::StatusCode::from_u16(status_code).unwrap());
-
-            if let Some(authenticate) = authenticate.as_deref() {
-                response.insert_header((http::header::WWW_AUTHENTICATE, authenticate));
-            }
-
-            if let Some(content_type) = content_type.as_deref() {
-                response.insert_header((http::header::CONTENT_TYPE, content_type));
-            }
-
-            response.body(actix_web::body::Body::from_slice(&body))
-        }
-    }
-}
-
-
 #[async_trait]
 pub trait Message: Send + Sync {
     async fn create_message(
@@ -283,7 +241,7 @@ impl Message for MessageClient {
         authorization: &str,
         expire_after: &Option<chrono::Duration>
     ) -> RestResult<dto_models::Message> {
-        let expire_after = expire_after.map(shared::dto_models::serialize_duration);
+        let expire_after = expire_after.map(dto_models::serialize_duration);
         let response = self
             .client
             .post(format!("{}/messages", self.base_url.to_string()))

@@ -191,13 +191,13 @@ class Metadata:
         return self.hostname + f"/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
 
     def file_public_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
-        return self.file_private_uri(message_id, file_name) + "/shared"
+        return self.hostname + f"/shared/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
 
     def message_private_uri(self, message_id: uuid.UUID, /) -> str:
         return self.hostname + f"/messages/{message_id}"
 
     def message_public_uri(self, message_id: uuid.UUID, /) -> str:
-        return self.message_private_uri(message_id) + "/shared"
+        return self.hostname + f"/shared/messages/{message_id}"
 
     def __call__(self) -> Metadata:
         return self

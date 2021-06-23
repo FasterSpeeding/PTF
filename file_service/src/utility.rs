@@ -28,9 +28,9 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
-use actix_web::{http, HttpResponse};
-use shared::dto_models;
+use actix_web::{http, HttpRequest, HttpResponse};
 use shared::sql::DatabaseResult;
+use shared::{clients, dto_models};
 
 pub fn single_error(status: u16, detail: &str) -> HttpResponse {
     let data =
@@ -46,6 +46,23 @@ pub fn single_error(status: u16, detail: &str) -> HttpResponse {
 }
 
 
+pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
+    let result = match req.headers().get(http::header::AUTHORIZATION).map(|v| v.to_str()) {
+        Some(Ok(value)) => Ok(value),
+        Some(Err(_)) => Err("Invalid authorization header"),
+        None => Err("Missing authorization header")
+    };
+
+    result.map_err(|message| {
+        let response =
+            dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(401).detail(message));
+        HttpResponse::Unauthorized()
+            .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
+            .json(response)
+    })
+}
+
+
 pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str) -> Result<T, HttpResponse> {
     match result {
         Ok(Some(entry)) => Ok(entry),
@@ -55,6 +72,30 @@ pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str)
 
             // TODO: will service unavailable ever be applicable?
             Err(single_error(500, "Database lookup failed"))
+        }
+    }
+}
+
+pub fn map_auth_response(error: clients::RestError) -> HttpResponse {
+    match error {
+        clients::RestError::Error => single_error(500, "Internal server error"),
+        clients::RestError::Response {
+            authenticate,
+            body,
+            content_type,
+            status_code
+        } => {
+            let mut response = HttpResponse::build(http::StatusCode::from_u16(status_code).unwrap());
+
+            if let Some(authenticate) = authenticate.as_deref() {
+                response.insert_header((http::header::WWW_AUTHENTICATE, authenticate));
+            }
+
+            if let Some(content_type) = content_type.as_deref() {
+                response.insert_header((http::header::CONTENT_TYPE, content_type));
+            }
+
+            response.body(actix_web::body::Body::from_slice(&body))
         }
     }
 }

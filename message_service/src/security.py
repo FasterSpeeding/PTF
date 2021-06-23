@@ -46,6 +46,19 @@ from . import refs
 from .sql import dao_protos
 
 
+def relay_handle_error(response: httpx.Response, /) -> fastapi.exceptions.HTTPException:
+    try:
+        data = response.json()
+        message = data["errors"][0]["detail"]
+
+    except Exception:
+        message = "Internal server error" if response.status_code >= 500 else "Unknown error"
+
+    authenticate = response.headers.get("WWW-Authenticate")
+    headers = {"WWW-Authenticate": authenticate} if authenticate else None
+    return fastapi.exceptions.HTTPException(response.status_code, detail=message, headers=headers)
+
+
 class UserAuth:
     __slots__: tuple[str, ...] = ("base_url", "_client")
 
@@ -54,19 +67,6 @@ class UserAuth:
         # By default AsyncClient will use it's own packaged CA bundle. We don't want this so we override it with a
         # default ssl context.
         self._client = httpx.AsyncClient(http2=True, verify=ssl.create_default_context())
-
-    @staticmethod
-    async def _handle_error(response: httpx.Response) -> fastapi.exceptions.HTTPException:
-        try:
-            data = response.json()
-            message = data["errors"][0]["detail"]
-
-        except Exception:
-            message = "Internal server error" if response.status_code >= 500 else "Unknown error"
-
-        authenticate = response.headers.get("WWW-Authenticate")
-        headers = {"WWW-Authenticate": authenticate} if authenticate else None
-        return fastapi.exceptions.HTTPException(response.status_code, detail=message, headers=headers)
 
     async def link_auth(
         self, message_id: uuid.UUID = fastapi.Path(...), link: str = fastapi.Query(...)
@@ -80,7 +80,7 @@ class UserAuth:
         if response.status_code == 404:
             raise fastapi.exceptions.HTTPException(401, detail="Unknown message link")
 
-        raise await self._handle_error(response)
+        raise relay_handle_error(response)
 
     async def user_auth(
         self,
@@ -93,7 +93,7 @@ class UserAuth:
             user = dto_models.AuthUser.parse_obj(response.json())
             return user
 
-        raise await self._handle_error(response)
+        raise relay_handle_error(response)
 
     async def close(self) -> None:
         if self._client:

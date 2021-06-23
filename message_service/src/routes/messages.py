@@ -201,7 +201,7 @@ async def put_message_view(
 
 @utilities.as_endpoint(
     "GET",
-    "/messages/{message_id}/shared",
+    "/shared/messages/{message_id}",
     response_model=dto_models.Message,
     responses=dto_models.LINK_AUTH_RESPONSE,
     tags=["Shared Messages"],

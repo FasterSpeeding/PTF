@@ -33,12 +33,12 @@ use std::sync::Arc;
 
 use actix_web::http::header;
 use actix_web::{delete, get, http, post, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
+use shared::clients;
 use shared::sql::Database;
-mod clients;
 mod files;
 mod utility;
 use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
-use shared::dto_models;
+use shared::{dao_models, dto_models};
 
 
 lazy_static::lazy_static! {
@@ -79,9 +79,9 @@ async fn delete_message_file(
     let (message_id, file_name) = path.into_inner();
 
     let user = auth_handler
-        .resolve_user(clients::get_auth_header(&req)?)
+        .resolve_user(utility::get_auth_header(&req)?)
         .await
-        .map_err(clients::map_auth_response)?;
+        .map_err(utility::map_auth_response)?;
 
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
 
@@ -101,6 +101,27 @@ async fn delete_message_file(
 }
 
 
+async fn read_file(
+    file: &dao_models::File,
+    file_name: &str,
+    file_reader: &web::Data<Arc<dyn files::FileReader>>
+) -> Result<HttpResponse, HttpResponse> {
+    file_reader
+        .read_file(file)
+        .await
+        .map(|value| {
+            HttpResponse::Ok()
+                .insert_header((header::CONTENT_TYPE, file.content_type.clone()))
+                .insert_header(content_disposition(file_name))
+                .body(value)
+        })
+        .map_err(|error| {
+            log::error!("Failed to read file due to {:?}", error);
+            utility::single_error(500, "Failed to load file's contents")
+        })
+}
+
+
 #[get("/messages/{message_id}/files/{file_name}")]
 async fn get_message_file(
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
@@ -112,9 +133,9 @@ async fn get_message_file(
     let (message_id, file_name) = path.into_inner();
 
     let user = auth_handler
-        .resolve_user(clients::get_auth_header(&req)?)
+        .resolve_user(utility::get_auth_header(&req)?)
         .await
-        .map_err(clients::map_auth_response)?;
+        .map_err(utility::map_auth_response)?;
 
     let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "file")?;
@@ -123,23 +144,11 @@ async fn get_message_file(
         return Err(utility::single_error(404, "File not found"));
     };
 
-    file_reader
-        .read_file(&file)
-        .await
-        .map(|value| {
-            HttpResponse::Ok()
-                .insert_header((header::CONTENT_TYPE, file.content_type))
-                .insert_header(content_disposition(&file_name))
-                .body(value)
-        })
-        .map_err(|error| {
-            log::error!("Failed to read file due to {:?}", error);
-            utility::single_error(500, "Failed to load file's contents")
-        })
+    read_file(&file, &file_name, &file_reader).await
 }
 
 
-#[get("/messages/{message_id}/files/{file_name}/shared")]
+#[get("/shared/messages/{message_id}/files/{file_name}")]
 async fn get_shared_message_file(
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
@@ -152,23 +161,11 @@ async fn get_shared_message_file(
     auth_handler
         .resolve_link(&message_id, &link.link)
         .await
-        .map_err(clients::map_auth_response)?;
+        .map_err(utility::map_auth_response)?;
 
     let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
 
-    file_reader
-        .read_file(&file)
-        .await
-        .map(|value| {
-            HttpResponse::Ok()
-                .insert_header((header::CONTENT_TYPE, file.content_type))
-                .insert_header(content_disposition(&file_name))
-                .body(value)
-        })
-        .map_err(|error| {
-            log::error!("Failed to read file due to {:?}", error);
-            utility::single_error(500, "Failed to load file's contents")
-        })
+    read_file(&file, &file_name, &file_reader).await
 }
 
 
@@ -196,9 +193,9 @@ async fn put_message_file(
     };
 
     let user = auth_handler
-        .resolve_user(clients::get_auth_header(&req)?)
+        .resolve_user(utility::get_auth_header(&req)?)
         .await
-        .map_err(clients::map_auth_response)?;
+        .map_err(utility::map_auth_response)?;
 
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
 
@@ -256,7 +253,7 @@ async fn post_file(
     query: web::Query<dto_models::PostFileQuery>
 ) -> Result<HttpResponse, HttpResponse> {
     println!("gay");
-    let authorization = clients::get_auth_header(&req)?;
+    let authorization = utility::get_auth_header(&req)?;
     let content_type = req.content_type();
 
     if query.file_name.len() > 120 {
@@ -274,18 +271,18 @@ async fn post_file(
     let message = message_service
         .create_message(authorization, &query.expire_after)
         .await
-        .map_err(clients::map_auth_response)?;
+        .map_err(utility::map_auth_response)?;
 
     let location: String;
     if query.is_shared {
         let link_token = auth_handler
             .create_link(authorization, &message.id)
             .await
-            .map_err(clients::map_auth_response)?
+            .map_err(utility::map_auth_response)?
             .token;
 
         location = format!(
-            "{}/messages/{}/files/{}/shared?link={}",
+            "{}/shared/messages/{}/files/{}?link={}",
             *HOSTNAME, &message.id, &query.file_name, &link_token
         );
     } else {
