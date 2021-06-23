@@ -75,7 +75,7 @@ class UserAuth:
             return found_link
 
         if response.status_code == 404:
-            raise fastapi.exceptions.HTTPException(401, detail="Unknown message link")
+            raise fastapi.exceptions.HTTPException(403, detail="Unknown message link")
 
         raise relay_handle_error(response)
 

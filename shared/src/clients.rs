@@ -199,7 +199,7 @@ impl Auth for AuthClient {
                 Err(RestError::response(
                     serde_json::to_string(&response).unwrap().as_bytes(),
                     Some("application/json"),
-                    401
+                    403
                 ))
             }
             _ => Err(relay_error(response, None).await)
