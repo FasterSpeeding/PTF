@@ -145,6 +145,7 @@ else:
 REQUIRED_ENV_ENTRIES: typing.Final[list[str]] = [
     "auth_service_address",
     "database_url",
+    "file_service_hostname",
     "message_service_address",
     "message_service_hostname",
     "message_service_cert",
@@ -157,6 +158,7 @@ class Metadata:
         "address",
         "auth_service_address",
         "database_url",
+        "file_service_hostname",
         "hostname",
         "log_level",
         "port",
@@ -183,15 +185,16 @@ class Metadata:
         self.auth_service_address = values["auth_service_address"]
         # TODO: there must be a better way to handle the database url between rust and python
         self.database_url = "//" + values["database_url"].split("//", 1)[1]
+        self.file_service_hostname = values["file_service_hostname"]
         self.log_level = (os.getenv("log_level") or "info").lower()
         self.ssl_cert = values["message_service_cert"]
         self.ssl_key = values["message_service_key"]
 
     def file_private_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
-        return self.hostname + f"/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
+        return self.file_service_hostname + f"/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
 
     def file_public_uri(self, message_id: uuid.UUID, file_name: str, /) -> str:
-        return self.hostname + f"/shared/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
+        return self.file_service_hostname + f"/shared/messages/{message_id}/files/{urllib.parse.quote(file_name)}"
 
     def message_private_uri(self, message_id: uuid.UUID, /) -> str:
         return self.hostname + f"/messages/{message_id}"
