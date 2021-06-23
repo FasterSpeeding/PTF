@@ -163,14 +163,12 @@ async fn patch_current_user(
 }
 
 
-#[get("/messages/{message_id}/links/{link}")]
+#[get("/links/{link_token}")]
 async fn get_message_link(
     db: web::Data<Arc<dyn Database>>,
-    path: web::Path<(uuid::Uuid, String)>
+    path: web::Path<String>
 ) -> Result<HttpResponse, HttpResponse> {
-    let (message_id, link) = path.into_inner();
-
-    match db.get_message_link(&message_id, &link).await {
+    match db.get_message_link(&path.into_inner()).await {
         Err(error) => {
             log::error!("Failed to get message link from db due to {:?}", error);
             Err(utility::single_error(500, "Internal server error"))

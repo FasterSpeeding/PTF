@@ -211,7 +211,7 @@ class Message(pydantic.BaseModel):
 
     def with_paths(self, metadata: utilities.Metadata, *, recursive: bool = True) -> None:
         self.private_link = metadata.message_private_uri(self.id)
-        self.shareable_link = metadata.message_public_uri(self.id)
+        self.shareable_link = metadata.message_public_uri()
 
         if recursive:
             for file in self.files:
@@ -230,7 +230,7 @@ class File(pydantic.BaseModel):
 
     def with_paths(self, metadata: utilities.Metadata) -> None:
         self.private_link = metadata.file_private_uri(self.message_id, self.file_name)
-        self.shareable_link = metadata.file_public_uri(self.message_id, self.file_name)
+        self.shareable_link = metadata.file_public_uri(self.file_name)
 
 
 class View(pydantic.BaseModel):

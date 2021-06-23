@@ -35,7 +35,6 @@ __all__: list[str] = ["RequireFlags", "UserAuth"]
 
 import base64
 import ssl
-import uuid
 
 import fastapi.security
 import httpx
@@ -68,10 +67,8 @@ class UserAuth:
         # default ssl context.
         self._client = httpx.AsyncClient(http2=True, verify=ssl.create_default_context())
 
-    async def link_auth(
-        self, message_id: uuid.UUID = fastapi.Path(...), link: str = fastapi.Query(...)
-    ) -> dto_models.LinkAuth:
-        response = await self._client.get(f"{self.base_url}/messages/{message_id}/links/{link}")
+    async def link_auth(self, link_token: str = fastapi.Query(...)) -> dto_models.LinkAuth:
+        response = await self._client.get(f"{self.base_url}/links/{link_token}")
 
         if response.status_code == 200:
             found_link = dto_models.LinkAuth.parse_obj(response.json())

@@ -79,11 +79,7 @@ pub trait Database: Send + Sync {
         set_at: chrono::DateTime<chrono::Utc>
     ) -> DatabaseResult<dao_models::File>;
     async fn get_message(&self, message_id: &uuid::Uuid) -> DatabaseResult<dao_models::Message>;
-    async fn get_message_link(
-        &self,
-        message_id: &uuid::Uuid,
-        link_token: &str
-    ) -> DatabaseResult<dao_models::MessageLink>;
+    async fn get_message_link(&self, link_token: &str) -> DatabaseResult<dao_models::MessageLink>;
     async fn get_message_links(&self, message_id: &uuid::Uuid) -> ManyResult<dao_models::MessageLink>;
     async fn get_user_by_id(&self, user_id: &uuid::Uuid) -> DatabaseResult<dao_models::User>;
     async fn get_user_by_username(&self, username: &str) -> DatabaseResult<dao_models::User>;

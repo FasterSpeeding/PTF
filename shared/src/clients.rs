@@ -82,7 +82,7 @@ impl RestError {
 #[async_trait]
 pub trait Auth: Send + Sync {
     async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dto_models::MessageLink>;
-    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dto_models::MessageLink>;
+    async fn resolve_link(&self, link: &str) -> RestResult<dto_models::MessageLink>;
     async fn resolve_user(&self, authorization: &str) -> RestResult<dto_models::User>;
 }
 
@@ -177,10 +177,10 @@ impl Auth for AuthClient {
         }
     }
 
-    async fn resolve_link(&self, message_id: &uuid::Uuid, link: &str) -> RestResult<dto_models::MessageLink> {
+    async fn resolve_link(&self, link: &str) -> RestResult<dto_models::MessageLink> {
         let response = self
             .client
-            .get(format!("{}/messages/{}/links/{}", self.base_url, message_id, link))
+            .get(format!("{}/links/{}", self.base_url, link))
             .send()
             .await
             .map_err(|error| {

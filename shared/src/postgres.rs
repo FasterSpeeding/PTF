@@ -153,15 +153,10 @@ impl sql::Database for Pool {
             .map_err(Box::from)
     }
 
-    async fn get_message_link(
-        &self,
-        message_id: &uuid::Uuid,
-        link_token: &str
-    ) -> sql::DatabaseResult<dao_models::MessageLink> {
+    async fn get_message_link(&self, link_token: &str) -> sql::DatabaseResult<dao_models::MessageLink> {
         sqlx::query_as!(
             dao_models::MessageLink,
-            "SELECT * FROM message_links WHERE message_id=$1 AND token=$2",
-            message_id,
+            "SELECT * FROM message_links WHERE token=$1",
             link_token
         )
         .fetch_optional(&self.pool)

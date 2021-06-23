@@ -201,18 +201,17 @@ async def put_message_view(
 
 @utilities.as_endpoint(
     "GET",
-    "/shared/messages/{message_id}",
+    "/links/{link_token}/message",
     response_model=dto_models.Message,
     responses=dto_models.LINK_AUTH_RESPONSE,
     tags=["Shared Messages"],
 )
 async def get_shared_message(
-    _: dto_models.LinkAuth = fastapi.Depends(refs.LinkAuthProto),
-    message_id: uuid.UUID = fastapi.Path(...),
+    link: dto_models.LinkAuth = fastapi.Depends(refs.LinkAuthProto),
     database: sql_api.DatabaseHandler = fastapi.Depends(refs.DatabaseProto),
     metadata: utilities.Metadata = fastapi.Depends(utilities.Metadata),
 ) -> dto_models.Message:
-    if message := await database.get_message(message_id):
+    if message := await database.get_message(link.message_id):
         return await get_message(message, database, metadata)
 
     # In the rare case that a message is deleted as we're getting our response from the auth service we want to 404 here

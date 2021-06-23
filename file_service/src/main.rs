@@ -148,22 +148,21 @@ async fn get_message_file(
 }
 
 
-#[get("/shared/messages/{message_id}/files/{file_name}")]
+#[get("/links/{link_token}/files/{file_name}")]
 async fn get_shared_message_file(
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>,
-    path: web::Path<(uuid::Uuid, String)>,
-    link: web::Query<dto_models::LinkQuery>
+    path: web::Path<(String, String)>
 ) -> Result<HttpResponse, HttpResponse> {
-    let (message_id, file_name) = path.into_inner();
+    let (token, file_name) = path.into_inner();
 
-    auth_handler
-        .resolve_link(&message_id, &link.link)
+    let link = auth_handler
+        .resolve_link(&token)
         .await
         .map_err(utility::map_auth_response)?;
 
-    let file = utility::resolve_database_entry(db.get_file_by_name(&message_id, &file_name).await, "file")?;
+    let file = utility::resolve_database_entry(db.get_file_by_name(&link.message_id, &file_name).await, "file")?;
 
     read_file(&file, &file_name, &file_reader).await
 }
@@ -281,10 +280,7 @@ async fn post_file(
             .map_err(utility::map_auth_response)?
             .token;
 
-        location = format!(
-            "{}/shared/messages/{}/files/{}?link={}",
-            *HOSTNAME, &message.id, &query.file_name, &link_token
-        );
+        location = format!("{}/links/{}/files/{}", *HOSTNAME, link_token, &query.file_name);
     } else {
         location = format!("{}/messages/{}/files/{}", *HOSTNAME, &message.id, &query.file_name);
     }

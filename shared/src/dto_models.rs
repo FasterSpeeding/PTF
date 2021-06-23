@@ -117,10 +117,7 @@ impl File {
     pub fn from_dao(model: crate::dao_models::File, base_url: &str) -> Self {
         let file_name = urlencoding::encode(&model.file_name);
         let private_link = format!("{}/messages/{}/files/{}", base_url, &model.message_id, &file_name);
-        let shareable_link = format!(
-            "{}/shared/messages/{}/files/{}",
-            base_url, &model.message_id, &file_name
-        );
+        let shareable_link = format!("{}/links/{{link_token}}/files/{}", base_url, &file_name);
         Self {
             content_type: model.content_type,
             file_name: model.file_name,
@@ -189,12 +186,6 @@ pub struct UserUpdate {
     #[validate(length(min = "MINIMUM_NAME_LENGTH", max = "MAXIMUM_NAME_LENGTH"))]
     #[validate(regex = "USERNAME_REGEX")]
     pub username: Option<String>
-}
-
-
-#[derive(Debug, Deserialize)]
-pub struct LinkQuery {
-    pub link: String
 }
 
 
