@@ -114,6 +114,7 @@ pub struct File {
 }
 
 impl File {
+    #[cfg(feature = "sqlx")]
     pub fn from_dao(model: crate::dao_models::File, base_url: &str) -> Self {
         let file_name = urlencoding::encode(&model.file_name);
         let private_link = format!("{}/messages/{}/files/{}", base_url, &model.message_id, &file_name);
@@ -154,6 +155,7 @@ pub struct User {
 
 // TODO: find a better (possibly automatic) way to handle this
 impl User {
+    #[cfg(feature = "sqlx")]
     pub fn from_dao(user: crate::dao_models::User) -> Self {
         Self {
             id:         user.id,
@@ -209,6 +211,7 @@ pub struct MessageLink {
 }
 
 impl MessageLink {
+    #[cfg(feature = "sqlx")]
     pub fn from_dao(link: crate::dao_models::MessageLink) -> Self {
         Self {
             access:     link.access,

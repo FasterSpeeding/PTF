@@ -1,0 +1,45 @@
+{
+    "name": "su-service",
+    "version": "1.0.0",
+    "description": "SU service cloudflare service.",
+    "scripts": {
+        "build": "webpack",
+        "format": "prettier --write src/**/*.{ts,js,json} && prettier --write *.{json,md}",
+        "lint": "eslint src/**/*.{ts,js,json} --fix",
+        "publish": "wrangler publish",
+        "watch": "wrangler preview --watch"
+    },
+    "author": "Lucina",
+    "license": "BSD-3-Clause",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/FasterSpeeding/PTF"
+    },
+    "prettier": {
+        "trailingComma": "es5",
+        "tabWidth": 4,
+        "semi": true,
+        "singleQuote": false
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "^2.0.0",
+        "@cloudflare/wrangler": "^1.17.0",
+        "@types/node": "^14.14.12",
+        "@typescript-eslint/eslint-plugin": "^4.28.0",
+        "@typescript-eslint/parser": "^4.28.0",
+        "eslint": "^7.29.0",
+        "eslint-config-prettier": "^8.1.0",
+        "eslint-config-standard": "^16.0.3",
+        "eslint-config-typescript": "^3.0.0",
+        "eslint-plugin-import": "^2.23.4",
+        "eslint-plugin-node": "^11.1.0",
+        "eslint-plugin-prettier": "^3.3.1",
+        "eslint-plugin-promise": "^5.1.0",
+        "fork-ts-checker-webpack-plugin": "^6.0.6",
+        "prettier": "^2.3.1",
+        "ts-loader": "^7.0.5",
+        "typescript": "^3.9.5",
+        "webpack": "^4.39.0",
+        "webpack-cli": "^4.7.0"
+    }
+}

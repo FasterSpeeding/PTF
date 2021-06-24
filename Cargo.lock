@@ -603,6 +603,7 @@ dependencies = [
  "openssl",
  "shared",
  "tokio",
+ "urlencoding",
  "uuid",
 ]
 

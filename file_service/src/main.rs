@@ -32,7 +32,7 @@
 use std::sync::Arc;
 
 use actix_web::http::header;
-use actix_web::{delete, get, http, post, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{delete, get, http, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
 use shared::clients;
 use shared::sql::Database;
 mod files;
@@ -47,7 +47,6 @@ lazy_static::lazy_static! {
         .unwrap();
     static ref AUTH_URL: String = shared::get_env_variable("AUTH_SERVICE_ADDRESS").unwrap();
     static ref DATABASE_URL: String = shared::get_env_variable("DATABASE_URL").unwrap();
-    static ref MESSAGE_URL: String = shared::get_env_variable("MESSAGE_SERVICE_ADDRESS").unwrap();
     static ref FILE_BASE_URL: String = shared::get_env_variable("FILE_BASE_URL").unwrap();
     static ref HOSTNAME: String = shared::get_env_variable("FILE_SERVICE_HOSTNAME").unwrap();
     static ref SSL_KEY: String = shared::get_env_variable("FILE_SERVICE_KEY").unwrap();
@@ -202,9 +201,19 @@ async fn put_message_file(
         return Err(utility::single_error(404, "Message not found"));
     };
 
+    let location = format!(
+        "{}/messages/{}/files/{}",
+        *HOSTNAME,
+        message_id,
+        urlencoding::encode(&file_name)
+    );
     save_file(&db, &file_reader, &message.id, &file_name, content_type, &data)
         .await
-        .map(|value| HttpResponse::Ok().json(value))
+        .map(|value| {
+            HttpResponse::Ok()
+                .insert_header((header::LOCATION, location))
+                .json(value)
+        })
 }
 
 
@@ -240,65 +249,9 @@ async fn save_file(
 }
 
 
-#[post("/files")]
-async fn post_file(
-    auth_handler: web::Data<Arc<dyn clients::Auth>>,
-    db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>,
-    message_service: web::Data<Arc<dyn clients::Message>>,
-    req: HttpRequest,
-    data: web::Bytes,
-    // data: web::Payload,
-    query: web::Query<dto_models::PostFileQuery>
-) -> Result<HttpResponse, HttpResponse> {
-    println!("gay");
-    let authorization = utility::get_auth_header(&req)?;
-    let content_type = req.content_type();
-
-    if query.file_name.len() > 120 {
-        return Err(utility::single_error(
-            400,
-            "File name cannot be over 120 characters long"
-        ));
-    };
-
-    if content_type.is_empty() {
-        return Err(utility::single_error(400, "Missing content type header"));
-    };
-
-
-    let message = message_service
-        .create_message(authorization, &query.expire_after)
-        .await
-        .map_err(utility::map_auth_response)?;
-
-    let location: String;
-    if query.is_shared {
-        let link_token = auth_handler
-            .create_link(authorization, &message.id)
-            .await
-            .map_err(utility::map_auth_response)?
-            .token;
-
-        location = format!("{}/links/{}/files/{}", *HOSTNAME, link_token, &query.file_name);
-    } else {
-        location = format!("{}/messages/{}/files/{}", *HOSTNAME, &message.id, &query.file_name);
-    }
-
-    save_file(&db, &file_reader, &message.id, &query.file_name, content_type, &data)
-        .await
-        .map(|value| {
-            HttpResponse::Created()
-                .insert_header((header::LOCATION, location))
-                .json(value)
-        })
-}
-
-
 // #[actix_web::main]
 async fn actix_main() -> std::io::Result<()> {
     let auth_handler = clients::AuthClient::new(&AUTH_URL);
-    let message_service = clients::MessageClient::new(&MESSAGE_URL);
     let file_reader = files::LocalReader::new(&FILE_BASE_URL);
     let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
 
@@ -309,9 +262,6 @@ async fn actix_main() -> std::io::Result<()> {
     HttpServer::new(move || {
         App::new()
             .app_data(web::Data::new(Arc::from(auth_handler.clone()) as Arc<dyn clients::Auth>))
-            .app_data(web::Data::new(
-                Arc::from(message_service.clone()) as Arc<dyn clients::Message>
-            ))
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
             .app_data(web::Data::new(
                 Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
@@ -320,7 +270,6 @@ async fn actix_main() -> std::io::Result<()> {
             .service(delete_message_file)
             .service(get_message_file)
             .service(get_shared_message_file)
-            .service(post_file)
             .service(put_message_file)
     })
     .server_hostname(&*HOSTNAME)

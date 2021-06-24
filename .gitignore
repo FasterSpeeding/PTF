@@ -10,9 +10,8 @@ out/*
 venv*/
 
 # CI pages, coverage reports, etc
-public/
-node_modules/
-package-lock.json
+**/public/
+**/node_modules/
 
 # PyCharm/IntelliJ-generated files
 *.iml
@@ -28,8 +27,8 @@ package-lock.json
 .pypirc
 
 # Setuptools/twine-generated files, compiled sources.
-build/
-dist/
+**/build/
+**/dist/
 *.egg-info/
 pip-wheel-metadata/
 *.so
@@ -63,3 +62,6 @@ coverage.xml
 *target/
 
 *.ssl/
+
+su_service/wrangler.toml
+su_service/worker/

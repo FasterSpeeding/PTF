@@ -8,17 +8,13 @@ edition = "2018"
 
 [dependencies]
     async-trait     = "0.1.42"
-    # bitflags        = "1.2.1"
     dotenv          = "0.15.0"
     lazy_static     = "1.4.0"
 	log	            = "0.4.14"
-    regex           = "1.4.5"
-    serde_json      = "1.0.59"
     simple_logger   = "1.11.0"
-    time-parse      = "0.2.0"
-    urlencoding     = "1.1.1"
 
 [dependencies.chrono]
+    optional    = true
     version     = "0.4.2"
     features    = ["serde"]
 
@@ -27,22 +23,43 @@ edition = "2018"
     version     = "0.11.3"
     features    = ["json"]
 
+[dependencies.regex]
+    optional    = true
+    version     = "1.4.5"
+
 [dependencies.serde]
+    optional    = true
     version     = "1.0.117"
     features    = ["derive"]
 
+[dependencies.serde_json]
+    optional    = true
+    version     ="1.0.59"
+
 [dependencies.sqlx]
+    optional    = true
     version     = "0.5.1"
     features    = ["chrono", "runtime-tokio-native-tls", "uuid"]
 
+[dependencies.time-parse]
+    optional    = true
+    version     = "0.2.0"
+
+[dependencies.urlencoding]
+    optional    = true
+    version     = "1.1.1"
+
 [dependencies.uuid]
+    optional    = true
     version     = "0.8.2"
     features    = ["serde"]
 
 [dependencies.validator]
+    optional    = true
     version     = "0.13.0"
     features    = ["derive"]
 
 [features]
-    clients     = ["reqwest"]
-    postgres    = ["sqlx/postgres"]
+    clients     = ["dto_models", "reqwest", "serde_json", "urlencoding"]
+    dto_models  = ["chrono", "regex", "serde", "time-parse", "uuid", "validator"]
+    postgres    = ["chrono", "sqlx/postgres", "uuid"]

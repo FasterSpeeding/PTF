@@ -30,12 +30,14 @@
 // POSSIBILITY OF SUCH DAMAGE.
 #[cfg(feature = "clients")]
 pub mod clients;
+#[cfg(feature = "sqlx")]
 pub mod dao_models;
+#[cfg(feature = "dto_models")]
 pub mod dto_models;
-pub mod sql;
-
 #[cfg(feature = "postgres")]
 pub mod postgres;
+#[cfg(feature = "sqlx")]
+pub mod sql;
 
 
 #[derive(Debug)]

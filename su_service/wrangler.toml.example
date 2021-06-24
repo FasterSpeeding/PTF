@@ -1,0 +1,9 @@
+name = "su_service"
+type = "webpack"
+
+account_id = "453123312"
+workers_dev = true
+route = "/files/*"
+zone_id = "123123123123"
+
+webpack_config = "webpack.config.js"
