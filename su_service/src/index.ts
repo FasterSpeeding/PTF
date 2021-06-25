@@ -66,7 +66,7 @@ async function request(
             statusText: response.statusText,
             headers: new Headers(response.headers),
         });
-        response.headers.set("Forwarded", `by=${serviceName}`);
+        response.headers.set("Response-Source", `by=${serviceName}`);
         throw response;
     }
 
@@ -110,7 +110,6 @@ async function createFile(
         headers: {
             [CONTENT_TYPE_KEY]: JSON_TYPE,
             Location: location.replace("{link_token}", linkResponse.token),
-            Forwarded: "by=file_service",
         },
     });
 }
