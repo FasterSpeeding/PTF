@@ -50,17 +50,18 @@ function toMutableResponse(response: Response): Response {
     });
 }
 
-async function post(
+async function request(
     endpoint: string,
     auth: string,
     bodyInfo: { body: BodyT; contentType: string } = {
         body: "{}",
         contentType: JSON_TYPE,
-    }
+    },
+    method: string = "post"
 ): Promise<Response> {
     const options = {
         body: bodyInfo.body,
-        method: "post",
+        method: method,
         headers: {
             [AUTHORIZATION_KEY]: auth,
             [CONTENT_TYPE_KEY]: bodyInfo.contentType,
@@ -78,7 +79,7 @@ async function createFile(
 ): Promise<Response> {
     name = encodeURIComponent(name);
     // Create a new message
-    let messageResponse = await post(
+    let messageResponse = await request(
         `${process.env.MESSAGE_SERVICE_HOSTNAME}/messages`,
         auth
     );
@@ -91,7 +92,7 @@ async function createFile(
     const messageId: string = (await messageResponse.json()).id;
 
     // Create link
-    let linkResponse = await post(
+    let linkResponse = await request(
         `${process.env.AUTH_SERVICE_HOSTNAME}/messages/${messageId}/links`,
         auth
     );
@@ -104,18 +105,11 @@ async function createFile(
     const linkToken: string = (await linkResponse.json()).token;
 
     // Create file
-    let fileResponse = await fetch(
-        new Request(
-            `${process.env.FILE_SERVICE_HOSTNAME}/messages/${messageId}/files/${name}`,
-            {
-                body: data,
-                headers: {
-                    [AUTHORIZATION_KEY]: auth,
-                    [CONTENT_TYPE_KEY]: contentType,
-                },
-                method: "put",
-            }
-        )
+    let fileResponse = await request(
+        `${process.env.FILE_SERVICE_HOSTNAME}/messages/${messageId}/files/${name}`,
+        auth,
+        { body: data, contentType: contentType },
+        "put"
     );
 
     if (!wasSuccessful(fileResponse)) {
