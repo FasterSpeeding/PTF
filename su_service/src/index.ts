@@ -38,27 +38,16 @@ addEventListener("fetch", (event) => {
     event.respondWith(handleRequest(event.request));
 });
 
-function wasSuccessful(response: Response): boolean {
-    return response.status >= 200 && response.status < 300;
-}
-
-function toMutableResponse(response: Response): Response {
-    return new Response(response.body, {
-        status: response.status,
-        statusText: response.statusText,
-        headers: new Headers(response.headers),
-    });
-}
-
 async function request(
     endpoint: string,
     auth: string,
+    serviceName: string,
     bodyInfo: { body: BodyT; contentType: string } = {
         body: "{}",
         contentType: JSON_TYPE,
     },
     method: string = "post"
-): Promise<Response> {
+): Promise<any> {
     const options = {
         body: bodyInfo.body,
         method: method,
@@ -67,7 +56,21 @@ async function request(
             [CONTENT_TYPE_KEY]: bodyInfo.contentType,
         },
     };
-    return await fetch(new Request(endpoint, options));
+    let response = await fetch(new Request(endpoint, options));
+
+    // Check for failure
+    if (response.status < 200 || response.status >= 300) {
+        // response.headers is read-only for received responses so we have to replace this.
+        response = new Response(response.body, {
+            status: response.status,
+            statusText: response.statusText,
+            headers: new Headers(response.headers),
+        });
+        response.headers.set("Forwarded", `by=${serviceName}`);
+        throw response;
+    }
+
+    return await response.json();
 }
 
 async function createFile(
@@ -79,55 +82,36 @@ async function createFile(
 ): Promise<Response> {
     name = encodeURIComponent(name);
     // Create a new message
-    let messageResponse = await request(
+    const messageResponse = await request(
         `${process.env.MESSAGE_SERVICE_HOSTNAME}/messages`,
-        auth
+        auth,
+        "message-service"
     );
-    if (!wasSuccessful(messageResponse)) {
-        messageResponse = toMutableResponse(messageResponse);
-        messageResponse.headers.set("Forwarded", "by=message_service");
-        return messageResponse;
-    }
-
-    const messageId: string = (await messageResponse.json()).id;
 
     // Create link
-    let linkResponse = await request(
-        `${process.env.AUTH_SERVICE_HOSTNAME}/messages/${messageId}/links`,
-        auth
+    const linkResponse = await request(
+        `${process.env.AUTH_SERVICE_HOSTNAME}/messages/${messageResponse.id}/links`,
+        auth,
+        "auth-service"
     );
-    if (!wasSuccessful(linkResponse)) {
-        linkResponse = toMutableResponse(linkResponse);
-        linkResponse.headers.set("Forwarded", "by=auth_service");
-        return linkResponse;
-    }
-
-    const linkToken: string = (await linkResponse.json()).token;
 
     // Create file
-    let fileResponse = await request(
-        `${process.env.FILE_SERVICE_HOSTNAME}/messages/${messageId}/files/${name}`,
+    const responseData = await request(
+        `${process.env.FILE_SERVICE_HOSTNAME}/messages/${messageResponse.id}/files/${name}`,
         auth,
+        "file-service",
         { body: data, contentType: contentType },
         "put"
     );
 
-    if (!wasSuccessful(fileResponse)) {
-        fileResponse = toMutableResponse(fileResponse);
-        fileResponse.headers.set("Forwarded", "by=file_service");
-        return fileResponse;
-    }
-
-    const responseData = await fileResponse.json();
     const location: string = responseData.shareable_link;
-    const headers = new Headers(fileResponse.headers);
-    headers.set("Location", location.replace("{link_token}", linkToken));
-    headers.set("Forwarded", "by=file_service");
-
     return new Response(JSON.stringify(responseData), {
-        status: fileResponse.status,
-        statusText: fileResponse.statusText,
-        headers: headers,
+        status: 201,
+        headers: {
+            [CONTENT_TYPE_KEY]: JSON_TYPE,
+            Location: location.replace("{link_token}", linkResponse.token),
+            Forwarded: "by=file_service",
+        },
     });
 }
 
@@ -161,12 +145,19 @@ async function handleRequest(request: Request): Promise<Response> {
         return new Response("Missing body", { status: 400 });
     }
 
-    const expireAfter = url.searchParams.get("file_name");
-    return await createFile(
-        fileName,
-        request.body,
-        auth,
-        contentType,
-        expireAfter
-    );
+    try {
+        return await createFile(
+            fileName,
+            request.body,
+            auth,
+            contentType,
+            url.searchParams.get("file_name")
+        );
+    } catch (error) {
+        if (error instanceof Response) {
+            return error;
+        }
+
+        throw error;
+    }
 }
