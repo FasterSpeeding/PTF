@@ -31,7 +31,6 @@
 type BodyT = string | ReadableStream | FormData | URLSearchParams;
 
 const AUTHORIZATION_KEY = "Authorization";
-const BASE_URL = "https://ptf.cursed.solutions";
 const CONTENT_TYPE_KEY = "Content-Type";
 const JSON_TYPE = "application/json";
 
@@ -83,9 +82,12 @@ async function createFile(
     contentType: string,
     expireAfter: string | null = null
 ): Promise<Response> {
-    // Create a new message
     name = encodeURIComponent(name);
-    let messageResponse = await post(`${BASE_URL}/messages`, auth);
+    // Create a new message
+    let messageResponse = await post(
+        `${process.env.MESSAGE_SERVICE_HOSTNAME}/messages`,
+        auth
+    );
     if (!wasSuccessful(messageResponse)) {
         messageResponse = toMutableResponse(messageResponse);
         messageResponse.headers.set("Forwarded", "by=message_service");
@@ -96,7 +98,7 @@ async function createFile(
 
     // Create link
     let linkResponse = await post(
-        `${BASE_URL}/messages/${messageId}/links`,
+        `${process.env.AUTH_SERVICE_HOSTNAME}/messages/${messageId}/links`,
         auth
     );
     if (!wasSuccessful(linkResponse)) {
@@ -109,14 +111,17 @@ async function createFile(
 
     // Create file
     let fileResponse = await fetch(
-        new Request(`${BASE_URL}/messages/${messageId}/files/${name}`, {
-            body: data,
-            headers: {
-                [AUTHORIZATION_KEY]: auth,
-                [CONTENT_TYPE_KEY]: contentType,
-            },
-            method: "put",
-        })
+        new Request(
+            `${process.env.FILE_SERVICE_HOSTNAME}/messages/${messageId}/files/${name}`,
+            {
+                body: data,
+                headers: {
+                    [AUTHORIZATION_KEY]: auth,
+                    [CONTENT_TYPE_KEY]: contentType,
+                },
+                method: "put",
+            }
+        )
     );
 
     if (!wasSuccessful(fileResponse)) {

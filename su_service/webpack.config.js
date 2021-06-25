@@ -1,3 +1,4 @@
+const Dotenv = require("dotenv-webpack");
 const path = require("path");
 
 module.exports = {
@@ -9,6 +10,10 @@ module.exports = {
     mode: "production",
     // devtool: "none",
     // mode: "development",
+    plugins: [
+        // TODO: safe ture when this is done https://github.com/mrsteele/dotenv-webpack/issues/417
+        new Dotenv({ path: "../.env", safe: false }),
+    ],
     resolve: {
         extensions: [".ts"],
     },
@@ -22,5 +27,5 @@ module.exports = {
                 // },
             },
         ],
-    }
+    },
 };
