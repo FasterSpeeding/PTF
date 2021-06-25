@@ -17,7 +17,7 @@ updates:
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "javascript"
+  - package-ecosystem: "npm"
     directory: "/su_service"
     schedule:
       interval: "daily"
