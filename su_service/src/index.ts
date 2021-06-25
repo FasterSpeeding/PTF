@@ -39,20 +39,14 @@ addEventListener("fetch", (event) => {
 });
 
 function wasSuccessful(response: Response): boolean {
-    const contentType = response.headers.get(CONTENT_TYPE_KEY) || "";
-    return (
-        response.status >= 200 &&
-        response.status < 300 &&
-        contentType === JSON_TYPE
-    );
+    return response.status >= 200 && response.status < 300;
 }
 
 function toMutableResponse(response: Response): Response {
-    const headers = new Headers(response.headers);
     return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: headers,
+        headers: new Headers(response.headers),
     });
 }
 
