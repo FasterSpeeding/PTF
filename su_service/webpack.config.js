@@ -7,6 +7,8 @@ module.exports = {
         path: path.join(__dirname, "dist"),
     },
     mode: "production",
+    // devtool: "none",
+    // mode: "development",
     resolve: {
         extensions: [".ts"],
     },

@@ -48,6 +48,15 @@ function wasSuccessful(response: Response): boolean {
     );
 }
 
+function toMutableResponse(response: Response): Response {
+    const headers = new Headers(response.headers);
+    return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: headers,
+    });
+}
+
 async function post(
     endpoint: string,
     auth: string,
@@ -76,51 +85,71 @@ async function createFile(
 ): Promise<Response> {
     // Create a new message
     name = encodeURIComponent(name);
-    const messageResponse = await post(`${BASE_URL}/messages`, auth);
+    let messageResponse = await post(`${BASE_URL}/messages`, auth);
     if (!wasSuccessful(messageResponse)) {
+        messageResponse = toMutableResponse(messageResponse);
+        messageResponse.headers.set("Forwarded", "by=message_service");
         return messageResponse;
     }
 
     const messageId: string = (await messageResponse.json()).id;
 
     // Create link
-    const linkResponse = await post(`${BASE_URL}/messages/${messageId}`, auth);
+    let linkResponse = await post(
+        `${BASE_URL}/messages/${messageId}/links`,
+        auth
+    );
     if (!wasSuccessful(linkResponse)) {
+        linkResponse = toMutableResponse(linkResponse);
+        linkResponse.headers.set("Forwarded", "by=auth_service");
         return linkResponse;
     }
 
-    const linkToken: string = (await linkResponse.json()).link_token;
+    const linkToken: string = (await linkResponse.json()).token;
 
     // Create file
-    const fileResponse = await post(
-        `${BASE_URL}/messages/${messageId}/files/${name}`,
-        auth,
-        { body: data, contentType: contentType }
+    let fileResponse = await fetch(
+        new Request(`${BASE_URL}/messages/${messageId}/files/${name}`, {
+            body: data,
+            headers: {
+                [AUTHORIZATION_KEY]: auth,
+                [CONTENT_TYPE_KEY]: contentType,
+            },
+            method: "put",
+        })
     );
 
-    const location: string = (await fileResponse.json()).shareable_link;
-
-    if (wasSuccessful(fileResponse)) {
-        fileResponse.headers.set(
-            "Location",
-            location.replace("{link_token}", linkToken)
-        );
+    if (!wasSuccessful(fileResponse)) {
+        fileResponse = toMutableResponse(fileResponse);
+        fileResponse.headers.set("Forwarded", "by=file_service");
+        return fileResponse;
     }
-    return fileResponse;
+
+    const responseData = await fileResponse.json();
+    const location: string = responseData.shareable_link;
+    const headers = new Headers(fileResponse.headers);
+    headers.set("Location", location.replace("{link_token}", linkToken));
+    headers.set("Forwarded", "by=file_service");
+
+    return new Response(JSON.stringify(responseData), {
+        status: fileResponse.status,
+        statusText: fileResponse.statusText,
+        headers: headers,
+    });
 }
 
 async function handleRequest(request: Request): Promise<Response> {
-    if (request.method !== "POST") {
-        return new Response(null, { status: 404 });
-    }
-
     const url = new URL(request.url);
-
     const pathNames = url.pathname.split("/");
     const fileName = pathNames[pathNames.length - 1];
 
-    if (!fileName) {
+    // This expects /files/{file.name}
+    if (pathNames.length !== 3 || !fileName) {
         return new Response(null, { status: 404 });
+    }
+
+    if (request.method !== "POST") {
+        return new Response(null, { status: 405 });
     }
 
     const auth = request.headers.get(AUTHORIZATION_KEY);
