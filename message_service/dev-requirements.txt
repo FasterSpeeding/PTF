@@ -8,4 +8,4 @@ pytest~=6.2.4
 pytest-asyncio~=0.15.1
 pytest-cov~=2.12.1
 mock~=4.0.3
-sqlalchemy[mypy]==1.4.19
+sqlalchemy[mypy]==1.4.20
