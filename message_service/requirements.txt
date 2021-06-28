@@ -3,5 +3,5 @@ fastapi==0.65.2
 httpx[http2]==0.18.2
 python-dotenv==0.18.0
 pydantic==1.8.2
-sqlalchemy==1.4.19
+sqlalchemy==1.4.20
 uvicorn==0.14.0
