@@ -1,5 +1,5 @@
 asyncpg==0.23.0
-fastapi==0.65.2
+fastapi==0.66.0
 httpx[http2]==0.18.2
 python-dotenv==0.18.0
 pydantic==1.8.2
