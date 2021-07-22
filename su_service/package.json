@@ -24,7 +24,7 @@
     "devDependencies": {
         "@cloudflare/workers-types": "^2.0.0",
         "@cloudflare/wrangler": "^1.18.0",
-        "@types/node": "^16.4.0",
+        "@types/node": "^16.4.1",
         "@typescript-eslint/eslint-plugin": "^4.28.4",
         "@typescript-eslint/parser": "^4.28.4",
         "dotenv-webpack": "^7.0.3",
