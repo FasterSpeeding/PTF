@@ -3,14 +3,14 @@
 version: 2
 updates:
   - package-ecosystem: "cargo"
-    directory: "/auth_service" # Location of package manifests
+    directory: "/" # Location of package manifests
     schedule:
       interval: "daily"
 
-  - package-ecosystem: "cargo"
-    directory: "/file_service" # Location of package manifests
-    schedule:
-      interval: "daily"
+#   - package-ecosystem: "cargo"
+#     directory: "/file_service" # Location of package manifests
+#     schedule:
+#       interval: "daily"
 
   - package-ecosystem: "pip"
     directory: "/message_service" # Location of package manifests
