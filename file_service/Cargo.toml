@@ -25,11 +25,11 @@ edition = "2018"
 
 # This vendors openssl for actix-web on windows specifically
 [target.'cfg(windows)'.dependencies.openssl]
-    version     = "0.10.35"
+    version     = "0.10"
     features    = ["vendored"]
 
 [target.'cfg(not(windows))'.dependencies.openssl]
-    version = "0.10.33"
+    version = "0.10"
 
 [dependencies.shared]
     path        = "../shared"
