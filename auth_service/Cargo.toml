@@ -18,7 +18,7 @@ edition = "2018"
     validator   = "0.13.0"
 
 [dependencies.actix-web]
-    version     = "4.0.0-beta.4"
+    version     = "4.0.0-beta.8"
     features    = ["openssl"]
 
 # This vendors openssl for actix-web on windows specifically

@@ -16,7 +16,7 @@ edition = "2018"
     uuid        = "0.8.2"
 
 [dependencies.actix-web]
-    version     = "4.0.0-beta.4"
+    version     = "4.0.0-beta.8"
     features    = ["openssl"]
 
 [dependencies.chrono]
