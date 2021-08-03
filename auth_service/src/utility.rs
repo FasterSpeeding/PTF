@@ -38,41 +38,50 @@ use shared::sql::{Database, DatabaseResult};
 
 use crate::crypto;
 
-pub fn single_error(status: u16, detail: &str) -> HttpResponse {
+pub fn single_error(status: u16, detail: &str) -> actix_web::error::InternalError<&str> {
     let response =
         dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(status).detail(detail));
 
-    HttpResponse::build(http::StatusCode::from_u16(status).unwrap()).json(response)
+    actix_web::error::InternalError::from_response(
+        detail,
+        HttpResponse::build(http::StatusCode::from_u16(status).unwrap()).json(response)
+    )
 }
 
 
 pub fn with_location<'a>(
-    builder: &'a mut actix_web::dev::HttpResponseBuilder,
+    builder: &'a mut actix_web::HttpResponseBuilder,
     location: &str
-) -> &'a mut actix_web::dev::HttpResponseBuilder {
+) -> &'a mut actix_web::HttpResponseBuilder {
     builder
         .insert_header((http::header::CONTENT_LOCATION, location))
         .insert_header((http::header::LOCATION, location))
 }
 
 
-pub fn unauthorized_error(detail: &str) -> HttpResponse {
+pub fn unauthorized_error(detail: &str) -> actix_web::error::InternalError<&str> {
     let response = dto_models::ErrorsResponse::default().with_error(
         dto_models::Error::default()
             .status(http::StatusCode::UNAUTHORIZED.as_u16())
             .detail(detail)
     );
 
-    HttpResponse::Unauthorized()
-        .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
-        .json(response)
+    actix_web::error::InternalError::from_response(
+        detail,
+        HttpResponse::Unauthorized()
+            .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
+            .json(response)
+    )
 }
 
 
-pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str) -> Result<T, HttpResponse> {
+pub fn resolve_database_entry<T>(
+    result: DatabaseResult<T>,
+    resource_name: &str
+) -> Result<T, actix_web::error::InternalError<&str>> {
     match result {
         Ok(Some(entry)) => Ok(entry),
-        Ok(None) => Err(single_error(404, &format!("{} not found", resource_name))),
+        Ok(None) => Err(single_error(404, "Resource not found")), // TODO: include name in error msg
         Err(error) => {
             log::error!("Failed to get entry from SQL database due to {}", error);
 
@@ -86,7 +95,7 @@ pub async fn resolve_user(
     req: &HttpRequest,
     db: &web::Data<Arc<dyn Database>>,
     hasher: &web::Data<Arc<dyn Hasher>>
-) -> Result<shared::dao_models::User, HttpResponse> {
+) -> Result<shared::dao_models::User, actix_web::error::InternalError<&'static str>> {
     let value = req
         .headers()
         .get(http::header::AUTHORIZATION)
@@ -141,7 +150,7 @@ pub async fn resolve_flags(
     db: &web::Data<Arc<dyn Database>>,
     hasher: &web::Data<Arc<dyn Hasher>>,
     flags: i64
-) -> Result<shared::dao_models::User, HttpResponse> {
+) -> Result<shared::dao_models::User, actix_web::error::InternalError<&'static str>> {
     let user = resolve_user(req, db, hasher).await?;
 
     // Wanted flag(s) or ADMIN

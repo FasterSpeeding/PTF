@@ -58,7 +58,7 @@ async fn delete_current_user(
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let user = utility::resolve_user(&req, &db, &hasher).await?;
 
     match db.delete_user(&user.id).await {
@@ -77,7 +77,7 @@ async fn get_current_user(
     db: web::Data<Arc<dyn Database>>,
     hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     utility::resolve_user(&req, &db, &hasher)
         .await
         .map(shared::dto_models::User::from_dao)
@@ -91,10 +91,10 @@ async fn post_user(
     hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest,
     user: web::Json<dto_models::ReceivedUser>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     if let Err(error) = user.validate() {
         let response = dto_models::Error::from_validation_errors(&error);
-        return Err(HttpResponse::BadRequest().json(response));
+        return Ok(HttpResponse::BadRequest().json(response)); // TODO: Err?
     };
 
     utility::resolve_flags(&req, &db, &hasher, 1 << 2).await?;
@@ -126,10 +126,10 @@ async fn patch_current_user(
     hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest,
     user_update: web::Json<dto_models::UserUpdate>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     if let Err(error) = user_update.validate() {
         let response = dto_models::Error::from_validation_errors(&error);
-        return Err(HttpResponse::BadRequest().json(response));
+        return Ok(HttpResponse::BadRequest().json(response)); // TODO: Err?
     };
 
     let user = utility::resolve_user(&req, &db, &hasher).await?;
@@ -167,7 +167,7 @@ async fn patch_current_user(
 async fn get_message_link(
     db: web::Data<Arc<dyn Database>>,
     path: web::Path<String>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     match db.get_message_link(&path.into_inner()).await {
         Err(error) => {
             log::error!("Failed to get message link from db due to {:?}", error);
@@ -185,7 +185,7 @@ async fn delete_message_link(
     hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, link) = path.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;
@@ -211,7 +211,7 @@ async fn get_message_links(
     hasher: web::Data<Arc<dyn Hasher>>,
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let message_id = message_id.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;
 
@@ -244,7 +244,7 @@ async fn post_message_link(
     req: HttpRequest,
     message_id: web::Path<uuid::Uuid>,
     received_link: web::Json<dto_models::ReceivedMessageLink>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let message_id = message_id.into_inner();
     let user = utility::resolve_user(&req, &db, &hasher).await?;
     let message = utility::resolve_database_entry(db.get_message(&message_id).await, "message")?;

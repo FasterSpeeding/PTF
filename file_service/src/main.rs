@@ -74,7 +74,7 @@ async fn delete_message_file(
     db: web::Data<Arc<dyn Database>>,
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
 
     let user = auth_handler
@@ -104,7 +104,7 @@ async fn read_file(
     file: &dao_models::File,
     file_name: &str,
     file_reader: &web::Data<Arc<dyn files::FileReader>>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     file_reader
         .read_file(file)
         .await
@@ -128,7 +128,7 @@ async fn get_message_file(
     file_reader: web::Data<Arc<dyn files::FileReader>>,
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
 
     let user = auth_handler
@@ -153,7 +153,7 @@ async fn get_shared_message_file(
     db: web::Data<Arc<dyn Database>>,
     file_reader: web::Data<Arc<dyn files::FileReader>>,
     path: web::Path<(String, String)>
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (token, file_name) = path.into_inner();
 
     let link = auth_handler
@@ -175,7 +175,7 @@ async fn put_message_file(
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
     data: web::Bytes // data: web::Payload,
-) -> Result<HttpResponse, HttpResponse> {
+) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
     let content_type = req.content_type();
 
@@ -224,7 +224,7 @@ async fn save_file(
     file_name: &str,
     content_type: &str,
     data: &[u8] // ) -> clients::RestResult<dto_models::File> {
-) -> Result<dto_models::File, HttpResponse> {
+) -> Result<dto_models::File, actix_web::error::InternalError<&'static str>> {
     let date = chrono::Utc::now();
 
     // We save the file before making an SQL entry as while an entry-less file will

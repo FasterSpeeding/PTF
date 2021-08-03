@@ -32,7 +32,7 @@ use actix_web::{http, HttpRequest, HttpResponse};
 use shared::sql::DatabaseResult;
 use shared::{clients, dto_models};
 
-pub fn single_error(status: u16, detail: &str) -> HttpResponse {
+pub fn single_error(status: u16, detail: &str) -> actix_web::error::InternalError<&str> {
     let data =
         dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(status).detail(detail));
 
@@ -42,31 +42,26 @@ pub fn single_error(status: u16, detail: &str) -> HttpResponse {
         response.insert_header((http::header::WWW_AUTHENTICATE, "Basic"));
     };
 
-    response.json(data)
+    actix_web::error::InternalError::from_response(detail, response.json(data))
 }
 
 
-pub fn get_auth_header(req: &HttpRequest) -> Result<&str, HttpResponse> {
-    let result = match req.headers().get(http::header::AUTHORIZATION).map(|v| v.to_str()) {
+pub fn get_auth_header(req: &HttpRequest) -> Result<&str, actix_web::error::InternalError<&'static str>> {
+    match req.headers().get(http::header::AUTHORIZATION).map(|v| v.to_str()) {
         Some(Ok(value)) => Ok(value),
-        Some(Err(_)) => Err("Invalid authorization header"),
-        None => Err("Missing authorization header")
-    };
-
-    result.map_err(|message| {
-        let response =
-            dto_models::ErrorsResponse::default().with_error(dto_models::Error::default().status(401).detail(message));
-        HttpResponse::Unauthorized()
-            .insert_header((http::header::WWW_AUTHENTICATE, "Basic"))
-            .json(response)
-    })
+        Some(Err(_)) => Err(single_error(401, "Invalid authorization header")),
+        None => Err(single_error(401, "Missing authorization header"))
+    }
 }
 
 
-pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str) -> Result<T, HttpResponse> {
+pub fn resolve_database_entry<T>(
+    result: DatabaseResult<T>,
+    resource_name: &str
+) -> Result<T, actix_web::error::InternalError<&'static str>> {
     match result {
         Ok(Some(entry)) => Ok(entry),
-        Ok(None) => Err(single_error(404, &format!("{} not found", resource_name))),
+        Ok(None) => Err(single_error(404, "Resource not found")), // TODO: include name in error msg
         Err(error) => {
             log::error!("Failed to get entry from SQL database due to {}", error);
 
@@ -76,7 +71,7 @@ pub fn resolve_database_entry<T>(result: DatabaseResult<T>, resource_name: &str)
     }
 }
 
-pub fn map_auth_response(error: clients::RestError) -> HttpResponse {
+pub fn map_auth_response(error: clients::RestError) -> actix_web::error::InternalError<&'static str> {
     match error {
         clients::RestError::Error => single_error(500, "Internal server error"),
         clients::RestError::Response {
@@ -95,7 +90,11 @@ pub fn map_auth_response(error: clients::RestError) -> HttpResponse {
                 response.insert_header((http::header::CONTENT_TYPE, content_type));
             }
 
-            response.body(actix_web::body::Body::from_slice(&body))
+            // TODO: is that detail ok?
+            actix_web::error::InternalError::from_response(
+                "Failed to authorize",
+                response.body(actix_web::body::Body::from_slice(&body))
+            )
         }
     }
 }
