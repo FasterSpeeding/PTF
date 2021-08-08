@@ -607,6 +607,7 @@ dependencies = [
  "actix-web",
  "async-trait",
  "chrono",
+ "futures-core",
  "lazy_static",
  "log",
  "openssl",

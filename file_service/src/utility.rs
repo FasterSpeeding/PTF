@@ -28,6 +28,12 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
+use std::pin::Pin;
+use std::stream::Stream;
+use std::sync::{Arc, Mutex};
+use futures_core::Stream;
+use std::task::{Context, Poll};
+
 use actix_web::{http, HttpRequest, HttpResponse};
 use shared::sql::DatabaseResult;
 use shared::{clients, dto_models};
@@ -96,5 +102,54 @@ pub fn map_auth_response(error: clients::RestError) -> actix_web::error::Interna
                 response.body(actix_web::body::Body::from_slice(&body))
             )
         }
+    }
+}
+
+
+pub struct StreamResponse {
+    stream: Box<dyn Stream<Item = Vec<u8>>>
+}
+
+impl StreamResponse {
+    pub fn new(stream: Box<Stream<Item = Vec<u8>>>) -> StreamResponse {
+        StreamResponse { stream }
+    }
+}
+
+
+impl futures_core::stream::Stream for StreamResponse {
+    type Item = Vec<u8>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.stream.poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.stream.size_hint()
+    }
+}
+
+
+pub struct StreamBody {
+    payload: Arc<Mutex<actix_web::web::Payload>>
+}
+
+impl StreamBody {
+    pub fn new(payload: actix_web::web::Payload) -> StreamBody {
+        StreamBody {
+            payload: Arc::new(Mutex::new(payload))
+        }
+    }
+}
+
+impl Stream for StreamBody {
+    type Item = Vec<u8>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.payload.poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.payload.size_hint()
     }
 }

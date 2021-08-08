@@ -29,7 +29,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 #![allow(dead_code)]
-use std::sync::Arc;
+#![feature(async_stream)]
+use std::sync::{Arc, Mutex};
 
 use actix_web::http::header;
 use actix_web::{delete, get, http, put, web, App, HttpMessage, HttpRequest, HttpResponse, HttpServer};
@@ -103,7 +104,7 @@ async fn delete_message_file(
 async fn read_file(
     file: &dao_models::File,
     file_name: &str,
-    file_reader: &web::Data<Arc<dyn files::FileReader>>
+    file_reader: &web::Data<Arc<dyn files::FileClient>>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     file_reader
         .read_file(file)
@@ -112,7 +113,7 @@ async fn read_file(
             HttpResponse::Ok()
                 .insert_header((header::CONTENT_TYPE, file.content_type.clone()))
                 .insert_header(content_disposition(file_name))
-                .body(value)
+                .message_body(utility::StreamResponse::new(value)) // TODO: or Streaming
         })
         .map_err(|error| {
             log::error!("Failed to read file due to {:?}", error);
@@ -125,7 +126,7 @@ async fn read_file(
 async fn get_message_file(
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    file_reader: web::Data<Arc<dyn files::FileClient>>,
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
@@ -151,7 +152,7 @@ async fn get_message_file(
 async fn get_shared_message_file(
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    file_reader: web::Data<Arc<dyn files::FileClient>>,
     path: web::Path<(String, String)>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (token, file_name) = path.into_inner();
@@ -171,10 +172,10 @@ async fn get_shared_message_file(
 async fn put_message_file(
     auth_handler: web::Data<Arc<dyn clients::Auth>>,
     db: web::Data<Arc<dyn Database>>,
-    file_reader: web::Data<Arc<dyn files::FileReader>>,
+    file_reader: web::Data<Arc<dyn files::FileClient>>,
     req: HttpRequest,
     path: web::Path<(uuid::Uuid, String)>,
-    data: web::Bytes // data: web::Payload,
+    data: web::Payload // data: web::Bytes // data: web::Payload,
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
     let content_type = req.content_type();
@@ -207,7 +208,7 @@ async fn put_message_file(
         message_id,
         urlencoding::encode(&file_name)
     );
-    save_file(&db, &file_reader, &message.id, &file_name, content_type, &data)
+    save_file(&db, &file_reader, &message.id, &file_name, content_type, data)
         .await
         .map(|value| {
             HttpResponse::Ok()
@@ -219,19 +220,20 @@ async fn put_message_file(
 
 async fn save_file(
     db: &web::Data<Arc<dyn Database>>,
-    file_reader: &web::Data<Arc<dyn files::FileReader>>,
+    file_reader: &web::Data<Arc<dyn files::FileClient>>,
     message_id: &uuid::Uuid,
     file_name: &str,
     content_type: &str,
-    data: &[u8] // ) -> clients::RestResult<dto_models::File> {
+    data: web::Payload // data: &[u8] // ) -> clients::RestResult<dto_models::File> {
 ) -> Result<dto_models::File, actix_web::error::InternalError<&'static str>> {
     let date = chrono::Utc::now();
 
     // We save the file before making an SQL entry as while an entry-less file will
     // be ignored and eventually garbage collected, a file-less SQL entry will
     // persist and lead to errors if it's looked up
+    let stream = utility::StreamBody::new(data);
     file_reader
-        .save_file(&message_id, &date, file_name, data)
+        .save_file(&message_id, &date, file_name, Box::from(stream))
         .await
         .map_err(|error| {
             log::error!("Failed to save file due to {:?}", error);
@@ -252,7 +254,7 @@ async fn save_file(
 // #[actix_web::main]
 async fn actix_main() -> std::io::Result<()> {
     let auth_handler = clients::AuthClient::new(&AUTH_URL);
-    let file_reader = files::LocalReader::new(&FILE_BASE_URL);
+    let file_client = files::LocalClient::new(&FILE_BASE_URL);
     let pool = shared::postgres::Pool::connect(&DATABASE_URL).await.unwrap();
 
     let mut ssl_acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls_server()).unwrap();
@@ -264,7 +266,7 @@ async fn actix_main() -> std::io::Result<()> {
             .app_data(web::Data::new(Arc::from(auth_handler.clone()) as Arc<dyn clients::Auth>))
             .app_data(web::Data::new(Arc::from(pool.clone()) as Arc<dyn Database>))
             .app_data(web::Data::new(
-                Arc::from(file_reader.clone()) as Arc<dyn files::FileReader>
+                Arc::from(file_client.clone()) as Arc<dyn files::FileClient>
             ))
             .app_data(web::PayloadConfig::new(209_715_200)) // TODO: decide on size
             .service(delete_message_file)

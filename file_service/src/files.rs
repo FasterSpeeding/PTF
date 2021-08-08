@@ -30,31 +30,37 @@
 // POSSIBILITY OF SUCH DAMAGE.
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use std::stream::Stream;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 
 use async_trait::async_trait;
 
 
 #[async_trait]
-pub trait FileReader: Send + Sync {
+pub trait FileClient: Send + Sync {
     async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>>;
-    async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>>;
+    async fn read_file(
+        &self,
+        file: &shared::dao_models::File
+    ) -> Result<Box<dyn Stream<Item = Vec<u8>> + Send>, Box<dyn Error>>;
     async fn save_file(
         &self,
         message_id: &uuid::Uuid,
         set_at: &chrono::DateTime<chrono::Utc>,
         file_name: &str,
-        data: &[u8]
+        data: Box<dyn Stream<Item = Vec<u8>> + Send>
     ) -> Result<(), Box<dyn Error>>;
 }
 
 #[derive(Clone, Debug)]
-pub struct LocalReader {
+pub struct LocalClient {
     base_url: Arc<Path>
 }
 
 
-impl LocalReader {
+impl LocalClient {
     pub fn new(base_url: &str) -> Self {
         Self {
             base_url: Arc::from(Path::new(base_url))
@@ -69,18 +75,52 @@ impl LocalReader {
 }
 
 
+struct FileReader {
+    file: tokio::fs::File
+}
+
+impl FileReader {
+    fn new(file: tokio::fs::File) -> Self {
+        Self { file }
+    }
+}
+
+
+impl Stream for FileReader {
+    type Item = Vec<u8>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Poll::Pending
+        // let buf = tokio::io::ReadBuf();
+        // match self.file.poll_read(cx) {
+        //     Poll::Ready(Ok()) => {
+        //         Some()
+        //     },
+        //     Poll::Ready(Err(error)) => {
+
+        //     },
+        //     Poll::Pending => Poll::Pending
+        // }
+    }
+}
+
+
 #[async_trait]
-impl FileReader for LocalReader {
+impl FileClient for LocalClient {
     async fn delete_file(&self, file: &shared::dao_models::File) -> Result<(), Box<dyn Error>> {
         tokio::fs::remove_file(self.build_url(&file.message_id, &file.set_at))
             .await
             .map_err(Box::from)
     }
 
-    async fn read_file(&self, file: &shared::dao_models::File) -> Result<Vec<u8>, Box<dyn Error>> {
-        tokio::fs::read(self.build_url(&file.message_id, &file.set_at))
+    async fn read_file(
+        &self,
+        file: &shared::dao_models::File
+    ) -> Result<Box<dyn Stream<Item = Vec<u8>> + Send>, Box<dyn Error>> {
+        tokio::fs::File::open(self.build_url(&file.message_id, &file.set_at))
             .await
             .map_err(Box::from) // TODO: lazily read and return a stream
+            .map(|file| Box::from(FileReader::new(file)) as Box<dyn Stream<Item = Vec<u8>> + Send>)
     }
 
     async fn save_file(
@@ -88,10 +128,12 @@ impl FileReader for LocalReader {
         message_id: &uuid::Uuid,
         set_at: &chrono::DateTime<chrono::Utc>,
         _file_name: &str,
-        data: &[u8]
+        data: Box<dyn Stream<Item = Vec<u8>> + Send>
     ) -> Result<(), Box<dyn Error>> {
-        tokio::fs::write(self.build_url(message_id, set_at), data)
-            .await
-            .map_err(Box::from) // TODO: take a stream and lazily save
+        let file = tokio::fs::File::create(self.build_url(message_id, set_at)).await?;
+        Ok(())
+        // tokio::fs::write(self.build_url(message_id, set_at), data)
+        //     .await
+        //     .map_err(Box::from) // TODO: take a stream and lazily save
     }
 }
