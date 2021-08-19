@@ -4,4 +4,4 @@ httpx[http2]==0.18.2
 python-dotenv==0.19.0
 pydantic==1.8.2
 sqlalchemy==1.4.23
-uvicorn==0.14.0
+uvicorn==0.15.0
