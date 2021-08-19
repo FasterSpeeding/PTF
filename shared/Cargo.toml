@@ -38,7 +38,7 @@ edition = "2018"
 
 [dependencies.sqlx]
     optional    = true
-    version     = "0.5.5"
+    version     = "0.5.6"
     features    = ["chrono", "runtime-tokio-native-tls", "uuid"]
 
 [dependencies.time-parse]
