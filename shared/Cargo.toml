@@ -29,7 +29,7 @@ edition = "2018"
 
 [dependencies.serde]
     optional    = true
-    version     = "1.0.127"
+    version     = "1.0.129"
     features    = ["derive"]
 
 [dependencies.serde_json]
