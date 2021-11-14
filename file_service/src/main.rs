@@ -239,14 +239,14 @@ async fn save_file(
     // be ignored and eventually garbage collected, a file-less SQL entry will
     // persist and lead to errors if it's looked up
     file_reader
-        .save_file(&message_id, &date, &file_name, data)
+        .save_file(message_id, &date, file_name, data)
         .await
         .map_err(|error| {
             log::error!("Failed to save file due to {:?}", error);
             utility::single_error(500, "Internal server error")
         })?;
 
-    db.set_or_update_file(&message_id, &file_name, content_type, &date)
+    db.set_or_update_file(message_id, file_name, content_type, &date)
         .await
         .map(|value| dto_models::File::from_dao(value, &HOSTNAME))
         // TODO: should some cases of this actually be handled as the message not existing

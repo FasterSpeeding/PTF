@@ -128,7 +128,7 @@ pub async fn resolve_user(
         })?;
 
     match db.get_user_by_username(username).await {
-        Ok(Some(user)) => match hasher.verify(&user.password_hash, &password).await {
+        Ok(Some(user)) => match hasher.verify(&user.password_hash, password).await {
             Ok(true) => Ok(user),
             Ok(false) => Err(unauthorized_error("Incorrect username or password")),
             other => {

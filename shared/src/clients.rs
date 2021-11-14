@@ -57,7 +57,7 @@ impl RestError {
     }
 
     pub fn internal_server_error() -> Self {
-        Self::response(b"Internal server error", Some(&"text/plain; charset=UTF-8"), 500)
+        Self::response(b"Internal server error", Some("text/plain; charset=UTF-8"), 500)
     }
 
     pub fn authenticate(self, value: &str) -> Self {
@@ -133,7 +133,7 @@ impl Auth for AuthClient {
     async fn create_link(&self, authorization: &str, message_id: &uuid::Uuid) -> RestResult<dto_models::MessageLink> {
         let response = self
             .client
-            .post(format!("{}/messages/{}/links", self.base_url.to_string(), message_id))
+            .post(format!("{}/messages/{}/links", self.base_url, message_id))
             .json(&serde_json::json!({}))
             .header("Authorization", authorization)
             .send()
