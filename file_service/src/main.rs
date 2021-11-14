@@ -76,6 +76,8 @@ async fn delete_message_file(
     path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
+    // The current actix pre-release doesn't normalise this for us.
+    let file_name = urlencoding::decode(&file_name).map_err(|_| utility::single_error(400, "Invalid file name"))?;
 
     let user = auth_handler
         .resolve_user(utility::get_auth_header(&req)?)
@@ -130,6 +132,8 @@ async fn get_message_file(
     path: web::Path<(uuid::Uuid, String)>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
+    // The current actix pre-release doesn't normalise this for us.
+    let file_name = urlencoding::decode(&file_name).map_err(|_| utility::single_error(400, "Invalid file name"))?;
 
     let user = auth_handler
         .resolve_user(utility::get_auth_header(&req)?)
@@ -155,6 +159,8 @@ async fn get_shared_message_file(
     path: web::Path<(String, String)>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (token, file_name) = path.into_inner();
+    // The current actix pre-release doesn't normalise this for us.
+    let file_name = urlencoding::decode(&file_name).map_err(|_| utility::single_error(400, "Invalid file name"))?;
 
     let link = auth_handler
         .resolve_link(&token)
@@ -177,6 +183,8 @@ async fn put_message_file(
     data: web::Bytes // data: web::Payload,
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     let (message_id, file_name) = path.into_inner();
+    // The current actix pre-release doesn't normalise this for us.
+    let file_name = urlencoding::decode(&file_name).map_err(|_| utility::single_error(400, "Invalid file name"))?;
     let content_type = req.content_type();
 
     if file_name.len() > 120 {
@@ -231,14 +239,14 @@ async fn save_file(
     // be ignored and eventually garbage collected, a file-less SQL entry will
     // persist and lead to errors if it's looked up
     file_reader
-        .save_file(&message_id, &date, file_name, data)
+        .save_file(&message_id, &date, &file_name, data)
         .await
         .map_err(|error| {
             log::error!("Failed to save file due to {:?}", error);
             utility::single_error(500, "Internal server error")
         })?;
 
-    db.set_or_update_file(&message_id, file_name, content_type, &date)
+    db.set_or_update_file(&message_id, &file_name, content_type, &date)
         .await
         .map(|value| dto_models::File::from_dao(value, &HOSTNAME))
         // TODO: should some cases of this actually be handled as the message not existing
