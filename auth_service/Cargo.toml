@@ -15,7 +15,7 @@ lazy_static = "1.4.0"
 log         = "0.4.14"
 openssl     = "0.10"
 sodiumoxide = "0.2.6"  # Requires libsodium as a linked dependency
-validator   = "0.13.0"
+validator   = "0.14.0"
 
 [dependencies.actix-web]
 version     = "4.0.0-beta.10"
