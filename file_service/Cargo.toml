@@ -8,33 +8,33 @@ edition = "2018"
 
 
 [dependencies]
-    async-trait = "0.1.42"
-    lazy_static = "1.4.0"
-    log	        = "0.4.14"
-    openssl     = "0.10"
-    urlencoding = "1.1.1"
-    uuid        = "0.8.2"
+async-trait = "0.1.42"
+lazy_static = "1.4.0"
+log	        = "0.4.14"
+openssl     = "0.10"
+urlencoding = "1.1.1"
+uuid        = "0.8.2"
 
 [dependencies.actix-web]
-    version     = "4.0.0-beta.10"
-    features    = ["openssl"]
+version     = "4.0.0-beta.10"
+features    = ["openssl"]
 
 [dependencies.chrono]
-    version     = "0.4.2"
-    features    = ["serde"]
+version     = "0.4.2"
+features    = ["serde"]
 
 # This vendors openssl for actix-web on windows specifically
 [target.'cfg(windows)'.dependencies.openssl]
-    version     = "0.10"
-    features    = ["vendored"]
+version     = "0.10"
+features    = ["vendored"]
 
 [target.'cfg(not(windows))'.dependencies.openssl]
-    version = "0.10"
+version = "0.10"
 
 [dependencies.shared]
-    path        = "../shared"
-    features    = ["clients", "postgres"]
+path        = "../shared"
+features    = ["clients", "postgres"]
 
 [dependencies.tokio]
-    version     = "1.12.0"
-    features    = ["macros", "rt"]  # "io-util", "stream"
+version     = "1.12.0"
+features    = ["macros", "rt"]  # "io-util", "stream"

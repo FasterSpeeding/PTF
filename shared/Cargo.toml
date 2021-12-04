@@ -7,59 +7,59 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-    async-trait     = "0.1.42"
-    dotenv          = "0.15.0"
-    lazy_static     = "1.4.0"
-    log	            = "0.4.14"
-    simple_logger   = "1.11.0"
+async-trait     = "0.1.42"
+dotenv          = "0.15.0"
+lazy_static     = "1.4.0"
+log	            = "0.4.14"
+simple_logger   = "1.11.0"
 
 [dependencies.chrono]
-    optional    = true
-    version     = "0.4.2"
-    features    = ["serde"]
+optional    = true
+version     = "0.4.2"
+features    = ["serde"]
 
 [dependencies.reqwest]
-    optional    = true
-    version     = "0.11.5"
-    features    = ["json"]
+optional    = true
+version     = "0.11.5"
+features    = ["json"]
 
 [dependencies.regex]
-    optional    = true
-    version     = "1.4.6"
+optional    = true
+version     = "1.4.6"
 
 [dependencies.serde]
-    optional    = true
-    version     = "1.0.130"
-    features    = ["derive"]
+optional    = true
+version     = "1.0.130"
+features    = ["derive"]
 
 [dependencies.serde_json]
-    optional    = true
-    version     ="1.0.68"
+optional    = true
+version     ="1.0.68"
 
 [dependencies.sqlx]
-    optional    = true
-    version     = "0.5.9"
-    features    = ["chrono", "runtime-tokio-native-tls", "uuid"]
+optional    = true
+version     = "0.5.9"
+features    = ["chrono", "runtime-tokio-native-tls", "uuid"]
 
 [dependencies.time-parse]
-    optional    = true
-    version     = "0.2.0"
+optional    = true
+version     = "0.2.0"
 
 [dependencies.urlencoding]
-    optional    = true
-    version     = "1.1.1"
+optional    = true
+version     = "1.1.1"
 
 [dependencies.uuid]
-    optional    = true
-    version     = "0.8.2"
-    features    = ["serde"]
+optional    = true
+version     = "0.8.2"
+features    = ["serde"]
 
 [dependencies.validator]
-    optional    = true
-    version     = "0.13.0"
-    features    = ["derive"]
+optional    = true
+version     = "0.13.0"
+features    = ["derive"]
 
 [features]
-    clients     = ["dto_models", "reqwest", "serde_json", "urlencoding"]
-    dto_models  = ["chrono", "regex", "serde", "time-parse", "uuid", "validator"]
-    postgres    = ["chrono", "sqlx/postgres", "uuid"]
+clients     = ["dto_models", "reqwest", "serde_json", "urlencoding"]
+dto_models  = ["chrono", "regex", "serde", "time-parse", "uuid", "validator"]
+postgres    = ["chrono", "sqlx/postgres", "uuid"]

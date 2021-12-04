@@ -8,35 +8,35 @@ edition = "2018"
 
 
 [dependencies]
-    # actix-web-httpauth = "0.5.1"  # TODO: when actix web 4.0.0 releases
-    async-trait = "0.1.42"
-    chrono      = "0.4.2"
-    lazy_static = "1.4.0"
-    log         = "0.4.14"
-    openssl     = "0.10"
-    sodiumoxide = "0.2.6"  # Requires libsodium as a linked dependency
-    validator   = "0.13.0"
+# actix-web-httpauth = "0.5.1"  # TODO: when actix web 4.0.0 releases
+async-trait = "0.1.42"
+chrono      = "0.4.2"
+lazy_static = "1.4.0"
+log         = "0.4.14"
+openssl     = "0.10"
+sodiumoxide = "0.2.6"  # Requires libsodium as a linked dependency
+validator   = "0.13.0"
 
 [dependencies.actix-web]
-    version     = "4.0.0-beta.10"
-    features    = ["openssl"]
+version     = "4.0.0-beta.10"
+features    = ["openssl"]
 
 # This vendors openssl for actix-web on windows specifically
 [target.'cfg(windows)'.dependencies.openssl]
-    version     = "0.10"
-    features    = ["vendored"]
+version     = "0.10"
+features    = ["vendored"]
 
 [target.'cfg(not(windows))'.dependencies.openssl]
-    version = "0.10"
+version = "0.10"
 
 [dependencies.shared]
-    path        = "../shared"
-    features    = ["clients", "postgres"]
+path        = "../shared"
+features    = ["clients", "postgres"]
 
 [dependencies.tokio]
-    version     = "1.12.0"
-    features    = ["macros", "rt"]  # "io-util", "stream"
+version     = "1.12.0"
+features    = ["macros", "rt"]  # "io-util", "stream"
 
 [dependencies.uuid]
-    version     = "0.8.2"
-    features    = ["v4"]
+version     = "0.8.2"
+features    = ["v4"]
