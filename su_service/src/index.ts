@@ -35,7 +35,8 @@ const CONTENT_TYPE_KEY = "Content-Type";
 const JSON_TYPE = "application/json";
 
 addEventListener("fetch", (event) => {
-    event.respondWith(handleRequest(event.request));
+    const event_ = event as FetchEvent;
+    event_.respondWith(handleRequest(event_.request));
 });
 
 async function request(

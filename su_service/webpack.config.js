@@ -11,7 +11,7 @@ module.exports = {
     // devtool: "none",
     // mode: "development",
     plugins: [
-        // TODO: safe ture when this is done https://github.com/mrsteele/dotenv-webpack/issues/417
+        // TODO: safe true when this is done https://github.com/mrsteele/dotenv-webpack/issues/417
         new Dotenv({ path: "../.env", safe: false }),
     ],
     resolve: {
