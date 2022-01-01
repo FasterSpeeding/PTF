@@ -36,5 +36,5 @@ path        = "../shared"
 features    = ["clients", "postgres"]
 
 [dependencies.tokio]
-version     = "1.12.0"
+version     = "1.15.0"
 features    = ["macros", "rt"]  # "io-util", "stream"
