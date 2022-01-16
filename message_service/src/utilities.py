@@ -53,16 +53,16 @@ if typing.TYPE_CHECKING:
     from starlette import routing as starlette_routing
 
 
-MethodT = typing.Union[
-    typing.Literal["CONNECT"],
-    typing.Literal["DELETE"],
-    typing.Literal["GET"],
-    typing.Literal["HEAD"],
-    typing.Literal["OPTIONS"],
-    typing.Literal["PATCH"],
-    typing.Literal["POST"],
-    typing.Literal["PUT"],
-    typing.Literal["TRACE"],
+MethodT = typing.Literal[
+    "CONNECT",
+    "DELETE",
+    "GET",
+    "HEAD",
+    "OPTIONS",
+    "PATCH",
+    "POST",
+    "PUT",
+    "TRACE",
 ]
 
 
