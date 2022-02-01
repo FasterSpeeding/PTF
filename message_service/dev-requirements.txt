@@ -1,7 +1,7 @@
 black~=21.9b0
 coverage~=6.0
 mypy==0.910
-nox~=2021.10.1
+nox~=2022.1.7
 flake8==3.9.2
 isort==5.9.3
 pytest~=6.2.5
