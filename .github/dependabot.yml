@@ -14,8 +14,8 @@ updates:
     schedule:
       interval: "monthly"
 
-  - package-ecosystem: "npm"
-    directory: "/su_service"
-    open-pull-requests-limit: 10
-    schedule:
-      interval: "monthly"
+#   - package-ecosystem: "npm"
+#     directory: "/su_service"
+#     open-pull-requests-limit: 10
+#     schedule:
+#       interval: "monthly"
