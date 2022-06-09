@@ -56,7 +56,7 @@ features    = ["serde"]
 
 [dependencies.validator]
 optional    = true
-version     = "0.13.0"
+version     = "0.15.0"
 features    = ["derive"]
 
 [features]
