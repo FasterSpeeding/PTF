@@ -327,24 +327,6 @@ impl Error {
         };
         self
     }
-
-    pub fn from_validation_errors(errors: &validator::ValidationErrors) -> Self {
-        let result = Self::default();
-
-        // errors.errors().iter().
-        // TODO: implement this
-
-        result
-    }
-}
-
-fn path_validator_errors(error: &validator::ValidationErrorsKind) {
-    // TODO: implement this
-    match error {
-        validator::ValidationErrorsKind::Struct(errors) => {}
-        validator::ValidationErrorsKind::List(errors) => {}
-        validator::ValidationErrorsKind::Field(errors) => {}
-    }
 }
 
 

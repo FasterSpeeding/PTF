@@ -28,6 +28,8 @@
 // CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
+use std::fmt::Write;
+
 use async_trait::async_trait;
 use sqlx::Arguments;
 
@@ -270,19 +272,19 @@ impl sql::Database for Pool {
 
         if let Some(flags) = flags {
             index += 1;
-            query += &format!("flags = ${},", index);
+            write!(&mut query, "flags = ${},", index).unwrap();
             values.add(flags);
         };
 
         if let Some(value) = password_hash {
             index += 1;
-            query += &format!("password_hash = ${}", index);
+            write!(&mut query, "password_hash = ${}", index).unwrap();
             values.add(value);
         };
 
         if let Some(username) = username {
             index += 1;
-            query += &format!("username = ${},", index);
+            write!(&mut query, "username = ${},", index).unwrap();
             values.add(username);
         };
 

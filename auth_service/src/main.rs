@@ -93,8 +93,7 @@ async fn post_user(
     user: web::Json<dto_models::ReceivedUser>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     if let Err(error) = user.validate() {
-        let response = dto_models::Error::from_validation_errors(&error);
-        return Ok(HttpResponse::BadRequest().json(response)); // TODO: Err?
+        return Ok(HttpResponse::BadRequest().json(error)); // TODO: Err?
     };
 
     utility::resolve_flags(&req, &db, &hasher, 1 << 2).await?;
@@ -128,8 +127,7 @@ async fn patch_current_user(
     user_update: web::Json<dto_models::UserUpdate>
 ) -> Result<HttpResponse, actix_web::error::InternalError<&'static str>> {
     if let Err(error) = user_update.validate() {
-        let response = dto_models::Error::from_validation_errors(&error);
-        return Ok(HttpResponse::BadRequest().json(response)); // TODO: Err?
+        return Ok(HttpResponse::BadRequest().json(error)); // TODO: Err?
     };
 
     let user = utility::resolve_user(&req, &db, &hasher).await?;
