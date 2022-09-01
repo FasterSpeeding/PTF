@@ -20,7 +20,7 @@ version     = "4.0.0-beta.10"
 features    = ["openssl"]
 
 [dependencies.chrono]
-version     = "0.4.2"
+version     = "0.4.20"
 features    = ["serde"]
 
 # This vendors openssl for actix-web on windows specifically
