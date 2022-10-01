@@ -1,5 +1,5 @@
 black~=21.9b0
-coverage~=6.0
+coverage~=6.5
 mypy==0.960
 nox~=2021.10.1
 flake8==3.9.2
