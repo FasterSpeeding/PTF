@@ -47,7 +47,7 @@ version     = "0.2.0"
 
 [dependencies.urlencoding]
 optional    = true
-version     = "1.1.1"
+version     = "2.1.2"
 
 [dependencies.uuid]
 optional    = true
