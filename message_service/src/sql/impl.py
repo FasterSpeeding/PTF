@@ -70,8 +70,8 @@ class InsertErrorManager:
 
     def __exit__(
         self,
-        exc_type: typing.Optional[type[Exception]],
-        exc_val: typing.Optional[Exception],
+        exc_type: typing.Optional[type[BaseException]],
+        exc_val: typing.Optional[BaseException],
         exc_tb: typing.Optional[types.TracebackType],
     ) -> None:
         if exc_val is None:
