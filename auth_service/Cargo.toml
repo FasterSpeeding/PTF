@@ -9,7 +9,7 @@ edition = "2018"
 
 [dependencies]
 # actix-web-httpauth = "0.5.1"  # TODO: when actix web 4.0.0 releases
-async-trait = "0.1.42"
+async-trait = "0.1.64"
 chrono      = "0.4.2"
 lazy_static = "1.4.0"
 log         = "0.4.17"
