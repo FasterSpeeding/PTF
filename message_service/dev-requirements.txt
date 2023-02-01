@@ -1,4 +1,4 @@
-black~=21.9b0
+black~=23.1
 coverage~=6.0
 mypy==0.960
 nox~=2021.10.1
