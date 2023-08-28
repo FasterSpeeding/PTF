@@ -2,20 +2,17 @@
 
 version: 2
 updates:
-#   - package-ecosystem: "cargo"
-#     directory: "/" # Location of package manifests
-#     open-pull-requests-limit: 10
-#     schedule:
-#       interval: "monthly"
+   - package-ecosystem: "cargo"
+     directory: "/" # Location of package manifests
+     schedule:
+       interval: "monthly"
 
-#   - package-ecosystem: "pip"
-#     directory: "/message_service" # Location of package manifests
-#     open-pull-requests-limit: 10
-#     schedule:
-#       interval: "monthly"
+   - package-ecosystem: "pip"
+     directory: "/message_service" # Location of package manifests
+     schedule:
+       interval: "monthly"
 
-#   - package-ecosystem: "npm"
-#     directory: "/su_service"
-#     open-pull-requests-limit: 10
-#     schedule:
-#       interval: "monthly"
+   - package-ecosystem: "npm"
+     directory: "/su_service"
+     schedule:
+       interval: "monthly"
