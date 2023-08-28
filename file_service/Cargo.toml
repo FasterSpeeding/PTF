@@ -10,7 +10,7 @@ edition = "2018"
 [dependencies]
 async-trait = "0.1.42"
 lazy_static = "1.4.0"
-log	        = "0.4.17"
+log	        = "0.4.20"
 openssl     = "0.10"
 urlencoding = "1.1.1"
 uuid        = "0.8.2"
